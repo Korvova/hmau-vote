@@ -110,14 +110,14 @@ function UsersPage() {
 											<td>+7 904 245 67 77</td>
 											<td>Отдел маркетинга</td>
 											<td className="state state-off"><span></span></td>
-											<td class="user__nav">
-											<button class="user__button"><img src="/img/icon_10.png" alt=""></button>
-											<ul class="nav__links">
-												<li><button><img src="/img/icon_11.png" alt="">Редактировать</button></li>
-												<li><button><img src="/img/icon_12.png" alt="">Заблокировать</button></li>
-												<li><button><img src="/img/icon_13.png" alt="">В архив</button></li>
-												<li><button><img src="/img/icon_14.png" alt="">Удалить</button></li>
-											</ul>
+											<td className="user__nav">
+												<button className="user__button"><img src="/img/icon_10.png" alt="" /></button>
+												<ul className="nav__links">
+													<li><button data-fancybox="" data-src="#modal-user-edit"><img src="/img/icon_11.png" alt="" />Редактировать</button></li>
+													<li><button><img src="/img/icon_12.png" alt="" />Заблокировать</button></li>
+													<li><button><img src="/img/icon_13.png" alt="" />В архив</button></li>
+													<li><button><img src="/img/icon_14.png" alt="" />Удалить</button></li>
+												</ul>
 											</td>
 										</tr>
 										<tr>

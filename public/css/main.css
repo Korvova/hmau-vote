@@ -779,7 +779,7 @@ table tr td.input-id input {
   z-index: 10;
   top: calc(100% - 5px);
   right: calc(100% - 40px);
-  width: 174px;
+  width: 190px;
   border-radius: 10px;
   background-color: #fff;
   -webkit-box-shadow: 0 7px 14px 0 rgba(0,0,0,.3);
@@ -798,7 +798,9 @@ table tr td.input-id input {
   align-items: center;
   gap: 10px;
   border: none;
-  background-color: #fff
+  background-color: #fff;
+  color: #202022;
+  margin-left: -3px;
 }
 #page .page__table table tbody tr td.user__nav .nav__links li button:hover {
   color: #3388fa
