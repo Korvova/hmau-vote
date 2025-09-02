@@ -1,7 +1,66 @@
 import React from 'react';
+import EditModal from '../components/EditModal.jsx';
 
 function UsersPage() {
 	const [configOpen, setConfigOpen] = React.useState(false);
+  	const [selectedUser, setSelectedUser] = React.useState(null);
+  	const [isEditModalOpen, setEditModalOpen] = React.useState(false);
+
+	const users = [
+		{
+		id: 1,
+		fullName: 'Петров Иван Сергеевич',
+		email: 'petrov@mail.ru',
+		phone: '+7 904 245 67 77',
+		division: 'Отдел маркетинга',
+		status: 'off',
+		},
+		{
+		id: 2,
+		fullName: 'Сидорова Елена Андреевна',
+		email: 'petrov@mail.ru',
+		phone: '+7 904 245 67 77',
+		division: 'Отдел маркетинга',
+		status: 'on',
+		},
+		{
+		id: 3,
+		fullName: 'Иванов Вениамин Владимирович',
+		email: 'petrov@mail.ru',
+		phone: '+7 904 245 67 77',
+		division: 'Отдел маркетинга',
+		status: 'off',
+		},
+		{
+		id: 4,
+		fullName: 'Петров Иван Сергеевич',
+		email: 'petrov@mail.ru',
+		phone: '+7 904 245 67 77',
+		division: 'Отдел маркетинга',
+		status: 'off',
+		},
+	];
+
+	// Конфигурация полей для модалки редактирования пользователя
+	const userFields = [
+		{ name: 'fullName', label: 'ФИО', type: 'text', required: true },
+		{ name: 'email', label: 'E‑mail', type: 'text', required: true },
+		{ name: 'phone', label: 'Телефон', type: 'text', required: true },
+		{ name: 'division', label: 'Подразделение', type: 'text', required: false },
+	];
+
+	const handleEditClick = (user) => {
+		setSelectedUser(user);
+		setEditModalOpen(true);
+	};
+
+	const handleUpdate = (updatedData, password) => {
+		// Здесь можно отправить данные на сервер и проверить пароль
+		console.log('Updated data:', updatedData, 'Password:', password);
+		// После сохранения закрываем модалку
+		setEditModalOpen(false);
+	};
+
 	return (
 		<>
 			{/* HEADER */}
@@ -95,79 +154,57 @@ function UsersPage() {
 								<table>
 									<thead>
 										<tr>
-											<th>ФИО</th>
-											<th>E-mail</th>
-											<th>Моб. телефон</th>
-											<th>Подразделение</th>
-											<th className="th-state">Статус</th>
-											<th></th>
+										<th>ФИО</th>
+										<th>E‑mail</th>
+										<th>Моб. телефон</th>
+										<th>Подразделение</th>
+										<th className="th-state">Статус</th>
+										<th></th>
 										</tr>
 									</thead>
 									<tbody>
-										<tr>
-											<td>Петров Иван Сергеевич</td>
-											<td>petrov@mail.ru</td>
-											<td>+7 904 245 67 77</td>
-											<td>Отдел маркетинга</td>
-											<td className="state state-off"><span></span></td>
+										{users.map((user) => (
+										<tr key={user.id}>
+											<td>{user.fullName}</td>
+											<td>{user.email}</td>
+											<td>{user.phone}</td>
+											<td>{user.division}</td>
+											<td className={`state state-${user.status}`}>
+											<span></span>
+											</td>
 											<td className="user__nav">
-												<button className="user__button"><img src="/img/icon_10.png" alt="" /></button>
-												<ul className="nav__links">
-													<li><button data-fancybox="" data-src="#modal-user-edit"><img src="/img/icon_11.png" alt="" />Редактировать</button></li>
-													<li><button><img src="/img/icon_12.png" alt="" />Заблокировать</button></li>
-													<li><button><img src="/img/icon_13.png" alt="" />В архив</button></li>
-													<li><button><img src="/img/icon_14.png" alt="" />Удалить</button></li>
-												</ul>
+											<button className="user__button">
+												<img src="/img/icon_10.png" alt="" />
+											</button>
+											<ul className="nav__links">
+												<li>
+												<button onClick={() => handleEditClick(user)}>
+													<img src="/img/icon_11.png" alt="" />
+													Редактировать
+												</button>
+												</li>
+												<li>
+												<button>
+													<img src="/img/icon_12.png" alt="" />
+													Заблокировать
+												</button>
+												</li>
+												<li>
+												<button>
+													<img src="/img/icon_13.png" alt="" />
+													В архив
+												</button>
+												</li>
+												<li>
+												<button>
+													<img src="/img/icon_14.png" alt="" />
+													Удалить
+												</button>
+												</li>
+											</ul>
 											</td>
 										</tr>
-										<tr>
-											<td>Сидорова Елена Андреевна</td>
-											<td>petrov@mail.ru</td>
-											<td>+7 904 245 67 77</td>
-											<td>Отдел маркетинга</td>
-											<td className="state state-on"><span></span></td>
-											<td className="user__nav">
-												<button className="user__button"><img src="/img/icon_10.png" alt="" /></button>
-												<ul className="nav__links">
-													<li><button data-fancybox="" data-src="#modal-user-edit"><img src="/img/icon_11.png" alt="" />Редактировать</button></li>
-													<li><button><img src="/img/icon_12.png" alt="" />Заблокировать</button></li>
-													<li><button><img src="/img/icon_13.png" alt="" />В архив</button></li>
-													<li><button><img src="/img/icon_14.png" alt="" />Удалить</button></li>
-												</ul>
-											</td>
-										</tr>
-										<tr>
-											<td>Иванов Вениамин Владимирович</td>
-											<td>petrov@mail.ru</td>
-											<td>+7 904 245 67 77</td>
-											<td>Отдел маркетинга</td>
-											<td className="state state-off"><span></span></td>
-											<td className="user__nav">
-												<button className="user__button"><img src="/img/icon_10.png" alt="" /></button>
-												<ul className="nav__links">
-													<li><button data-fancybox="" data-src="#modal-user-edit"><img src="/img/icon_11.png" alt="" />Редактировать</button></li>
-													<li><button><img src="/img/icon_12.png" alt="" />Заблокировать</button></li>
-													<li><button><img src="/img/icon_13.png" alt="" />В архив</button></li>
-													<li><button><img src="/img/icon_14.png" alt="" />Удалить</button></li>
-												</ul>
-											</td>
-										</tr>
-										<tr>
-											<td>Петров Иван Сергеевич</td>
-											<td>petrov@mail.ru</td>
-											<td>+7 904 245 67 77</td>
-											<td>Отдел маркетинга</td>
-											<td className="state state-off"><span></span></td>
-											<td className="user__nav">
-												<button className="user__button"><img src="/img/icon_10.png" alt="" /></button>
-												<ul className="nav__links">
-													<li><button data-fancybox="" data-src="#modal-user-edit"><img src="/img/icon_11.png" alt="" />Редактировать</button></li>
-													<li><button><img src="/img/icon_12.png" alt="" />Заблокировать</button></li>
-													<li><button><img src="/img/icon_13.png" alt="" />В архив</button></li>
-													<li><button><img src="/img/icon_14.png" alt="" />Удалить</button></li>
-												</ul>
-											</td>
-										</tr>
+										))}
 									</tbody>
 								</table>
 							</div>
@@ -187,37 +224,13 @@ function UsersPage() {
 				</section>
 
 				{/* modal-user-edit */}
-				<div style={{ display: 'none' }} id="modal-user-edit" className="modal">
-					<div className="modal__heading center">
-						<h2>Редактировать пользователя</h2>
-					</div>
-					<div className="form__inner">
-						<form>
-							<div className="form__item">
-								<div className="item__title">ФИО <sup>*</sup></div>
-								<input type="text" placeholder="" defaultValue="Петров Иван Сергеевич" required />
-							</div>
-							<div className="form__wrapper">
-								<div className="form__item">
-									<div className="item__title">E-mail <sup>*</sup></div>
-									<input type="text" placeholder="" defaultValue="petrov@mail.ru" required />
-								</div>
-								<div className="form__item">
-									<div className="item__title">Телефон <sup>*</sup></div>
-									<input type="text" placeholder="" defaultValue="+7 905 989 29 28" required />
-								</div>
-							</div>
-							<div className="form__item">
-								<div className="item__title">Подразделение</div>
-								<input type="text" placeholder="" defaultValue="Без подразделения" />
-							</div>
-							<div className="form__submit">
-								<input type="text" className="pass" placeholder="Пароль" required />
-								<button type="submit" className="btn btn-big">Применить</button>
-							</div>
-						</form>
-					</div>
-				</div>
+				<EditModal
+					open={isEditModalOpen}
+					data={selectedUser}
+					fields={userFields}
+					onClose={() => setEditModalOpen(false)}
+					onSubmit={handleUpdate}
+				/>
 			</main>
 
 			{/* FOOTER */}
