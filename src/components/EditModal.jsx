@@ -1,34 +1,23 @@
 import React, { useState, useEffect } from 'react';
 
-/**
- * Универсальное модальное окно редактирования.
- *
- * @param {boolean} open — признак того, что окно открыто.
- * @param {Object|null} data — исходные данные выбранной строки.
- * @param {Array} fields — массив конфигураций полей: { name, label, type, required, options }.
- * @param {function} onClose — вызывается при закрытии модального окна.
- * @param {function} onSubmit — вызывается при подтверждении (получает formState и пароль).
- */
-function EditModal({ open, data, fields, onClose, onSubmit }) {
+function EditModal({ open, data, fields, onClose, onSubmit, title = 'Редактировать' }) {
   const [formState, setFormState] = useState({});
   const [password, setPassword] = useState('');
 
-  // При открытии модалки заполняем состояние исходными данными
   useEffect(() => {
     if (data && fields) {
       const initial = {};
-      fields.forEach((field) => {
-        initial[field.name] = data[field.name] ?? '';
+      fields.forEach((f) => {
+        initial[f.name] = data[f.name] ?? '';
       });
       setFormState(initial);
     }
   }, [data, fields]);
 
-  // Разбиваем поля на группы: [0], [1,2], [3,4], ...
+  // Группируем поля: первая строка одиночная, затем парами
   const groupedFields = [];
   if (fields) {
     for (let i = 0; i < fields.length; ) {
-      // первая группа всегда одиночная, далее — парами
       if (i === 0 || fields.length === 1) {
         groupedFields.push([fields[i]]);
         i += 1;
@@ -45,133 +34,161 @@ function EditModal({ open, data, fields, onClose, onSubmit }) {
 
   const handleSubmit = (e) => {
     e.preventDefault();
-    // Передаём собранные данные и пароль наверх
     onSubmit(formState, password);
   };
 
-  if (!open) {
-    return null;
-  }
+  if (!open) return null;
+
+  // Базовые стили оверлея и окна
+  const overlayStyle = {
+    position: 'fixed',
+    top: 0,
+    left: 0,
+    width: '100%',
+    height: '100%',
+    backgroundColor: 'rgba(0, 0, 0, 0.4)',
+    display: 'flex',
+    justifyContent: 'center',
+    alignItems: 'center',
+    zIndex: 999,
+  };
+
+  const modalStyle = {
+    backgroundColor: '#fff',
+    borderRadius: '8px',
+    padding: '32px',
+    width: '600px',
+    maxWidth: '90%',
+    boxShadow: '0 4px 12px rgba(0, 0, 0, 0.2)',
+    position: 'relative',
+  };
+
+  const closeButtonStyle = {
+    position: 'absolute',
+    top: '12px',
+    right: '12px',
+    fontSize: '18px',
+    background: 'none',
+    border: 'none',
+    cursor: 'pointer',
+  };
 
   return (
-    <div className="modal-overlay" onClick={onClose}>
-      <div className="modal" onClick={(e) => e.stopPropagation()}>
+    <div style={overlayStyle} onClick={onClose}>
+      <div style={modalStyle} onClick={(e) => e.stopPropagation()}>
         {/* Кнопка закрытия */}
-        <button className="modal__close" onClick={onClose}>
-          {/* Иконка можно оставить пустой или вставить свою */}
+        <button style={closeButtonStyle} onClick={onClose}>
           ×
         </button>
-
         {/* Заголовок */}
-        <div className="modal__heading center">
+        <div style={{ textAlign: 'center', marginBottom: '24px' }}>
           <h2>Редактировать</h2>
         </div>
-
         {/* Форма */}
-        <div className="form__inner">
-          <form onSubmit={handleSubmit}>
-            {groupedFields.map((group, groupIndex) =>
-              group.length === 1 ? (
-                // Одинарное поле
-                <div key={groupIndex} className="form__item">
-                  <div className="item__title">
-                    {group[0].label}
-                    {group[0].required && <sup>*</sup>}
+        <form onSubmit={handleSubmit}>
+          {groupedFields.map((group, idx) => (
+            group.length === 1 ? (
+              // Одиночное поле (полная ширина)
+              <div key={idx} style={{ marginBottom: '16px' }}>
+                <label style={{ display: 'block', marginBottom: '8px', fontSize: '14px' }}>
+                  {group[0].label}
+                  {group[0].required && <sup>*</sup>}
+                </label>
+                {group[0].type === 'select' ? (
+                  <select
+                    name={group[0].name}
+                    required={group[0].required}
+                    value={formState[group[0].name] ?? ''}
+                    onChange={(e) => handleChange(group[0].name, e.target.value)}
+                    style={{ width: '100%', padding: '12px', borderRadius: '6px', border: '1px solid #dcdcdc' }}
+                  >
+                    {group[0].options?.map((opt) => (
+                      <option key={opt.value ?? opt} value={opt.value ?? opt}>
+                        {opt.label ?? opt}
+                      </option>
+                    ))}
+                  </select>
+                ) : (
+                  <input
+                    type={group[0].type || 'text'}
+                    name={group[0].name}
+                    required={group[0].required}
+                    value={formState[group[0].name] ?? ''}
+                    onChange={(e) => handleChange(group[0].name, e.target.value)}
+                    style={{ width: '100%', padding: '12px', borderRadius: '6px', border: '1px solid #dcdcdc' }}
+                  />
+                )}
+              </div>
+            ) : (
+              // Пара полей в одной строке
+              <div key={idx} style={{ display: 'flex', gap: '20px', marginBottom: '16px' }}>
+                {group.map((field) => (
+                  <div key={field.name} style={{ flex: 1 }}>
+                    <label style={{ display: 'block', marginBottom: '8px', fontSize: '14px' }}>
+                      {field.label}
+                      {field.required && <sup>*</sup>}
+                    </label>
+                    {field.type === 'select' ? (
+                      <select
+                        name={field.name}
+                        required={field.required}
+                        value={formState[field.name] ?? ''}
+                        onChange={(e) => handleChange(field.name, e.target.value)}
+                        style={{ width: '100%', padding: '12px', borderRadius: '6px', border: '1px solid #dcdcdc' }}
+                      >
+                        {field.options?.map((opt) => (
+                          <option key={opt.value ?? opt} value={opt.value ?? opt}>
+                            {opt.label ?? opt}
+                          </option>
+                        ))}
+                      </select>
+                    ) : (
+                      <input
+                        type={field.type || 'text'}
+                        name={field.name}
+                        required={field.required}
+                        value={formState[field.name] ?? ''}
+                        onChange={(e) => handleChange(field.name, e.target.value)}
+                        style={{ width: '100%', padding: '12px', borderRadius: '6px', border: '1px solid #dcdcdc' }}
+                      />
+                    )}
                   </div>
-                    {/* text/textarea/select */}
-                  {group[0].type === 'textarea' ? (
-                    <textarea
-                      name={group[0].name}
-                      required={group[0].required}
-                      value={formState[group[0].name] ?? ''}
-                      onChange={(e) => handleChange(group[0].name, e.target.value)}
-                    />
-                  ) : group[0].type === 'select' ? (
-                    <select
-                      name={group[0].name}
-                      required={group[0].required}
-                      value={formState[group[0].name] ?? ''}
-                      onChange={(e) => handleChange(group[0].name, e.target.value)}
-                    >
-                      {group[0].options?.map((opt) => (
-                        <option key={opt.value ?? opt} value={opt.value ?? opt}>
-                          {opt.label ?? opt}
-                        </option>
-                      ))}
-                    </select>
-                  ) : (
-                    <input
-                      type={group[0].type || 'text'}
-                      name={group[0].name}
-                      required={group[0].required}
-                      value={formState[group[0].name] ?? ''}
-                      onChange={(e) => handleChange(group[0].name, e.target.value)}
-                    />
-                  )}
-                </div>
-              ) : (
-                // Группа из двух полей
-                <div key={groupIndex} className="form__wrapper">
-                  {group.map((field) => (
-                    <div key={field.name} className="form__item">
-                      <div className="item__title">
-                        {field.label}
-                        {field.required && <sup>*</sup>}
-                      </div>
-                      {field.type === 'textarea' ? (
-                        <textarea
-                          name={field.name}
-                          required={field.required}
-                          value={formState[field.name] ?? ''}
-                          onChange={(e) => handleChange(field.name, e.target.value)}
-                        />
-                      ) : field.type === 'select' ? (
-                        <select
-                          name={field.name}
-                          required={field.required}
-                          value={formState[field.name] ?? ''}
-                          onChange={(e) => handleChange(field.name, e.target.value)}
-                        >
-                          {field.options?.map((opt) => (
-                            <option key={opt.value ?? opt} value={opt.value ?? opt}>
-                              {opt.label ?? opt}
-                            </option>
-                          ))}
-                        </select>
-                      ) : (
-                        <input
-                          type={field.type || 'text'}
-                          name={field.name}
-                          required={field.required}
-                          value={formState[field.name] ?? ''}
-                          onChange={(e) => handleChange(field.name, e.target.value)}
-                        />
-                      )}
-                    </div>
-                  ))}
-                </div>
-              )
-            )}
+                ))}
+              </div>
+            )
+          ))}
 
-            {/* Пароль и кнопка отправки */}
-            <div className="form__submit">
-              <input
-                type="password"
-                className="pass"
-                placeholder="Пароль"
-                required
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-              />
-              <button type="submit" className="btn btn-big">
-                Применить
-              </button>
-            </div>
-          </form>
-        </div>
+          {/* Блок ввода пароля и кнопка подтверждения */}
+          <div style={{ display: 'flex', gap: '20px', marginTop: '24px', alignItems: 'center' }}>
+            <input
+              type="password"
+              placeholder="Пароль"
+              required
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              style={{ flex: 1, padding: '12px', borderRadius: '6px', border: '1px solid #dcdcdc' }}
+            />
+            <button
+              type="submit"
+              className="btn btn-big"
+              style={{
+                padding: '12px 24px',
+                backgroundColor: '#2b8af8',
+                color: '#fff',
+                border: 'none',
+                borderRadius: '6px',
+                fontSize: '14px',
+                cursor: 'pointer',
+              }}
+            >
+              Применить
+            </button>
+          </div>
+        </form>
       </div>
     </div>
   );
 }
 
 export default EditModal;
+

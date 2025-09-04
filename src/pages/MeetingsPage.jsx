@@ -1,299 +1,259 @@
-import React from 'react';
+import React, { useState } from 'react';
+import usePersistentList from '../utils/usePersistentList.js';
+import EditModal from '../components/EditModal.jsx';
+
+const LS_KEY = 'rms_meetings_v1';
 
 function MeetingsPage() {
-	const [configOpen, setConfigOpen] = React.useState(false);
-	return (
-		<>
-			{/* HEADER */}
-			<header className="page">
-				<div className="header__top">
-					<div className="container">
-						<div className="wrapper">
-							<div className="header__logo">
-								<div className="logo__inner">
-									<a href="/">
-										<img src="/img/logo.png" alt="" />
-									</a>
-								</div>
-							</div>
-							<div className="header__user">
-								<div className="user__inner">
-									<a href="#!" className="support">
-										<img src="/img/icon_1.png" alt="" />Поддержка
-									</a>
-									<ul>
-										<li className="menu-children">
-											<a href="#!">
-												<img src="/img/icon_2.png" alt="" />admin@admin.ru
-											</a>
-										</li>
-									</ul>
-								</div>
-							</div>
-						</div>
-					</div>
-				</div>
+  const [configOpen, setConfigOpen] = useState(false);
 
-				<div className="header__menu">
-					<div className="container">
-						<div className="wrapper">
-							<ul>
-								<li>
-									<a href="/users">Пользователи</a>
-								</li>
-								<li>
-									<a href="/divisions">Подразделения</a>
-								</li>
-								<li className="current-menu-item">
-									<a href="/meetings">Заседания</a>
-								</li>
-								<li>
-									<a href="/console">Пульт Заседания</a>
-								</li>
-								<li className={`menu-children${configOpen ? ' current-menu-item' : ''}`}>
-									<a href="#!" onClick={(e) => { e.preventDefault(); setConfigOpen(!configOpen); }}>Конфигурация</a>
-									<ul className="sub-menu" style={{ display: configOpen ? 'block' : 'none' }}>
-										<li><a href="/template">Шаблон голосования</a></li>
-										<li><a href="/vote">Процедура подсчета голосов</a></li>
-										<li><a href="/screen">Экран трансляции</a></li>
-										<li><a href="/linkprofile">Связать профиль с ID</a></li>
-									</ul>
-								</li>
-							</ul>
-						</div>
-					</div>
-				</div>
-			</header>
+  // стартовые данные (выравнены под текущую верстку)
+  const initialRows = [
+    {
+      id: 1,
+      title: 'Внесение изменений в Устав',
+      startDate: '2025-07-17',
+      startTime: '11:00',
+      endDate: '2025-07-17',
+      endTime: '15:00',
+      divisions: 'Рабочая группа по внесению изменений в Устав, совет директоров, отдел кадров',
+      status: 'WAITING', // WAITING | IN_PROGRESS | DONE
+    },
+    {
+      id: 2,
+      title: 'Внесение изменений в Устав',
+      startDate: '2025-07-17',
+      startTime: '11:00',
+      endDate: '2025-07-17',
+      endTime: '15:00',
+      divisions: 'Рабочая группа по внесению изменений в Устав, совет директоров, отдел кадров',
+      status: 'IN_PROGRESS',
+    },
+    {
+      id: 3,
+      title: 'Внесение изменений в Устав',
+      startDate: '2025-07-17',
+      startTime: '11:00',
+      endDate: '2025-07-17',
+      endTime: '15:00',
+      divisions: 'Рабочая группа по внесению изменений в Устав, совет директоров, отдел кадров',
+      status: 'DONE',
+    },
+  ];
 
-			{/* MAIN */}
-			<main>
-				<section id="page">
-					<div className="container">
-						<div className="wrapper">
-							<div className="page__top">
-								<div className="top__heading">
-									<h1>Заседания</h1>
-									<a href="#!" className="btn btn-add"><span>Добавить</span></a>
-								</div>
-								<div className="top__wrapper">
-									<select>
-										<option value="По дате начала">По дате начала</option>
-										<option value="По дате начала 1">По дате начала 1</option>
-										<option value="По дате начала 2">По дате начала 2</option>
-									</select>
-									<form className="search">
-										<input type="text" placeholder="Поиск" />
-										<button type="submit"></button>
-									</form>
-									<ul className="nav">
-										<li><a href="#!"><img src="/img/icon_20.png" alt="" /></a></li>
-										<li><a href="#!"><img src="/img/icon_8.png" alt="" /></a></li>
-										<li><a href="#!"><img src="/img/icon_9.png" alt="" /></a></li>
-									</ul>
-								</div>
-							</div>
-							<div className="page__table">
-								<table>
-									<thead>
-										<tr>
-											<th>Название</th>
-											<th>Начало</th>
-											<th>Конец</th>
-											<th>Подразделения</th>
-											<th>Статус</th>
-											<th></th>
-										</tr>
-									</thead>
-									<tbody>
-										<tr>
-											<td>Внесение изменений в Устав</td>
-											<td className="date">
-												17.07.2025 <span>11:00</span>
-											</td>
-											<td className="date">
-												17.07.2025 <span>15:00</span>
-											</td>
-											<td>Рабочая группа по внесению изменений в Устав, совет директоров, отдел кадров</td>
-											<td style={{ whiteSpace: 'nowrap' }}>Ждет запуска</td>
-											<td className="user__nav">
-												<button className="user__button"><img src="/img/icon_10.png" alt="" /></button>
-												<ul className="nav__links">
-													<li><button data-fancybox="" data-src="#modal-meetings-edit"><img src="/img/icon_11.png" alt="" />Редактировать</button></li>
-													<li><button><img src="/img/icon_21.png" alt="" />Результаты</button></li>
-													<li><button><img src="/img/icon_13.png" alt="" />В архив</button></li>
-													<li><button><img src="/img/icon_14.png" alt="" />Удалить</button></li>
-												</ul>
-											</td>
-										</tr>
-										<tr>
-											<td>Внесение изменений в Устав</td>
-											<td className="date">
-												17.07.2025 <span>11:00</span>
-											</td>
-											<td className="date">
-												17.07.2025 <span>15:00</span>
-											</td>
-											<td>Рабочая группа по внесению изменений в Устав, совет директоров, отдел кадров</td>
-											<td style={{ whiteSpace: 'nowrap' }}>Идет</td>
-											<td className="user__nav">
-												<button className="user__button"><img src="/img/icon_10.png" alt="" /></button>
-												<ul className="nav__links">
-													<li><button data-fancybox="" data-src="#modal-meetings-edit"><img src="/img/icon_11.png" alt="" />Редактировать</button></li>
-													<li><button><img src="/img/icon_21.png" alt="" />Результаты</button></li>
-													<li><button><img src="/img/icon_13.png" alt="" />В архив</button></li>
-													<li><button><img src="/img/icon_14.png" alt="" />Удалить</button></li>
-												</ul>
-											</td>
-										</tr>
-										<tr>
-											<td>Внесение изменений в Устав</td>
-											<td className="date">
-												17.07.2025 <span>11:00</span>
-											</td>
-											<td className="date">
-												17.07.2025 <span>15:00</span>
-											</td>
-											<td>Рабочая группа по внесению изменений в Устав, совет директоров, отдел кадров</td>
-											<td style={{ whiteSpace: 'nowrap' }}>Завершено</td>
-											<td className="user__nav">
-												<button className="user__button"><img src="/img/icon_10.png" alt="" /></button>
-												<ul className="nav__links">
-													<li><button data-fancybox="" data-src="#modal-meetings-edit"><img src="/img/icon_11.png" alt="" />Редактировать</button></li>
-													<li><button><img src="/img/icon_21.png" alt="" />Результаты</button></li>
-													<li><button><img src="/img/icon_13.png" alt="" />В архив</button></li>
-													<li><button><img src="/img/icon_14.png" alt="" />Удалить</button></li>
-												</ul>
-											</td>
-										</tr>
-								</tbody>
-							</table>
-						</div>
-						<div className="pagination">
-							<div className="wp-pagenavi">
-								<a href="#" className="previouspostslink"></a>
-								<a href="#">1</a>
-								<span>2</span>
-								<a href="#">3</a>
-								<a href="#">4</a>
-								<a href="#" className="nextpostslink"></a>
-							</div>
-						</div>
+  const [rows, setRows] = usePersistentList(LS_KEY, initialRows);
 
-					</div>
-					</div>
-				</section>
+  // модалка
+  const [selected, setSelected] = useState(null);
+  const [isOpen, setOpen] = useState(false);
+  const [isAdd, setAdd] = useState(false);
 
-				{/* modal-meetings-edit */}
-				<div style={{ display: 'none' }} id="modal-meetings-edit" className="modal">
-					<div className="modal__heading center">
-						<h2>Редактировать заседание</h2>
-					</div>
-					<div className="form__inner">
-						<form>
-							<div className="form__item">
-								<div className="item__title">Название заседания <sup>*</sup></div>
-								<input type="text" placeholder="" defaultValue="Заседание 1" required />
-							</div>
-							<div className="form__item form__item-small">
-								<div className="item__title">Дата и время начала заседания</div>
-								<input type="text" className="datetime" />
-							</div>
-							<div className="form__item form__item-small">
-								<div className="item__title">Дата и время окончания заседания</div>
-								<input type="text" className="datetime" />
-							</div>
-							<div className="form__item">
-								<div className="item__title">Добавить подразделение</div>
-								<select>
-									<option value="Без подразделения">Без подразделения</option>
-									<option value="Без подразделения 1">Без подразделения 1</option>
-									<option value="Без подразделения 2">Без подразделения 2</option>
-								</select>
-							</div>
-							<div className="form__item">
-								<div className="item__title">Участвующие подразделения:</div>
-								<div className="user__list">
-									<table>
-										<tbody>
-											<tr>
-												<td>Отдел маркетинга</td>
-												<td className="remove"><a href="#!"><img src="/img/icon_19.png" alt="" /></a></td>
-											</tr>
-											<tr>
-												<td>Группа по внесению изменений в Устав</td>
-												<td className="remove"><a href="#!"><img src="/img/icon_19.png" alt="" /></a></td>
-											</tr>
-											<tr>
-												<td>Отдел маркетинга</td>
-												<td className="remove"><a href="#!"><img src="/img/icon_19.png" alt="" /></a></td>
-											</tr>
-										</tbody>
-									</table>
-								</div>
-								<div className="total">
-									Итого: <strong>3 подразделения</strong>
-								</div>
-							</div>
-							<div className="questions">
-								<div className="questions__heading">
-									<h3>Вопросы</h3>
-									<a href="#!" className="btn btn-add"><span>Добавить</span></a>
-								</div>
-								<div className="questions__list">
-									<div className="list__item">
-										<div className="item__number">1.</div>
-										<div className="item__content">
-											<input type="text" className="input-question" defaultValue="Вопрос внесения изменений в Устав" />
-											<div className="item__wrapper">
-												<select>
-													<option value="" disabled>Докладчик</option>
-													<option value="Докладчик 1">Докладчик 1</option>
-													<option value="Докладчик 2">Докладчик 2</option>
-												</select>
-												<input type="text" placeholder="Ссылка" />
-											</div>
-										</div>
-										<div className="item__remove"><a href="#!"><img src="/img/icon_19.png" alt="" /></a></div>
-									</div>
-									<div className="list__item">
-										<div className="item__number">2.</div>
-										<div className="item__content">
-											<input type="text" className="input-question" defaultValue="Вопрос внесения изменений в Устав" />
-											<div className="item__wrapper">
-												<select>
-													<option value="" disabled>Докладчик</option>
-													<option value="Докладчик 1">Докладчик 1</option>
-													<option value="Докладчик 2">Докладчик 2</option>
-												</select>
-												<input type="text" placeholder="Ссылка" />
-											</div>
-										</div>
-										<div className="item__remove"><a href="#!"><img src="/img/icon_19.png" alt="" /></a></div>
-									</div>
-								</div>
-							</div>
-							<div className="form__submit">
-								<input type="text" className="pass" placeholder="Пароль" required />
-								<button type="submit" className="btn btn-big">Применить</button>
-							</div>
-						</form>
-					</div>
-				</div>
-			</main>
+  // поля формы для заседаний
+  const fields = [
+    { name: 'title', label: 'Название заседания', type: 'text', required: true },
+    { name: 'startDate', label: 'Дата начала', type: 'date', required: true },
+    { name: 'startTime', label: 'Время начала', type: 'time', required: true },
+    { name: 'endDate', label: 'Дата окончания', type: 'date', required: true },
+    { name: 'endTime', label: 'Время окончания', type: 'time', required: true },
+    { name: 'divisions', label: 'Подразделения', type: 'textarea', required: false },
+    { name: 'status', label: 'Статус', type: 'select', required: true, options: [
+      { label: 'Ждет запуска', value: 'WAITING' },
+      { label: 'Идет', value: 'IN_PROGRESS' },
+      { label: 'Завершено', value: 'DONE' },
+    ] },
+  ];
 
-			{/* FOOTER */}
-			<footer>
-				<section id="footer">
-					<div className="container">
-						<div className="wrapper">
-							<p>&copy; rms-group.ru</p>
-							<p>RMS Voting 1.01 – 2025</p>
-						</div>
-					</div>
-				</section>
-			</footer>
-		</>
-	);
+  const renderStatus = (status) => {
+    if (status === 'WAITING') return 'Ждет запуска';
+    if (status === 'IN_PROGRESS') return 'Идет';
+    return 'Завершено';
+  };
+
+  const handleAdd = (e) => {
+    e?.preventDefault?.();
+    setAdd(true);
+    setSelected({
+      id: null,
+      title: '',
+      startDate: '',
+      startTime: '',
+      endDate: '',
+      endTime: '',
+      divisions: '',
+      status: 'WAITING',
+    });
+    setOpen(true);
+  };
+
+  const handleEdit = (row) => {
+    setAdd(false);
+    setSelected(row);
+    setOpen(true);
+  };
+
+  const handleSubmit = (formData /*, password */) => {
+    if (isAdd) {
+      const newId = (rows.reduce((m, r) => Math.max(m, r.id), 0) || 0) + 1;
+      setRows((prev) => [{ id: newId, ...formData }, ...prev]);
+    } else if (selected) {
+      setRows((prev) => prev.map((r) => (r.id === selected.id ? { ...r, ...formData } : r)));
+    }
+    setOpen(false);
+  };
+
+  return (
+    <>
+      {/* HEADER */}
+      <header className="page">
+        <div className="header__top">
+          <div className="container">
+            <div className="wrapper">
+              <div className="header__logo">
+                <div className="logo__inner">
+                  <a href="/"><img src="/img/logo.png" alt="" /></a>
+                </div>
+              </div>
+              <div className="header__user">
+                <div className="user__inner">
+                  <a href="#!" className="support"><img src="/img/icon_1.png" alt="" />Поддержка</a>
+                  <ul>
+                    <li className="menu-children">
+                      <a href="#!"><img src="/img/icon_2.png" alt="" />admin@admin.ru</a>
+                    </li>
+                  </ul>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div className="header__menu">
+          <div className="container">
+            <div className="wrapper">
+              <ul>
+                <li><a href="/users">Пользователи</a></li>
+                <li><a href="/divisions">Подразделения</a></li>
+                <li className="current-menu-item"><a href="/meetings">Заседания</a></li>
+                <li><a href="/console">Пульт Заседания</a></li>
+                <li className={`menu-children${configOpen ? ' current-menu-item' : ''}`}>
+                  <a href="#!" onClick={(e) => { e.preventDefault(); setConfigOpen(!configOpen); }}>Конфигурация</a>
+                  <ul className="sub-menu" style={{ display: configOpen ? 'block' : 'none' }}>
+                    <li><a href="/template">Шаблон голосования</a></li>
+                    <li><a href="/vote">Процедура подсчета голосов</a></li>
+                    <li><a href="/screen">Экран трансляции</a></li>
+                    <li><a href="/linkprofile">Связать профиль с ID</a></li>
+                  </ul>
+                </li>
+              </ul>
+            </div>
+          </div>
+        </div>
+      </header>
+
+      {/* MAIN */}
+      <main>
+        <section id="page">
+          <div className="container">
+            <div className="wrapper">
+              <div className="page__top">
+                <div className="top__heading">
+                  <h1>Заседания</h1>
+                  <a href="#!" className="btn btn-add" onClick={handleAdd}><span>Добавить</span></a>
+                </div>
+                <div className="top__wrapper">
+                  <select>
+                    <option value="По дате начала">По дате начала</option>
+                    <option value="По дате начала 1">По дате начала 1</option>
+                    <option value="По дате начала 2">По дате начала 2</option>
+                  </select>
+                  <form className="search">
+                    <input type="text" placeholder="Поиск" />
+                    <button type="submit"></button>
+                  </form>
+                  <ul className="nav">
+                    <li><a href="#!"><img src="/img/icon_20.png" alt="" /></a></li>
+                    <li><a href="#!"><img src="/img/icon_8.png" alt="" /></a></li>
+                    <li><a href="#!"><img src="/img/icon_9.png" alt="" /></a></li>
+                  </ul>
+                </div>
+              </div>
+
+              <div className="page__table">
+                <table>
+                  <thead>
+                    <tr>
+                      <th>Название</th>
+                      <th>Начало</th>
+                      <th>Конец</th>
+                      <th>Подразделения</th>
+                      <th>Статус</th>
+                      <th></th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {rows.map((m) => (
+                      <tr key={m.id}>
+                        <td>{m.title}</td>
+                        <td className="date">{m.startDate} <span>{m.startTime}</span></td>
+                        <td className="date">{m.endDate} <span>{m.endTime}</span></td>
+                        <td>{m.divisions}</td>
+                        <td style={{ whiteSpace: 'nowrap' }}>{renderStatus(m.status)}</td>
+                        <td className="user__nav">
+                          <button className="user__button"><img src="/img/icon_10.png" alt="" /></button>
+                          <ul className="nav__links">
+                            <li>
+                              <button onClick={() => handleEdit(m)}>
+                                <img src="/img/icon_11.png" alt="" />Редактировать
+                              </button>
+                            </li>
+                            <li><button><img src="/img/icon_21.png" alt="" />Результаты</button></li>
+                            <li><button><img src="/img/icon_13.png" alt="" />В архив</button></li>
+                            <li><button><img src="/img/icon_14.png" alt="" />Удалить</button></li>
+                          </ul>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+
+              <div className="pagination">
+                <div className="wp-pagenavi">
+                  <a href="#" className="previouspostslink"></a>
+                  <a href="#">1</a>
+                  <span>2</span>
+                  <a href="#">3</a>
+                  <a href="#">4</a>
+                  <a href="#" className="nextpostslink"></a>
+                </div>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <EditModal
+          open={isOpen}
+          data={selected}
+          fields={fields}
+          title={isAdd ? 'Добавить заседание' : 'Редактировать заседание'}
+          onClose={() => setOpen(false)}
+          onSubmit={handleSubmit}
+        />
+      </main>
+
+      {/* FOOTER */}
+      <footer>
+        <section id="footer">
+          <div className="container">
+            <div className="wrapper">
+              <p>&copy; rms-group.ru</p>
+              <p>RMS Voting 1.01 – 2025</p>
+            </div>
+          </div>
+        </section>
+      </footer>
+    </>
+  );
 }
 
 export default MeetingsPage;

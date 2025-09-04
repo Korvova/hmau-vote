@@ -135,7 +135,8 @@ h6 {
   margin: auto
 }
 .btn.btn-big {
-  padding: 13px 25px
+  padding: 13px 25px;
+  margin:0
 }
 a {
   -webkit-transition: .25s all;
@@ -167,7 +168,8 @@ button:focus {
 img {
   max-width: 100%;
   -ms-flex-negative: 0;
-  flex-shrink: 0
+  flex-shrink: 0;
+  margin-bottom: 9px;
 }
 .center {
   text-align: center
@@ -768,7 +770,7 @@ table tr td.input-id input {
   -webkit-transition: .25s all;
   transition: .25s all;
   border: none;
-  margin: 0
+  margin-top: 0;
 }
 #page .page__table table tbody tr td.user__nav .user__button.active {
   background-color: #dde0e7

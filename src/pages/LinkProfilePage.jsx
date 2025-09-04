@@ -1,177 +1,193 @@
-import React from 'react';
+import React, { useState } from 'react';
+import usePersistentList from '../utils/usePersistentList.js';
+import EditModal from '../components/EditModal.jsx';
+
+const LS_KEY = 'rms_link_profile_v1';
 
 function LinkProfilePage() {
-	const [configOpen, setConfigOpen] = React.useState(true);
-	return (
-		<>
-			{/* HEADER */}
-			<header className="page">
-				<div className="header__top">
-					<div className="container">
-						<div className="wrapper">
-							<div className="header__logo">
-								<div className="logo__inner">
-									<a href="/">
-										<img src="/img/logo.png" alt="" />
-									</a>
-								</div>
-							</div>
-							<div className="header__user">
-								<div className="user__inner">
-									<a href="#!" className="support">
-										<img src="/img/icon_1.png" alt="" />Поддержка
-									</a>
-									<ul>
-										<li className="menu-children">
-											<a href="#!">
-												<img src="/img/icon_2.png" alt="" />admin@admin.ru
-											</a>
-										</li>
-									</ul>
-								</div>
-							</div>
-						</div>
-					</div>
-				</div>
+  const [configOpen, setConfigOpen] = useState(true);
 
-				<div className="header__menu">
-					<div className="container">
-						<div className="wrapper">
-							<ul>
-								<li>
-									<a href="/users">Пользователи</a>
-								</li>
-								<li>
-									<a href="/divisions">Подразделения</a>
-								</li>
-								<li>
-									<a href="/meetings">Заседания</a>
-								</li>
-								<li>
-									<a href="/console">Пульт Заседания</a>
-								</li>
-								<li className={`menu-children current-menu-item`}>
-									<a href="#!" onClick={(e) => { e.preventDefault(); setConfigOpen(!configOpen); }}>Конфигурация</a>
-									<ul className="sub-menu" style={{ display: configOpen ? 'block' : 'none' }}>
-										<li><a href="/template">Шаблон голосования</a></li>
-										<li><a href="/vote">Процедура подсчета голосов</a></li>
-										<li><a href="/screen">Экран трансляции</a></li>
-										<li className="current-menu-item"><a href="/linkprofile">Связать профиль с ID</a></li>
-									</ul>
-								</li>
-							</ul>
-						</div>
-					</div>
-				</div>
-			</header>
+  // Стартовые строки (совпадают с текущей таблицей: select + input + действия)
+  const initialRows = [
+    { id: 1, fullName: 'Иванов Н. А.', externalId: '124779' },
+    { id: 2, fullName: 'Иванов Н. Б.', externalId: '124779' },
+    { id: 3, fullName: 'Иванов Н. В.', externalId: '124779' },
+  ];
 
-			{/* MAIN */}
-			<main>
-				<section id="page">
-					<div className="container">
-						<div className="wrapper">
-							<div className="page__top">
-								<div className="top__heading">
-									<h1>Связать профиль с ID</h1>
-									<a href="#!" className="btn btn-add"><span>Добавить</span></a>
-								</div>
-								<div className="top__wrapper">
-									<form className="search">
-										<input type="text" placeholder="Поиск" />
-										<button type="submit"></button>
-									</form>
-								</div>
-							</div>
-							<div className="page__table page__table-profile">
-								<table>
-									<thead>
-										<tr>
-											<th>Пользователь</th>
-											<th>ID устройства</th>
-											<th>Действие</th>
-										</tr>
-									</thead>
-									<tbody>
-										<tr>
-											<td className="select-name">
-												<select>
-													<option value="Иванов Н. А.">Иванов Н. А.</option>
-													<option value="Иванов Н. Б.">Иванов Н. Б.</option>
-													<option value="Иванов Н. В.">Иванов Н. В.</option>
-												</select>
-											</td>
-											<td className="input-id"><input type="text" defaultValue="124779" /></td>
-											<td className="action action-small">
-												<ul>
-													<li><a href="#!"><img src="/img/icon_29.png" alt="" /></a></li>
-													<li><a href="#!"><img src="/img/icon_26.png" alt="" /></a></li>
-												</ul>
-											</td>
-										</tr>
-										<tr>
-											<td className="select-name">
-												<select>
-													<option value="Иванов Н. А.">Иванов Н. А.</option>
-													<option value="Иванов Н. Б.">Иванов Н. Б.</option>
-													<option value="Иванов Н. В.">Иванов Н. В.</option>
-												</select>
-											</td>
-											<td className="input-id"><input type="text" defaultValue="124779" /></td>
-											<td className="action action-small">
-												<ul>
-													<li><a href="#!"><img src="/img/icon_29.png" alt="" /></a></li>
-													<li><a href="#!"><img src="/img/icon_26.png" alt="" /></a></li>
-												</ul>
-											</td>
-										</tr>
-										<tr>
-											<td className="select-name">
-												<select>
-													<option value="Иванов Н. А.">Иванов Н. А.</option>
-													<option value="Иванов Н. Б.">Иванов Н. Б.</option>
-													<option value="Иванов Н. В.">Иванов Н. В.</option>
-												</select>
-											</td>
-											<td className="input-id"><input type="text" defaultValue="124779" /></td>
-											<td className="action action-small">
-												<ul>
-													<li><a href="#!"><img src="/img/icon_29.png" alt="" /></a></li>
-													<li><a href="#!"><img src="/img/icon_26.png" alt="" /></a></li>
-												</ul>
-											</td>
-										</tr>
-									</tbody>
-								</table>
-							</div>
-							<div className="pagination">
-								<div className="wp-pagenavi">
-									<a href="#" className="previouspostslink"></a>
-									<a href="#">1</a>
-									<span>2</span>
-									<a href="#">3</a>
-									<a href="#">4</a>
-									<a href="#" className="nextpostslink"></a>
-								</div>
-							</div>
+  const [rows, setRows] = usePersistentList(LS_KEY, initialRows);
+  const [selected, setSelected] = useState(null);
+  const [isOpen, setOpen] = useState(false);
+  const [isAdd, setAdd] = useState(false);
 
-						</div>
-					</div>
-				</section>
-			</main>
+  // Поля формы
+  const fields = [
+    { name: 'fullName', label: 'ФИО', type: 'text', required: true },
+    { name: 'externalId', label: 'ID', type: 'text', required: true },
+  ];
 
-			{/* FOOTER */}
-			<footer>
-				<section id="footer">
-					<div className="container">
-						<div className="wrapper">
-							<p>&copy; rms-group.ru</p>
-							<p>RMS Voting 1.01 – 2025</p>
-						</div>
-					</div>
-				</section>
-			</footer>
-		</>
-	);
+  const handleAdd = (e) => {
+    e?.preventDefault?.();
+    setAdd(true);
+    setSelected({ id: null, fullName: '', externalId: '' });
+    setOpen(true);
+  };
+
+  const handleEdit = (row) => {
+    setAdd(false);
+    setSelected(row);
+    setOpen(true);
+  };
+
+  const handleSubmit = (formData /*, password */) => {
+    if (isAdd) {
+      const newId = (rows.reduce((m, r) => Math.max(m, r.id), 0) || 0) + 1;
+      setRows((prev) => [{ id: newId, ...formData }, ...prev]);
+    } else if (selected) {
+      setRows((prev) => prev.map((r) => (r.id === selected.id ? { ...r, ...formData } : r)));
+    }
+    setOpen(false);
+  };
+
+  const nameOptions = ['Иванов Н. А.', 'Иванов Н. Б.', 'Иванов Н. В.'];
+
+  return (
+    <>
+      {/* HEADER */}
+      <header className="page">
+        <div className="header__top">
+          <div className="container">
+            <div className="wrapper">
+              <div className="header__logo">
+                <div className="logo__inner">
+                  <a href="/"><img src="/img/logo.png" alt="" /></a>
+                </div>
+              </div>
+              <div className="header__user">
+                <div className="user__inner">
+                  <a href="#!" className="support"><img src="/img/icon_1.png" alt="" />Поддержка</a>
+                  <ul>
+                    <li className="menu-children">
+                      <a href="#!"><img src="/img/icon_2.png" alt="" />admin@admin.ru</a>
+                    </li>
+                  </ul>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div className="header__menu">
+          <div className="container">
+            <div className="wrapper">
+              <ul>
+                <li><a href="/users">Пользователи</a></li>
+                <li><a href="/divisions">Подразделения</a></li>
+                <li><a href="/meetings">Заседания</a></li>
+                <li><a href="/console">Пульт Заседания</a></li>
+                <li className={`menu-children${configOpen ? ' current-menu-item' : ''}`}>
+                  <a href="#!" onClick={(e) => { e.preventDefault(); setConfigOpen(!configOpen); }}>Конфигурация</a>
+                  <ul className="sub-menu" style={{ display: configOpen ? 'block' : 'none' }}>
+                    <li><a href="/template">Шаблон голосования</a></li>
+                    <li><a href="/vote">Процедура подсчета голосов</a></li>
+                    <li><a href="/screen">Экран трансляции</a></li>
+                    <li className="current-menu-item"><a href="/linkprofile">Связать профиль с ID</a></li>
+                  </ul>
+                </li>
+              </ul>
+            </div>
+          </div>
+        </div>
+      </header>
+
+      {/* MAIN */}
+      <main>
+        <section id="page">
+          <div className="container">
+            <div className="wrapper">
+              <div className="page__top">
+                <div className="top__heading">
+                  <h1>Связать профиль с ID</h1>
+                  <a href="#!" className="btn btn-add" onClick={handleAdd}><span>Добавить</span></a>
+                </div>
+              </div>
+
+              <div className="page__table">
+                <table>
+                  <thead>
+                    <tr>
+                      <th>ФИО</th>
+                      <th>ID</th>
+                      <th></th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {rows.map((row) => (
+                      <tr key={row.id}>
+                        <td className="select-name">
+                          {/* оставляем select как в макете */}
+                          <select
+                            value={row.fullName}
+                            onChange={(e) => {
+                              const v = e.target.value;
+                              setRows((prev) => prev.map((r) => (r.id === row.id ? { ...r, fullName: v } : r)));
+                            }}
+                          >
+                            {nameOptions.map((n) => (
+                              <option key={n} value={n}>{n}</option>
+                            ))}
+                          </select>
+                        </td>
+                        <td className="input-id">
+                          <input
+                            type="text"
+                            value={row.externalId}
+                            onChange={(e) => {
+                              const v = e.target.value;
+                              setRows((prev) => prev.map((r) => (r.id === row.id ? { ...r, externalId: v } : r)));
+                            }}
+                          />
+                        </td>
+                        <td className="action action-small">
+                          <ul>
+                            {/* первая иконка — редактирование через модалку (оставляю структуру) */}
+                            <li><a href="#!" onClick={(e) => { e.preventDefault(); handleEdit(row); }}><img src="/img/icon_29.png" alt="" /></a></li>
+                            <li><a href="#!"><img src="/img/icon_26.png" alt="" /></a></li>
+                          </ul>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+
+            </div>
+          </div>
+        </section>
+
+        <EditModal
+          open={isOpen}
+          data={selected}
+          fields={fields}
+          title={isAdd ? 'Добавить связь профиля' : 'Редактировать связь профиля'}
+          onClose={() => setOpen(false)}
+          onSubmit={handleSubmit}
+        />
+      </main>
+
+      {/* FOOTER */}
+      <footer>
+        <section id="footer">
+          <div className="container">
+            <div className="wrapper">
+              <p>&copy; rms-group.ru</p>
+              <p>RMS Voting 1.01 – 2025</p>
+            </div>
+          </div>
+        </section>
+      </footer>
+    </>
+  );
 }
 
 export default LinkProfilePage;
+
