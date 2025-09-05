@@ -100,7 +100,8 @@ h6 {
   border: none;
   -webkit-transition: .25s all;
   transition: .25s all;
-  min-width: 127px
+  min-width: 127px;
+  margin-top: 0;
 }
 .btn:hover {
   color: #fff;

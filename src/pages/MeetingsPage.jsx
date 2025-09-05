@@ -1,13 +1,14 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import usePersistentList from '../utils/usePersistentList.js';
-import EditModal from '../components/EditModal.jsx';
+import MeetingModal from '../components/MeetingModal.jsx';
+import { getDivisions, getUsers } from '../utils/api.js';
 
 const LS_KEY = 'rms_meetings_v1';
 
 function MeetingsPage() {
   const [configOpen, setConfigOpen] = useState(false);
 
-  // стартовые данные (выравнены под текущую верстку)
+  // ��������� ������ (��������� ��� ������� �������)
   const initialRows = [
     {
       id: 1,
@@ -42,13 +43,29 @@ function MeetingsPage() {
   ];
 
   const [rows, setRows] = usePersistentList(LS_KEY, initialRows);
+  const [divisions, setDivisions] = useState([]);
+  const [users, setUsers] = useState([]);
 
-  // модалка
   const [selected, setSelected] = useState(null);
   const [isOpen, setOpen] = useState(false);
   const [isAdd, setAdd] = useState(false);
 
-  // поля формы для заседаний
+  // Load divisions and users for modal selects (best-effort; tolerate failures)
+  useEffect(() => {
+    const load = async () => {
+      try {
+        const [ds, us] = await Promise.all([
+          getDivisions().catch(() => []),
+          getUsers().catch(() => []),
+        ]);
+        setDivisions(Array.isArray(ds) ? ds : []);
+        setUsers(Array.isArray(us) ? us : []);
+      } catch {}
+    };
+    load();
+  }, []);
+
+  // Поля для формы заседаний
   const fields = [
     { name: 'title', label: 'Название заседания', type: 'text', required: true },
     { name: 'startDate', label: 'Дата начала', type: 'date', required: true },
@@ -57,14 +74,14 @@ function MeetingsPage() {
     { name: 'endTime', label: 'Время окончания', type: 'time', required: true },
     { name: 'divisions', label: 'Подразделения', type: 'textarea', required: false },
     { name: 'status', label: 'Статус', type: 'select', required: true, options: [
-      { label: 'Ждет запуска', value: 'WAITING' },
+      { label: 'Ждёт запуска', value: 'WAITING' },
       { label: 'Идет', value: 'IN_PROGRESS' },
       { label: 'Завершено', value: 'DONE' },
     ] },
   ];
 
   const renderStatus = (status) => {
-    if (status === 'WAITING') return 'Ждет запуска';
+    if (status === 'WAITING') return 'Ждёт запуска';
     if (status === 'IN_PROGRESS') return 'Идет';
     return 'Завершено';
   };
@@ -87,18 +104,25 @@ function MeetingsPage() {
 
   const handleEdit = (row) => {
     setAdd(false);
-    setSelected(row);
+    setSelected({ ...row });
     setOpen(true);
   };
 
   const handleSubmit = (formData /*, password */) => {
     if (isAdd) {
       const newId = (rows.reduce((m, r) => Math.max(m, r.id), 0) || 0) + 1;
-      setRows((prev) => [{ id: newId, ...formData }, ...prev]);
+      setRows((prev) => [{ id: newId, status: 'WAITING', ...formData }, ...prev]);
     } else if (selected) {
       setRows((prev) => prev.map((r) => (r.id === selected.id ? { ...r, ...formData } : r)));
     }
     setOpen(false);
+  };
+
+  const handleDelete = (id, e) => {
+    e?.preventDefault?.();
+    e?.stopPropagation?.();
+    if (!window.confirm('Удалить заседание?')) return;
+    setRows(prev => prev.filter(r => r.id !== id));
   };
 
   return (
@@ -134,12 +158,12 @@ function MeetingsPage() {
                 <li><a href="/users">Пользователи</a></li>
                 <li><a href="/divisions">Подразделения</a></li>
                 <li className="current-menu-item"><a href="/meetings">Заседания</a></li>
-                <li><a href="/console">Пульт Заседания</a></li>
+                <li><a href="/console">Пульт заседания</a></li>
                 <li className={`menu-children${configOpen ? ' current-menu-item' : ''}`}>
                   <a href="#!" onClick={(e) => { e.preventDefault(); setConfigOpen(!configOpen); }}>Конфигурация</a>
                   <ul className="sub-menu" style={{ display: configOpen ? 'block' : 'none' }}>
-                    <li><a href="/template">Шаблон голосования</a></li>
-                    <li><a href="/vote">Процедура подсчета голосов</a></li>
+                    <li><a href="/template">Шаблоны голосования</a></li>
+                    <li><a href="/vote">Процедура подсчёта голосов</a></li>
                     <li><a href="/screen">Экран трансляции</a></li>
                     <li><a href="/linkprofile">Связать профиль с ID</a></li>
                   </ul>
@@ -199,7 +223,7 @@ function MeetingsPage() {
                             </li>
                             <li><button><img src="/img/icon_21.png" alt="" />Результат</button></li>
                             <li><button><img src="/img/icon_13.png" alt="" />В архив</button></li>
-                            <li><button><img src="/img/icon_14.png" alt="" />Удалить</button></li>
+                            <li><button onClick={(e) => handleDelete(m.id, e)}><img src="/img/icon_14.png" alt="" />Удалить</button></li>
                           </ul>
                         </td>
                       </tr>
@@ -222,11 +246,11 @@ function MeetingsPage() {
           </div>
         </section>
 
-        <EditModal
+        <MeetingModal
           open={isOpen}
           data={selected}
-          fields={fields}
-          title={isAdd ? 'Добавить заседание' : 'Редактировать заседание'}
+          divisions={divisions}
+          users={users}
           onClose={() => setOpen(false)}
           onSubmit={handleSubmit}
         />
@@ -238,7 +262,7 @@ function MeetingsPage() {
           <div className="container">
             <div className="wrapper">
               <p>&copy; rms-group.ru</p>
-              <p>RMS Voting 1.01 – 2025</p>
+              <p>RMS Voting 1.01 © 2025</p>
             </div>
           </div>
         </section>
@@ -248,3 +272,6 @@ function MeetingsPage() {
 }
 
 export default MeetingsPage;
+
+
+

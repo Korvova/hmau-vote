@@ -318,7 +318,7 @@ function ConfigPage() {
                                   </button>
                                 </li>
                                 <li>
-                                  <button>
+                                  <button onClick={(e) => handleDeleteMeeting(m.id, e)}>
                                     <img src="/img/icon_14.png" alt="" />
                                     Удалить
                                   </button>
@@ -373,4 +373,6 @@ function ConfigPage() {
 }
 
 export default ConfigPage;
+
+
 
