@@ -228,15 +228,6 @@ function ConfigPage() {
                   </a>
                 </div>
                 <div className="top__wrapper">
-                  <select>
-                    <option value="По дате начала">По дате начала</option>
-                    <option value="По дате начала 1">По дате начала 1</option>
-                    <option value="По дате начала 2">По дате начала 2</option>
-                  </select>
-                  <form className="search">
-                    <input type="text" placeholder="Поиск" />
-                    <button type="submit"></button>
-                  </form>
                   <ul className="nav">
                     <li>
                       <a href="#!">
@@ -264,9 +255,8 @@ function ConfigPage() {
                       <th>Название</th>
                       <th>Начало</th>
                       <th>Конец</th>
-                      <th>Подразделения</th>
+                      <th>Подразделение</th>
                       <th>Статус</th>
-                      <th>Результат</th>
                       <th>Действие</th>
                       <th></th>
                     </tr>
@@ -288,7 +278,6 @@ function ConfigPage() {
                             </td>
                             <td>{m.divisions}</td>
                             <td style={{ whiteSpace: 'nowrap' }}>{renderStatus(m.status)}</td>
-                            <td>{showPdf(m.status) ? <a href="#!"><img src="/img/icon_23.png" alt="" /></a> : ''}</td>
                             <td>
                               <a
                                 href="#!"
@@ -314,7 +303,7 @@ function ConfigPage() {
                                 <li>
                                   <button onClick={() => handleMeetingClick(m.id)}>
                                     <img src="/img/icon_21.png" alt="" />
-                                    Результаты
+                                    Результат
                                   </button>
                                 </li>
                                 <li>

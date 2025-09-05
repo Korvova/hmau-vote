@@ -25,9 +25,22 @@ const httpServer = createServer(app);
  * Настроен с поддержкой CORS для указанного источника.
  * @type {Object}
  */
+const allowedOrigins = [
+  'http://217.114.10.226',
+  'http://localhost:5173',
+  'http://localhost:3000',
+  'http://localhost:4173',
+  'http://127.0.0.1:5173',
+  'http://127.0.0.1:3000',
+];
+
 const io = new Server(httpServer, {
   cors: {
-    origin: 'http://217.114.10.226',
+    origin: (origin, callback) => {
+      if (!origin) return callback(null, true);
+      if (allowedOrigins.includes(origin)) return callback(null, true);
+      return callback(null, false);
+    },
     methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
     allowedHeaders: ['Content-Type', 'Authorization'],
     credentials: true
@@ -81,7 +94,11 @@ app.use((req, res, next) => {
  * Поддерживает предварительные запросы (OPTIONS) с кодом состояния 204.
  */
 app.use(cors({
-  origin: 'http://217.114.10.226',
+  origin: (origin, callback) => {
+    if (!origin) return callback(null, true);
+    if (allowedOrigins.includes(origin)) return callback(null, true);
+    return callback(null, false);
+  },
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization'],
   credentials: true,

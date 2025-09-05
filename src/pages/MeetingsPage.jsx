@@ -161,15 +161,6 @@ function MeetingsPage() {
                   <a href="#!" className="btn btn-add" onClick={handleAdd}><span>Добавить</span></a>
                 </div>
                 <div className="top__wrapper">
-                  <select>
-                    <option value="По дате начала">По дате начала</option>
-                    <option value="По дате начала 1">По дате начала 1</option>
-                    <option value="По дате начала 2">По дате начала 2</option>
-                  </select>
-                  <form className="search">
-                    <input type="text" placeholder="Поиск" />
-                    <button type="submit"></button>
-                  </form>
                   <ul className="nav">
                     <li><a href="#!"><img src="/img/icon_20.png" alt="" /></a></li>
                     <li><a href="#!"><img src="/img/icon_8.png" alt="" /></a></li>
@@ -185,7 +176,7 @@ function MeetingsPage() {
                       <th>Название</th>
                       <th>Начало</th>
                       <th>Конец</th>
-                      <th>Подразделения</th>
+                      <th>Подразделение</th>
                       <th>Статус</th>
                       <th></th>
                     </tr>
@@ -206,7 +197,7 @@ function MeetingsPage() {
                                 <img src="/img/icon_11.png" alt="" />Редактировать
                               </button>
                             </li>
-                            <li><button><img src="/img/icon_21.png" alt="" />Результаты</button></li>
+                            <li><button><img src="/img/icon_21.png" alt="" />Результат</button></li>
                             <li><button><img src="/img/icon_13.png" alt="" />В архив</button></li>
                             <li><button><img src="/img/icon_14.png" alt="" />Удалить</button></li>
                           </ul>
