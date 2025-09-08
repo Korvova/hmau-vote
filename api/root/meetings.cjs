@@ -1,33 +1,33 @@
-const express = require('express');
+﻿const express = require('express');
 const router = express.Router();
 
 module.exports = (prisma, pgClient) => {
   /**
-   * @api {get} /api/meetings Получение списка всех неархивированных заседаний
-   * @apiName ПолучениеНеархивированныхЗаседаний
-   * @apiGroup Заседания
-   * @apiDescription Возвращает список всех неархивированных заседаний с информацией о связанных подразделениях. Используется для отображения активных или предстоящих заседаний в интерфейсе администратора или пользователя.
-   * @apiSuccess {Object[]} meetings Массив объектов заседаний.
-   * @apiSuccess {Number} meetings.id Идентификатор заседания (уникальный ключ записи в таблице `Meeting`).
-   * @apiSuccess {String} meetings.name Название заседания (например, "Совещание по бюджету").
-   * @apiSuccess {String} meetings.startTime Дата и время начала заседания в формате ISO (например, "2025-06-03T10:00:00.000Z").
-   * @apiSuccess {String} meetings.endTime Дата и время окончания заседания в формате ISO.
-   * @apiSuccess {String} meetings.status Статус заседания (`WAITING`, `IN_PROGRESS`, `COMPLETED`).
-   * @apiSuccess {String} meetings.divisions Названия связанных подразделений, объединённые через запятую, или `"Нет"`, если подразделения отсутствуют.
-   * @apiSuccess {Boolean} meetings.isArchived Флаг архивации (всегда `false` для этого маршрута).
-   * @apiError (500) ServerError Ошибка сервера или базы данных, например, при сбое подключения к PostgreSQL.
-   * @apiErrorExample {json} Пример ответа при ошибке:
+   * @api {get} /api/meetings РџРѕР»СѓС‡РµРЅРёРµ СЃРїРёСЃРєР° РІСЃРµС… РЅРµР°СЂС…РёРІРёСЂРѕРІР°РЅРЅС‹С… Р·Р°СЃРµРґР°РЅРёР№
+   * @apiName РџРѕР»СѓС‡РµРЅРёРµРќРµР°СЂС…РёРІРёСЂРѕРІР°РЅРЅС‹С…Р—Р°СЃРµРґР°РЅРёР№
+   * @apiGroup Р—Р°СЃРµРґР°РЅРёСЏ
+   * @apiDescription Р’РѕР·РІСЂР°С‰Р°РµС‚ СЃРїРёСЃРѕРє РІСЃРµС… РЅРµР°СЂС…РёРІРёСЂРѕРІР°РЅРЅС‹С… Р·Р°СЃРµРґР°РЅРёР№ СЃ РёРЅС„РѕСЂРјР°С†РёРµР№ Рѕ СЃРІСЏР·Р°РЅРЅС‹С… РїРѕРґСЂР°Р·РґРµР»РµРЅРёСЏС…. РСЃРїРѕР»СЊР·СѓРµС‚СЃСЏ РґР»СЏ РѕС‚РѕР±СЂР°Р¶РµРЅРёСЏ Р°РєС‚РёРІРЅС‹С… РёР»Рё РїСЂРµРґСЃС‚РѕСЏС‰РёС… Р·Р°СЃРµРґР°РЅРёР№ РІ РёРЅС‚РµСЂС„РµР№СЃРµ Р°РґРјРёРЅРёСЃС‚СЂР°С‚РѕСЂР° РёР»Рё РїРѕР»СЊР·РѕРІР°С‚РµР»СЏ.
+   * @apiSuccess {Object[]} meetings РњР°СЃСЃРёРІ РѕР±СЉРµРєС‚РѕРІ Р·Р°СЃРµРґР°РЅРёР№.
+   * @apiSuccess {Number} meetings.id РРґРµРЅС‚РёС„РёРєР°С‚РѕСЂ Р·Р°СЃРµРґР°РЅРёСЏ (СѓРЅРёРєР°Р»СЊРЅС‹Р№ РєР»СЋС‡ Р·Р°РїРёСЃРё РІ С‚Р°Р±Р»РёС†Рµ `Meeting`).
+   * @apiSuccess {String} meetings.name РќР°Р·РІР°РЅРёРµ Р·Р°СЃРµРґР°РЅРёСЏ (РЅР°РїСЂРёРјРµСЂ, "РЎРѕРІРµС‰Р°РЅРёРµ РїРѕ Р±СЋРґР¶РµС‚Сѓ").
+   * @apiSuccess {String} meetings.startTime Р”Р°С‚Р° Рё РІСЂРµРјСЏ РЅР°С‡Р°Р»Р° Р·Р°СЃРµРґР°РЅРёСЏ РІ С„РѕСЂРјР°С‚Рµ ISO (РЅР°РїСЂРёРјРµСЂ, "2025-06-03T10:00:00.000Z").
+   * @apiSuccess {String} meetings.endTime Р”Р°С‚Р° Рё РІСЂРµРјСЏ РѕРєРѕРЅС‡Р°РЅРёСЏ Р·Р°СЃРµРґР°РЅРёСЏ РІ С„РѕСЂРјР°С‚Рµ ISO.
+   * @apiSuccess {String} meetings.status РЎС‚Р°С‚СѓСЃ Р·Р°СЃРµРґР°РЅРёСЏ (`WAITING`, `IN_PROGRESS`, `COMPLETED`).
+   * @apiSuccess {String} meetings.divisions РќР°Р·РІР°РЅРёСЏ СЃРІСЏР·Р°РЅРЅС‹С… РїРѕРґСЂР°Р·РґРµР»РµРЅРёР№, РѕР±СЉРµРґРёРЅС‘РЅРЅС‹Рµ С‡РµСЂРµР· Р·Р°РїСЏС‚СѓСЋ, РёР»Рё `"РќРµС‚"`, РµСЃР»Рё РїРѕРґСЂР°Р·РґРµР»РµРЅРёСЏ РѕС‚СЃСѓС‚СЃС‚РІСѓСЋС‚.
+   * @apiSuccess {Boolean} meetings.isArchived Р¤Р»Р°Рі Р°СЂС…РёРІР°С†РёРё (РІСЃРµРіРґР° `false` РґР»СЏ СЌС‚РѕРіРѕ РјР°СЂС€СЂСѓС‚Р°).
+   * @apiError (500) ServerError РћС€РёР±РєР° СЃРµСЂРІРµСЂР° РёР»Рё Р±Р°Р·С‹ РґР°РЅРЅС‹С…, РЅР°РїСЂРёРјРµСЂ, РїСЂРё СЃР±РѕРµ РїРѕРґРєР»СЋС‡РµРЅРёСЏ Рє PostgreSQL.
+   * @apiErrorExample {json} РџСЂРёРјРµСЂ РѕС‚РІРµС‚Р° РїСЂРё РѕС€РёР±РєРµ:
    *     {
-   *         "error": "Внутренняя ошибка сервера"
+   *         "error": "Р’РЅСѓС‚СЂРµРЅРЅСЏСЏ РѕС€РёР±РєР° СЃРµСЂРІРµСЂР°"
    *     }
-   * @apiExample {curl} Пример запроса:
+   * @apiExample {curl} РџСЂРёРјРµСЂ Р·Р°РїСЂРѕСЃР°:
    *     curl http://217.114.10.226:5000/api/meetings
    */
   router.get('/', async (req, res) => {
     try {
       const meetings = await prisma.meeting.findMany({
         where: { isArchived: false },
-        include: { divisions: true },
+        include: { divisions: true, agendaItems: true },
       });
       console.log('Fetched meetings on frontend:', meetings);
       res.json(meetings.map(meeting => ({
@@ -36,41 +36,41 @@ module.exports = (prisma, pgClient) => {
         startTime: meeting.startTime.toISOString(),
         endTime: meeting.endTime.toISOString(),
         status: meeting.status,
-        divisions: meeting.divisions.map(d => d.name).join(', ') || 'Нет',
+        divisions: meeting.divisions.map(d => d.name).join(', ') || 'РќРµС‚',
         isArchived: meeting.isArchived,
       })));
     } catch (error) {
-      console.error('Ошибка при получении списка заседаний:', error);
+      console.error('РћС€РёР±РєР° РїСЂРё РїРѕР»СѓС‡РµРЅРёРё СЃРїРёСЃРєР° Р·Р°СЃРµРґР°РЅРёР№:', error);
       res.status(500).json({ error: error.message });
     }
   });
 
   /**
-   * @api {get} /api/meetings/archived Получение списка всех архивированных заседаний
-   * @apiName ПолучениеАрхивированныхЗаседаний
-   * @apiGroup Заседания
-   * @apiDescription Возвращает список всех архивированных заседаний с информацией о связанных подразделениях. Используется для отображения завершённых или устаревших заседаний в интерфейсе.
-   * @apiSuccess {Object[]} meetings Массив объектов заседаний.
-   * @apiSuccess {Number} meetings.id Идентификатор заседания.
-   * @apiSuccess {String} meetings.name Название заседания.
-   * @apiSuccess {String} meetings.startTime Дата и время начала заседания в формате ISO.
-   * @apiSuccess {String} meetings.endTime Дата и время окончания заседания в формате ISO.
-   * @apiSuccess {String} meetings.status Статус заседания (`WAITING`, `IN_PROGRESS`, `COMPLETED`).
-   * @apiSuccess {String} meetings.divisions Названия связанных подразделений, объединённые через запятую, или `"Нет"`.
-   * @apiSuccess {Boolean} meetings.isArchived Флаг архивации (всегда `true` для этого маршрута).
-   * @apiError (500) ServerError Ошибка сервера или базы данных.
-   * @apiErrorExample {json} Пример ответа при ошибке:
+   * @api {get} /api/meetings/archived РџРѕР»СѓС‡РµРЅРёРµ СЃРїРёСЃРєР° РІСЃРµС… Р°СЂС…РёРІРёСЂРѕРІР°РЅРЅС‹С… Р·Р°СЃРµРґР°РЅРёР№
+   * @apiName РџРѕР»СѓС‡РµРЅРёРµРђСЂС…РёРІРёСЂРѕРІР°РЅРЅС‹С…Р—Р°СЃРµРґР°РЅРёР№
+   * @apiGroup Р—Р°СЃРµРґР°РЅРёСЏ
+   * @apiDescription Р’РѕР·РІСЂР°С‰Р°РµС‚ СЃРїРёСЃРѕРє РІСЃРµС… Р°СЂС…РёРІРёСЂРѕРІР°РЅРЅС‹С… Р·Р°СЃРµРґР°РЅРёР№ СЃ РёРЅС„РѕСЂРјР°С†РёРµР№ Рѕ СЃРІСЏР·Р°РЅРЅС‹С… РїРѕРґСЂР°Р·РґРµР»РµРЅРёСЏС…. РСЃРїРѕР»СЊР·СѓРµС‚СЃСЏ РґР»СЏ РѕС‚РѕР±СЂР°Р¶РµРЅРёСЏ Р·Р°РІРµСЂС€С‘РЅРЅС‹С… РёР»Рё СѓСЃС‚Р°СЂРµРІС€РёС… Р·Р°СЃРµРґР°РЅРёР№ РІ РёРЅС‚РµСЂС„РµР№СЃРµ.
+   * @apiSuccess {Object[]} meetings РњР°СЃСЃРёРІ РѕР±СЉРµРєС‚РѕРІ Р·Р°СЃРµРґР°РЅРёР№.
+   * @apiSuccess {Number} meetings.id РРґРµРЅС‚РёС„РёРєР°С‚РѕСЂ Р·Р°СЃРµРґР°РЅРёСЏ.
+   * @apiSuccess {String} meetings.name РќР°Р·РІР°РЅРёРµ Р·Р°СЃРµРґР°РЅРёСЏ.
+   * @apiSuccess {String} meetings.startTime Р”Р°С‚Р° Рё РІСЂРµРјСЏ РЅР°С‡Р°Р»Р° Р·Р°СЃРµРґР°РЅРёСЏ РІ С„РѕСЂРјР°С‚Рµ ISO.
+   * @apiSuccess {String} meetings.endTime Р”Р°С‚Р° Рё РІСЂРµРјСЏ РѕРєРѕРЅС‡Р°РЅРёСЏ Р·Р°СЃРµРґР°РЅРёСЏ РІ С„РѕСЂРјР°С‚Рµ ISO.
+   * @apiSuccess {String} meetings.status РЎС‚Р°С‚СѓСЃ Р·Р°СЃРµРґР°РЅРёСЏ (`WAITING`, `IN_PROGRESS`, `COMPLETED`).
+   * @apiSuccess {String} meetings.divisions РќР°Р·РІР°РЅРёСЏ СЃРІСЏР·Р°РЅРЅС‹С… РїРѕРґСЂР°Р·РґРµР»РµРЅРёР№, РѕР±СЉРµРґРёРЅС‘РЅРЅС‹Рµ С‡РµСЂРµР· Р·Р°РїСЏС‚СѓСЋ, РёР»Рё `"РќРµС‚"`.
+   * @apiSuccess {Boolean} meetings.isArchived Р¤Р»Р°Рі Р°СЂС…РёРІР°С†РёРё (РІСЃРµРіРґР° `true` РґР»СЏ СЌС‚РѕРіРѕ РјР°СЂС€СЂСѓС‚Р°).
+   * @apiError (500) ServerError РћС€РёР±РєР° СЃРµСЂРІРµСЂР° РёР»Рё Р±Р°Р·С‹ РґР°РЅРЅС‹С….
+   * @apiErrorExample {json} РџСЂРёРјРµСЂ РѕС‚РІРµС‚Р° РїСЂРё РѕС€РёР±РєРµ:
    *     {
-   *         "error": "Внутренняя ошибка сервера"
+   *         "error": "Р’РЅСѓС‚СЂРµРЅРЅСЏСЏ РѕС€РёР±РєР° СЃРµСЂРІРµСЂР°"
    *     }
-   * @apiExample {curl} Пример запроса:
+   * @apiExample {curl} РџСЂРёРјРµСЂ Р·Р°РїСЂРѕСЃР°:
    *     curl http://217.114.10.226:5000/api/meetings/archived
    */
   router.get('/archived', async (req, res) => {
     try {
       const meetings = await prisma.meeting.findMany({
         where: { isArchived: true },
-        include: { divisions: true },
+        include: { divisions: true, agendaItems: true },
       });
       console.log('Fetched archived meetings:', meetings);
       res.json(meetings.map(meeting => ({
@@ -79,51 +79,51 @@ module.exports = (prisma, pgClient) => {
         startTime: meeting.startTime.toISOString(),
         endTime: meeting.endTime.toISOString(),
         status: meeting.status,
-        divisions: meeting.divisions.map(d => d.name).join(', ') || 'Нет',
+        divisions: meeting.divisions.map(d => d.name).join(', ') || 'РќРµС‚',
         isArchived: meeting.isArchived,
       })));
     } catch (error) {
-      console.error('Ошибка при получении списка архивированных заседаний:', error);
+      console.error('РћС€РёР±РєР° РїСЂРё РїРѕР»СѓС‡РµРЅРёРё СЃРїРёСЃРєР° Р°СЂС…РёРІРёСЂРѕРІР°РЅРЅС‹С… Р·Р°СЃРµРґР°РЅРёР№:', error);
       res.status(500).json({ error: error.message });
     }
   });
 
   /**
-   * @api {get} /api/meetings/active-for-user Получение активных заседаний для пользователя
-   * @apiName ПолучениеАктивныхЗаседанийПользователя
-   * @apiGroup Заседания
-   * @apiDescription Возвращает список активных (неархивированных) заседаний, в которых участвует пользователь, определённый по его email. Заседания включают информацию о повестке, подразделениях и участниках. Пользователь считается участником, если его подразделение связано с заседанием.
-   * @apiQuery {String} email Электронная почта пользователя (обязательное поле, например, "user@example.com").
-   * @apiSuccess {Object[]} meetings Массив объектов заседаний.
-   * @apiSuccess {Number} meetings.id Идентификатор заседания.
-   * @apiSuccess {String} meetings.name Название заседания.
-   * @apiSuccess {String} meetings.startTime Дата и время начала в формате ISO.
-   * @apiSuccess {String} meetings.endTime Дата и время окончания в формате ISO.
-   * @apiSuccess {String} meetings.status Статус заседания (`WAITING`, `IN_PROGRESS`, `COMPLETED`).
-   * @apiSuccess {Boolean} meetings.isArchived Флаг архивации (всегда `false`).
-   * @apiSuccess {Object[]} meetings.agendaItems Массив элементов повестки.
-   * @apiSuccess {Number} meetings.agendaItems.id Идентификатор элемента повестки.
-   * @apiSuccess {Number} meetings.agendaItems.number Порядковый номер вопроса.
-   * @apiSuccess {String} meetings.agendaItems.title Название вопроса.
-   * @apiSuccess {String} meetings.agendaItems.speaker Имя докладчика или `"Нет"`.
-   * @apiSuccess {String} [meetings.agendaItems.link] Ссылка на материалы (может быть `null`).
-   * @apiSuccess {Boolean} meetings.agendaItems.voting Статус голосования.
-   * @apiSuccess {Boolean} meetings.agendaItems.completed Статус завершения.
-   * @apiSuccess {Boolean} meetings.agendaItems.activeIssue Статус активности вопроса.
-   * @apiSuccess {Object[]} meetings.divisions Массив связанных подразделений.
-   * @apiSuccess {Number} meetings.divisions.id Идентификатор подразделения.
-   * @apiSuccess {String} meetings.divisions.name Название подразделения.
-   * @apiSuccess {Object[]} meetings.divisions.users Пользователи подразделения.
-   * @apiSuccess {Number} meetings.divisions.users.id Идентификатор пользователя.
-   * @apiSuccess {String} meetings.divisions.users.name Имя пользователя.
-   * @apiSuccess {String} meetings.divisions.users.email Электронная почта пользователя.
-   * @apiError (404) NotFound Ошибка, если пользователь с указанным email не найден.
-   * @apiError (500) ServerError Ошибка сервера или базы данных.
-   * @apiErrorExample {json} Пример ответа при ошибке (404):
+   * @api {get} /api/meetings/active-for-user РџРѕР»СѓС‡РµРЅРёРµ Р°РєС‚РёРІРЅС‹С… Р·Р°СЃРµРґР°РЅРёР№ РґР»СЏ РїРѕР»СЊР·РѕРІР°С‚РµР»СЏ
+   * @apiName РџРѕР»СѓС‡РµРЅРёРµРђРєС‚РёРІРЅС‹С…Р—Р°СЃРµРґР°РЅРёР№РџРѕР»СЊР·РѕРІР°С‚РµР»СЏ
+   * @apiGroup Р—Р°СЃРµРґР°РЅРёСЏ
+   * @apiDescription Р’РѕР·РІСЂР°С‰Р°РµС‚ СЃРїРёСЃРѕРє Р°РєС‚РёРІРЅС‹С… (РЅРµР°СЂС…РёРІРёСЂРѕРІР°РЅРЅС‹С…) Р·Р°СЃРµРґР°РЅРёР№, РІ РєРѕС‚РѕСЂС‹С… СѓС‡Р°СЃС‚РІСѓРµС‚ РїРѕР»СЊР·РѕРІР°С‚РµР»СЊ, РѕРїСЂРµРґРµР»С‘РЅРЅС‹Р№ РїРѕ РµРіРѕ email. Р—Р°СЃРµРґР°РЅРёСЏ РІРєР»СЋС‡Р°СЋС‚ РёРЅС„РѕСЂРјР°С†РёСЋ Рѕ РїРѕРІРµСЃС‚РєРµ, РїРѕРґСЂР°Р·РґРµР»РµРЅРёСЏС… Рё СѓС‡Р°СЃС‚РЅРёРєР°С…. РџРѕР»СЊР·РѕРІР°С‚РµР»СЊ СЃС‡РёС‚Р°РµС‚СЃСЏ СѓС‡Р°СЃС‚РЅРёРєРѕРј, РµСЃР»Рё РµРіРѕ РїРѕРґСЂР°Р·РґРµР»РµРЅРёРµ СЃРІСЏР·Р°РЅРѕ СЃ Р·Р°СЃРµРґР°РЅРёРµРј.
+   * @apiQuery {String} email Р­Р»РµРєС‚СЂРѕРЅРЅР°СЏ РїРѕС‡С‚Р° РїРѕР»СЊР·РѕРІР°С‚РµР»СЏ (РѕР±СЏР·Р°С‚РµР»СЊРЅРѕРµ РїРѕР»Рµ, РЅР°РїСЂРёРјРµСЂ, "user@example.com").
+   * @apiSuccess {Object[]} meetings РњР°СЃСЃРёРІ РѕР±СЉРµРєС‚РѕРІ Р·Р°СЃРµРґР°РЅРёР№.
+   * @apiSuccess {Number} meetings.id РРґРµРЅС‚РёС„РёРєР°С‚РѕСЂ Р·Р°СЃРµРґР°РЅРёСЏ.
+   * @apiSuccess {String} meetings.name РќР°Р·РІР°РЅРёРµ Р·Р°СЃРµРґР°РЅРёСЏ.
+   * @apiSuccess {String} meetings.startTime Р”Р°С‚Р° Рё РІСЂРµРјСЏ РЅР°С‡Р°Р»Р° РІ С„РѕСЂРјР°С‚Рµ ISO.
+   * @apiSuccess {String} meetings.endTime Р”Р°С‚Р° Рё РІСЂРµРјСЏ РѕРєРѕРЅС‡Р°РЅРёСЏ РІ С„РѕСЂРјР°С‚Рµ ISO.
+   * @apiSuccess {String} meetings.status РЎС‚Р°С‚СѓСЃ Р·Р°СЃРµРґР°РЅРёСЏ (`WAITING`, `IN_PROGRESS`, `COMPLETED`).
+   * @apiSuccess {Boolean} meetings.isArchived Р¤Р»Р°Рі Р°СЂС…РёРІР°С†РёРё (РІСЃРµРіРґР° `false`).
+   * @apiSuccess {Object[]} meetings.agendaItems РњР°СЃСЃРёРІ СЌР»РµРјРµРЅС‚РѕРІ РїРѕРІРµСЃС‚РєРё.
+   * @apiSuccess {Number} meetings.agendaItems.id РРґРµРЅС‚РёС„РёРєР°С‚РѕСЂ СЌР»РµРјРµРЅС‚Р° РїРѕРІРµСЃС‚РєРё.
+   * @apiSuccess {Number} meetings.agendaItems.number РџРѕСЂСЏРґРєРѕРІС‹Р№ РЅРѕРјРµСЂ РІРѕРїСЂРѕСЃР°.
+   * @apiSuccess {String} meetings.agendaItems.title РќР°Р·РІР°РЅРёРµ РІРѕРїСЂРѕСЃР°.
+   * @apiSuccess {String} meetings.agendaItems.speaker РРјСЏ РґРѕРєР»Р°РґС‡РёРєР° РёР»Рё `"РќРµС‚"`.
+   * @apiSuccess {String} [meetings.agendaItems.link] РЎСЃС‹Р»РєР° РЅР° РјР°С‚РµСЂРёР°Р»С‹ (РјРѕР¶РµС‚ Р±С‹С‚СЊ `null`).
+   * @apiSuccess {Boolean} meetings.agendaItems.voting РЎС‚Р°С‚СѓСЃ РіРѕР»РѕСЃРѕРІР°РЅРёСЏ.
+   * @apiSuccess {Boolean} meetings.agendaItems.completed РЎС‚Р°С‚СѓСЃ Р·Р°РІРµСЂС€РµРЅРёСЏ.
+   * @apiSuccess {Boolean} meetings.agendaItems.activeIssue РЎС‚Р°С‚СѓСЃ Р°РєС‚РёРІРЅРѕСЃС‚Рё РІРѕРїСЂРѕСЃР°.
+   * @apiSuccess {Object[]} meetings.divisions РњР°СЃСЃРёРІ СЃРІСЏР·Р°РЅРЅС‹С… РїРѕРґСЂР°Р·РґРµР»РµРЅРёР№.
+   * @apiSuccess {Number} meetings.divisions.id РРґРµРЅС‚РёС„РёРєР°С‚РѕСЂ РїРѕРґСЂР°Р·РґРµР»РµРЅРёСЏ.
+   * @apiSuccess {String} meetings.divisions.name РќР°Р·РІР°РЅРёРµ РїРѕРґСЂР°Р·РґРµР»РµРЅРёСЏ.
+   * @apiSuccess {Object[]} meetings.divisions.users РџРѕР»СЊР·РѕРІР°С‚РµР»Рё РїРѕРґСЂР°Р·РґРµР»РµРЅРёСЏ.
+   * @apiSuccess {Number} meetings.divisions.users.id РРґРµРЅС‚РёС„РёРєР°С‚РѕСЂ РїРѕР»СЊР·РѕРІР°С‚РµР»СЏ.
+   * @apiSuccess {String} meetings.divisions.users.name РРјСЏ РїРѕР»СЊР·РѕРІР°С‚РµР»СЏ.
+   * @apiSuccess {String} meetings.divisions.users.email Р­Р»РµРєС‚СЂРѕРЅРЅР°СЏ РїРѕС‡С‚Р° РїРѕР»СЊР·РѕРІР°С‚РµР»СЏ.
+   * @apiError (404) NotFound РћС€РёР±РєР°, РµСЃР»Рё РїРѕР»СЊР·РѕРІР°С‚РµР»СЊ СЃ СѓРєР°Р·Р°РЅРЅС‹Рј email РЅРµ РЅР°Р№РґРµРЅ.
+   * @apiError (500) ServerError РћС€РёР±РєР° СЃРµСЂРІРµСЂР° РёР»Рё Р±Р°Р·С‹ РґР°РЅРЅС‹С….
+   * @apiErrorExample {json} РџСЂРёРјРµСЂ РѕС‚РІРµС‚Р° РїСЂРё РѕС€РёР±РєРµ (404):
    *     {
-   *         "error": "Пользователь не найден"
+   *         "error": "РџРѕР»СЊР·РѕРІР°С‚РµР»СЊ РЅРµ РЅР°Р№РґРµРЅ"
    *     }
-   * @apiExample {curl} Пример запроса:
+   * @apiExample {curl} РџСЂРёРјРµСЂ Р·Р°РїСЂРѕСЃР°:
    *     curl http://217.114.10.226:5000/api/meetings/active-for-user?email=1@1.ru
    */
   router.get('/active-for-user', async (req, res) => {
@@ -165,7 +165,7 @@ module.exports = (prisma, pgClient) => {
               id: item.id,
               number: item.number,
               title: item.title,
-              speaker: item.speaker ? item.speaker.name : 'Нет',
+              speaker: item.speaker ? item.speaker.name : 'РќРµС‚',
               link: item.link,
               voting: item.voting,
               completed: item.completed,
@@ -187,34 +187,34 @@ module.exports = (prisma, pgClient) => {
       console.log('Agenda items response:', JSON.stringify(meetingsWithAgenda, null, 2));
       res.json(meetingsWithAgenda);
     } catch (error) {
-      console.error('Ошибка при получении активных заседаний для пользователя:', error);
+      console.error('РћС€РёР±РєР° РїСЂРё РїРѕР»СѓС‡РµРЅРёРё Р°РєС‚РёРІРЅС‹С… Р·Р°СЃРµРґР°РЅРёР№ РґР»СЏ РїРѕР»СЊР·РѕРІР°С‚РµР»СЏ:', error);
       res.status(500).json({ error: error.message });
     }
   });
 
   /**
-   * @api {get} /api/meetings/:id Получение заседания по идентификатору
-   * @apiName ПолучениеЗаседания
-   * @apiGroup Заседания
-   * @apiDescription Возвращает информацию о конкретном заседании по его идентификатору, включая связанные подразделения и статистику участников. Используется для отображения деталей заседания в интерфейсе.
-   * @apiParam {Number} id Идентификатор заседания (параметр пути, целое число, соответствует `id` в таблице `Meeting`).
-   * @apiSuccess {Object} meeting Объект заседания.
-   * @apiSuccess {Number} meeting.id Идентификатор заседания.
-   * @apiSuccess {String} meeting.name Название заседания.
-   * @apiSuccess {String} meeting.startTime Дата и время начала в формате ISO.
-   * @apiSuccess {String} meeting.endTime Дата и время окончания в формате ISO.
-   * @apiSuccess {String} meeting.status Статус заседания (`WAITING`, `IN_PROGRESS`, `COMPLETED`).
-   * @apiSuccess {String} meeting.divisions Названия подразделений, объединённые через запятую, или `"Нет"`.
-   * @apiSuccess {Boolean} meeting.isArchived Флаг архивации.
-   * @apiSuccess {Number} meeting.participantsOnline Количество участников онлайн (заглушка, всегда 30).
-   * @apiSuccess {Number} meeting.participantsTotal Общее количество участников (заглушка, всегда 36).
-   * @apiError (404) NotFound Ошибка, если заседание с указанным `id` не найдено.
-   * @apiError (500) ServerError Ошибка сервера или базы данных.
-   * @apiErrorExample {json} Пример ответа при ошибке (404):
+   * @api {get} /api/meetings/:id РџРѕР»СѓС‡РµРЅРёРµ Р·Р°СЃРµРґР°РЅРёСЏ РїРѕ РёРґРµРЅС‚РёС„РёРєР°С‚РѕСЂСѓ
+   * @apiName РџРѕР»СѓС‡РµРЅРёРµР—Р°СЃРµРґР°РЅРёСЏ
+   * @apiGroup Р—Р°СЃРµРґР°РЅРёСЏ
+   * @apiDescription Р’РѕР·РІСЂР°С‰Р°РµС‚ РёРЅС„РѕСЂРјР°С†РёСЋ Рѕ РєРѕРЅРєСЂРµС‚РЅРѕРј Р·Р°СЃРµРґР°РЅРёРё РїРѕ РµРіРѕ РёРґРµРЅС‚РёС„РёРєР°С‚РѕСЂСѓ, РІРєР»СЋС‡Р°СЏ СЃРІСЏР·Р°РЅРЅС‹Рµ РїРѕРґСЂР°Р·РґРµР»РµРЅРёСЏ Рё СЃС‚Р°С‚РёСЃС‚РёРєСѓ СѓС‡Р°СЃС‚РЅРёРєРѕРІ. РСЃРїРѕР»СЊР·СѓРµС‚СЃСЏ РґР»СЏ РѕС‚РѕР±СЂР°Р¶РµРЅРёСЏ РґРµС‚Р°Р»РµР№ Р·Р°СЃРµРґР°РЅРёСЏ РІ РёРЅС‚РµСЂС„РµР№СЃРµ.
+   * @apiParam {Number} id РРґРµРЅС‚РёС„РёРєР°С‚РѕСЂ Р·Р°СЃРµРґР°РЅРёСЏ (РїР°СЂР°РјРµС‚СЂ РїСѓС‚Рё, С†РµР»РѕРµ С‡РёСЃР»Рѕ, СЃРѕРѕС‚РІРµС‚СЃС‚РІСѓРµС‚ `id` РІ С‚Р°Р±Р»РёС†Рµ `Meeting`).
+   * @apiSuccess {Object} meeting РћР±СЉРµРєС‚ Р·Р°СЃРµРґР°РЅРёСЏ.
+   * @apiSuccess {Number} meeting.id РРґРµРЅС‚РёС„РёРєР°С‚РѕСЂ Р·Р°СЃРµРґР°РЅРёСЏ.
+   * @apiSuccess {String} meeting.name РќР°Р·РІР°РЅРёРµ Р·Р°СЃРµРґР°РЅРёСЏ.
+   * @apiSuccess {String} meeting.startTime Р”Р°С‚Р° Рё РІСЂРµРјСЏ РЅР°С‡Р°Р»Р° РІ С„РѕСЂРјР°С‚Рµ ISO.
+   * @apiSuccess {String} meeting.endTime Р”Р°С‚Р° Рё РІСЂРµРјСЏ РѕРєРѕРЅС‡Р°РЅРёСЏ РІ С„РѕСЂРјР°С‚Рµ ISO.
+   * @apiSuccess {String} meeting.status РЎС‚Р°С‚СѓСЃ Р·Р°СЃРµРґР°РЅРёСЏ (`WAITING`, `IN_PROGRESS`, `COMPLETED`).
+   * @apiSuccess {String} meeting.divisions РќР°Р·РІР°РЅРёСЏ РїРѕРґСЂР°Р·РґРµР»РµРЅРёР№, РѕР±СЉРµРґРёРЅС‘РЅРЅС‹Рµ С‡РµСЂРµР· Р·Р°РїСЏС‚СѓСЋ, РёР»Рё `"РќРµС‚"`.
+   * @apiSuccess {Boolean} meeting.isArchived Р¤Р»Р°Рі Р°СЂС…РёРІР°С†РёРё.
+   * @apiSuccess {Number} meeting.participantsOnline РљРѕР»РёС‡РµСЃС‚РІРѕ СѓС‡Р°СЃС‚РЅРёРєРѕРІ РѕРЅР»Р°Р№РЅ (Р·Р°РіР»СѓС€РєР°, РІСЃРµРіРґР° 30).
+   * @apiSuccess {Number} meeting.participantsTotal РћР±С‰РµРµ РєРѕР»РёС‡РµСЃС‚РІРѕ СѓС‡Р°СЃС‚РЅРёРєРѕРІ (Р·Р°РіР»СѓС€РєР°, РІСЃРµРіРґР° 36).
+   * @apiError (404) NotFound РћС€РёР±РєР°, РµСЃР»Рё Р·Р°СЃРµРґР°РЅРёРµ СЃ СѓРєР°Р·Р°РЅРЅС‹Рј `id` РЅРµ РЅР°Р№РґРµРЅРѕ.
+   * @apiError (500) ServerError РћС€РёР±РєР° СЃРµСЂРІРµСЂР° РёР»Рё Р±Р°Р·С‹ РґР°РЅРЅС‹С….
+   * @apiErrorExample {json} РџСЂРёРјРµСЂ РѕС‚РІРµС‚Р° РїСЂРё РѕС€РёР±РєРµ (404):
    *     {
-   *         "error": "Заседание не найдено"
+   *         "error": "Р—Р°СЃРµРґР°РЅРёРµ РЅРµ РЅР°Р№РґРµРЅРѕ"
    *     }
-   * @apiExample {curl} Пример запроса:
+   * @apiExample {curl} РџСЂРёРјРµСЂ Р·Р°РїСЂРѕСЃР°:
    *     curl http://217.114.10.226:5000/api/meetings/119
    */
   router.get('/:id', async (req, res) => {
@@ -222,7 +222,7 @@ module.exports = (prisma, pgClient) => {
     try {
       const meeting = await prisma.meeting.findUnique({
         where: { id: parseInt(id) },
-        include: { divisions: true },
+        include: { divisions: true, agendaItems: true },
       });
       if (!meeting) {
         return res.status(404).json({ error: 'Meeting not found' });
@@ -233,45 +233,44 @@ module.exports = (prisma, pgClient) => {
         startTime: meeting.startTime.toISOString(),
         endTime: meeting.endTime.toISOString(),
         status: meeting.status,
-        divisions: meeting.divisions.map(d => d.name).join(', ') || 'Нет',
+        divisions: meeting.divisions.map(d => d.name).join(', ') || 'РќРµС‚',
         isArchived: meeting.isArchived,
-        participantsOnline: 30,
-        participantsTotal: 36,
+        agendaItems: meeting.agendaItems.map(item => ({ id: item.id, number: item.number, title: item.title, speakerId: item.speakerId, link: item.link, voting: item.voting, completed: item.completed, activeIssue: item.activeIssue })),
       });
     } catch (error) {
-      console.error('Ошибка при получении заседания:', error);
+      console.error('РћС€РёР±РєР° РїСЂРё РїРѕР»СѓС‡РµРЅРёРё Р·Р°СЃРµРґР°РЅРёСЏ:', error);
       res.status(500).json({ error: error.message });
     }
   });
 
   /**
-   * @api {post} /api/meetings Создание нового заседания
-   * @apiName СозданиеЗаседания
-   * @apiGroup Заседания
-   * @apiDescription Создаёт новое заседание с указанными параметрами, включая название, даты, подразделения и повестку. Новое заседание получает статус `WAITING` и не архивируется. Используется для планирования новых заседаний в системе.
-   * @apiBody {String} name Название заседания (обязательное поле, строка, например, "Совещание по бюджету").
-   * @apiBody {String} startTime Дата и время начала заседания (обязательное поле, строка в формате, распознаваемом `Date`, например, "2025-06-03T10:00:00Z").
-   * @apiBody {String} endTime Дата и время окончания заседания (обязательное поле, строка в формате, распознаваемом `Date`).
-   * @apiBody {Number[]} [divisionIds] Массив идентификаторов подразделений, связанных с заседанием (опционально, массив целых чисел, соответствующих `id` в таблице `Division`).
-   * @apiBody {Object[]} [agendaItems] Массив элементов повестки дня (опционально).
-   * @apiBody {Number} agendaItems.number Порядковый номер вопроса (целое число).
-   * @apiBody {String} agendaItems.title Название вопроса (строка).
-   * @apiBody {Number} [agendaItems.speakerId] Идентификатор докладчика (целое число, соответствует `id` в таблице `User`, или `null`).
-   * @apiBody {String} [agendaItems.link] Ссылка на материалы вопроса (строка или `null`).
-   * @apiSuccess {Object} meeting Созданный объект заседания.
-   * @apiSuccess {Number} meeting.id Идентификатор заседания.
-   * @apiSuccess {String} meeting.name Название заседания.
-   * @apiSuccess {String} meeting.startTime Дата и время начала.
-   * @apiSuccess {String} meeting.endTime Дата и время окончания.
-   * @apiSuccess {String} meeting.status Статус заседания (`WAITING`).
-   * @apiSuccess {Boolean} meeting.isArchived Флаг архивации (`false`).
-   * @apiError (400) BadRequest Ошибка, если переданы некорректные данные (например, отсутствуют обязательные поля, невалидные даты, или `divisionIds` не существуют).
-   * @apiErrorExample {json} Пример ответа при ошибке:
+   * @api {post} /api/meetings РЎРѕР·РґР°РЅРёРµ РЅРѕРІРѕРіРѕ Р·Р°СЃРµРґР°РЅРёСЏ
+   * @apiName РЎРѕР·РґР°РЅРёРµР—Р°СЃРµРґР°РЅРёСЏ
+   * @apiGroup Р—Р°СЃРµРґР°РЅРёСЏ
+   * @apiDescription РЎРѕР·РґР°С‘С‚ РЅРѕРІРѕРµ Р·Р°СЃРµРґР°РЅРёРµ СЃ СѓРєР°Р·Р°РЅРЅС‹РјРё РїР°СЂР°РјРµС‚СЂР°РјРё, РІРєР»СЋС‡Р°СЏ РЅР°Р·РІР°РЅРёРµ, РґР°С‚С‹, РїРѕРґСЂР°Р·РґРµР»РµРЅРёСЏ Рё РїРѕРІРµСЃС‚РєСѓ. РќРѕРІРѕРµ Р·Р°СЃРµРґР°РЅРёРµ РїРѕР»СѓС‡Р°РµС‚ СЃС‚Р°С‚СѓСЃ `WAITING` Рё РЅРµ Р°СЂС…РёРІРёСЂСѓРµС‚СЃСЏ. РСЃРїРѕР»СЊР·СѓРµС‚СЃСЏ РґР»СЏ РїР»Р°РЅРёСЂРѕРІР°РЅРёСЏ РЅРѕРІС‹С… Р·Р°СЃРµРґР°РЅРёР№ РІ СЃРёСЃС‚РµРјРµ.
+   * @apiBody {String} name РќР°Р·РІР°РЅРёРµ Р·Р°СЃРµРґР°РЅРёСЏ (РѕР±СЏР·Р°С‚РµР»СЊРЅРѕРµ РїРѕР»Рµ, СЃС‚СЂРѕРєР°, РЅР°РїСЂРёРјРµСЂ, "РЎРѕРІРµС‰Р°РЅРёРµ РїРѕ Р±СЋРґР¶РµС‚Сѓ").
+   * @apiBody {String} startTime Р”Р°С‚Р° Рё РІСЂРµРјСЏ РЅР°С‡Р°Р»Р° Р·Р°СЃРµРґР°РЅРёСЏ (РѕР±СЏР·Р°С‚РµР»СЊРЅРѕРµ РїРѕР»Рµ, СЃС‚СЂРѕРєР° РІ С„РѕСЂРјР°С‚Рµ, СЂР°СЃРїРѕР·РЅР°РІР°РµРјРѕРј `Date`, РЅР°РїСЂРёРјРµСЂ, "2025-06-03T10:00:00Z").
+   * @apiBody {String} endTime Р”Р°С‚Р° Рё РІСЂРµРјСЏ РѕРєРѕРЅС‡Р°РЅРёСЏ Р·Р°СЃРµРґР°РЅРёСЏ (РѕР±СЏР·Р°С‚РµР»СЊРЅРѕРµ РїРѕР»Рµ, СЃС‚СЂРѕРєР° РІ С„РѕСЂРјР°С‚Рµ, СЂР°СЃРїРѕР·РЅР°РІР°РµРјРѕРј `Date`).
+   * @apiBody {Number[]} [divisionIds] РњР°СЃСЃРёРІ РёРґРµРЅС‚РёС„РёРєР°С‚РѕСЂРѕРІ РїРѕРґСЂР°Р·РґРµР»РµРЅРёР№, СЃРІСЏР·Р°РЅРЅС‹С… СЃ Р·Р°СЃРµРґР°РЅРёРµРј (РѕРїС†РёРѕРЅР°Р»СЊРЅРѕ, РјР°СЃСЃРёРІ С†РµР»С‹С… С‡РёСЃРµР», СЃРѕРѕС‚РІРµС‚СЃС‚РІСѓСЋС‰РёС… `id` РІ С‚Р°Р±Р»РёС†Рµ `Division`).
+   * @apiBody {Object[]} [agendaItems] РњР°СЃСЃРёРІ СЌР»РµРјРµРЅС‚РѕРІ РїРѕРІРµСЃС‚РєРё РґРЅСЏ (РѕРїС†РёРѕРЅР°Р»СЊРЅРѕ).
+   * @apiBody {Number} agendaItems.number РџРѕСЂСЏРґРєРѕРІС‹Р№ РЅРѕРјРµСЂ РІРѕРїСЂРѕСЃР° (С†РµР»РѕРµ С‡РёСЃР»Рѕ).
+   * @apiBody {String} agendaItems.title РќР°Р·РІР°РЅРёРµ РІРѕРїСЂРѕСЃР° (СЃС‚СЂРѕРєР°).
+   * @apiBody {Number} [agendaItems.speakerId] РРґРµРЅС‚РёС„РёРєР°С‚РѕСЂ РґРѕРєР»Р°РґС‡РёРєР° (С†РµР»РѕРµ С‡РёСЃР»Рѕ, СЃРѕРѕС‚РІРµС‚СЃС‚РІСѓРµС‚ `id` РІ С‚Р°Р±Р»РёС†Рµ `User`, РёР»Рё `null`).
+   * @apiBody {String} [agendaItems.link] РЎСЃС‹Р»РєР° РЅР° РјР°С‚РµСЂРёР°Р»С‹ РІРѕРїСЂРѕСЃР° (СЃС‚СЂРѕРєР° РёР»Рё `null`).
+   * @apiSuccess {Object} meeting РЎРѕР·РґР°РЅРЅС‹Р№ РѕР±СЉРµРєС‚ Р·Р°СЃРµРґР°РЅРёСЏ.
+   * @apiSuccess {Number} meeting.id РРґРµРЅС‚РёС„РёРєР°С‚РѕСЂ Р·Р°СЃРµРґР°РЅРёСЏ.
+   * @apiSuccess {String} meeting.name РќР°Р·РІР°РЅРёРµ Р·Р°СЃРµРґР°РЅРёСЏ.
+   * @apiSuccess {String} meeting.startTime Р”Р°С‚Р° Рё РІСЂРµРјСЏ РЅР°С‡Р°Р»Р°.
+   * @apiSuccess {String} meeting.endTime Р”Р°С‚Р° Рё РІСЂРµРјСЏ РѕРєРѕРЅС‡Р°РЅРёСЏ.
+   * @apiSuccess {String} meeting.status РЎС‚Р°С‚СѓСЃ Р·Р°СЃРµРґР°РЅРёСЏ (`WAITING`).
+   * @apiSuccess {Boolean} meeting.isArchived Р¤Р»Р°Рі Р°СЂС…РёРІР°С†РёРё (`false`).
+   * @apiError (400) BadRequest РћС€РёР±РєР°, РµСЃР»Рё РїРµСЂРµРґР°РЅС‹ РЅРµРєРѕСЂСЂРµРєС‚РЅС‹Рµ РґР°РЅРЅС‹Рµ (РЅР°РїСЂРёРјРµСЂ, РѕС‚СЃСѓС‚СЃС‚РІСѓСЋС‚ РѕР±СЏР·Р°С‚РµР»СЊРЅС‹Рµ РїРѕР»СЏ, РЅРµРІР°Р»РёРґРЅС‹Рµ РґР°С‚С‹, РёР»Рё `divisionIds` РЅРµ СЃСѓС‰РµСЃС‚РІСѓСЋС‚).
+   * @apiErrorExample {json} РџСЂРёРјРµСЂ РѕС‚РІРµС‚Р° РїСЂРё РѕС€РёР±РєРµ:
    *     {
-   *         "error": "Некорректный формат даты startTime"
+   *         "error": "РќРµРєРѕСЂСЂРµРєС‚РЅС‹Р№ С„РѕСЂРјР°С‚ РґР°С‚С‹ startTime"
    *     }
-   * @apiExample {curl} Пример запроса:
-   *     curl -X POST -H "Content-Type: application/json" -d '{"name":"Новое заседание","startTime":"2025-06-03T10:00:00Z","endTime":"2025-06-03T12:00:00Z","divisionIds":[1,2],"agendaItems":[{"number":1,"title":"Вопрос 1","speakerId":26,"link":"https://example.com"}]}' http://217.114.10.226:5000/api/meetings
+   * @apiExample {curl} РџСЂРёРјРµСЂ Р·Р°РїСЂРѕСЃР°:
+   *     curl -X POST -H "Content-Type: application/json" -d '{"name":"РќРѕРІРѕРµ Р·Р°СЃРµРґР°РЅРёРµ","startTime":"2025-06-03T10:00:00Z","endTime":"2025-06-03T12:00:00Z","divisionIds":[1,2],"agendaItems":[{"number":1,"title":"Р’РѕРїСЂРѕСЃ 1","speakerId":26,"link":"https://example.com"}]}' http://217.114.10.226:5000/api/meetings
    */
   router.post('/', async (req, res) => {
     const { name, startTime, endTime, divisionIds, agendaItems } = req.body;
@@ -301,88 +300,88 @@ module.exports = (prisma, pgClient) => {
       });
       res.json(meeting);
     } catch (error) {
-      console.error('Ошибка при создании заседания:', error);
+      console.error('РћС€РёР±РєР° РїСЂРё СЃРѕР·РґР°РЅРёРё Р·Р°СЃРµРґР°РЅРёСЏ:', error);
       res.status(400).json({ error: error.message });
     }
   });
 
   /**
-   * @api {put} /api/meetings/:id Обновление заседания
-   * @apiName ОбновлениеЗаседания
-   * @apiGroup Заседания
-   * @apiDescription Обновляет существующее заседание по его идентификатору, включая название, даты, подразделения, повестку и статус. Удаляет существующие элементы повестки и связанные голоса перед созданием новых. Выполняется в транзакции для обеспечения целостности данных.
-   * @apiParam {Number} id Идентификатор заседания (параметр пути, целое число).
-   * @apiBody {String} name Название заседания (обязательное поле, строка).
-   * @apiBody {String} startTime Дата и время начала (обязательное поле, строка в формате, распознаваемом `Date`).
-   * @apiBody {String} endTime Дата и время окончания (обязательное поле, строка в формате, распознаваемом `Date`).
-   * @apiBody {Number[]} [divisionIds] Массив идентификаторов подразделений (опционально, массив целых чисел).
-   * @apiBody {Object[]} [agendaItems] Массив элементов повестки дня (опционально).
-   * @apiBody {Number} agendaItems.number Порядковый номер вопроса (целое число).
-   * @apiBody {String} agendaItems.title Название вопроса (строка).
-   * @apiBody {Number} [agendaItems.speakerId] Идентификатор докладчика (целое число или `null`).
-   * @apiBody {String} [agendaItems.link] Ссылка на материалы (строка или `null`).
-   * @apiBody {String} [status] Статус заседания (опционально, одно из: `WAITING`, `IN_PROGRESS`, `COMPLETED`).
-   * @apiSuccess {Object} meeting Обновлённый объект заседания.
-   * @apiSuccess {Number} meeting.id Идентификатор заседания.
-   * @apiSuccess {String} meeting.name Название заседания.
-   * @apiSuccess {String} meeting.startTime Дата и время начала.
-   * @apiSuccess {String} meeting.endTime Дата и время окончания.
-   * @apiSuccess {String} meeting.status Статус заседания.
-   * @apiSuccess {Boolean} meeting.isArchived Флаг архивации (`false`).
-   * @apiSuccess {Object[]} meeting.divisions Массив связанных подразделений.
-   * @apiSuccess {Number} meeting.divisions.id Идентификатор подразделения.
-   * @apiSuccess {String} meeting.divisions.name Название подразделения.
-   * @apiSuccess {Object[]} meeting.agendaItems Массив элементов повестки.
-   * @apiSuccess {Number} meeting.agendaItems.id Идентификатор элемента.
-   * @apiSuccess {Number} meeting.agendaItems.number Номер вопроса.
-   * @apiSuccess {String} meeting.agendaItems.title Название вопроса.
-   * @apiSuccess {Number} [meeting.agendaItems.speakerId] Идентификатор докладчика.
-   * @apiSuccess {String} [meeting.agendaItems.link] Ссылка на материалы.
-   * @apiError (400) BadRequest Ошибка, если отсутствуют обязательные поля, невалидные данные (даты, статус, массивы) или связанные записи не могут быть удалены.
-   * @apiError (404) NotFound Ошибка, если заседание не найдено.
-   * @apiErrorExample {json} Пример ответа при ошибке (400):
+   * @api {put} /api/meetings/:id РћР±РЅРѕРІР»РµРЅРёРµ Р·Р°СЃРµРґР°РЅРёСЏ
+   * @apiName РћР±РЅРѕРІР»РµРЅРёРµР—Р°СЃРµРґР°РЅРёСЏ
+   * @apiGroup Р—Р°СЃРµРґР°РЅРёСЏ
+   * @apiDescription РћР±РЅРѕРІР»СЏРµС‚ СЃСѓС‰РµСЃС‚РІСѓСЋС‰РµРµ Р·Р°СЃРµРґР°РЅРёРµ РїРѕ РµРіРѕ РёРґРµРЅС‚РёС„РёРєР°С‚РѕСЂСѓ, РІРєР»СЋС‡Р°СЏ РЅР°Р·РІР°РЅРёРµ, РґР°С‚С‹, РїРѕРґСЂР°Р·РґРµР»РµРЅРёСЏ, РїРѕРІРµСЃС‚РєСѓ Рё СЃС‚Р°С‚СѓСЃ. РЈРґР°Р»СЏРµС‚ СЃСѓС‰РµСЃС‚РІСѓСЋС‰РёРµ СЌР»РµРјРµРЅС‚С‹ РїРѕРІРµСЃС‚РєРё Рё СЃРІСЏР·Р°РЅРЅС‹Рµ РіРѕР»РѕСЃР° РїРµСЂРµРґ СЃРѕР·РґР°РЅРёРµРј РЅРѕРІС‹С…. Р’С‹РїРѕР»РЅСЏРµС‚СЃСЏ РІ С‚СЂР°РЅР·Р°РєС†РёРё РґР»СЏ РѕР±РµСЃРїРµС‡РµРЅРёСЏ С†РµР»РѕСЃС‚РЅРѕСЃС‚Рё РґР°РЅРЅС‹С….
+   * @apiParam {Number} id РРґРµРЅС‚РёС„РёРєР°С‚РѕСЂ Р·Р°СЃРµРґР°РЅРёСЏ (РїР°СЂР°РјРµС‚СЂ РїСѓС‚Рё, С†РµР»РѕРµ С‡РёСЃР»Рѕ).
+   * @apiBody {String} name РќР°Р·РІР°РЅРёРµ Р·Р°СЃРµРґР°РЅРёСЏ (РѕР±СЏР·Р°С‚РµР»СЊРЅРѕРµ РїРѕР»Рµ, СЃС‚СЂРѕРєР°).
+   * @apiBody {String} startTime Р”Р°С‚Р° Рё РІСЂРµРјСЏ РЅР°С‡Р°Р»Р° (РѕР±СЏР·Р°С‚РµР»СЊРЅРѕРµ РїРѕР»Рµ, СЃС‚СЂРѕРєР° РІ С„РѕСЂРјР°С‚Рµ, СЂР°СЃРїРѕР·РЅР°РІР°РµРјРѕРј `Date`).
+   * @apiBody {String} endTime Р”Р°С‚Р° Рё РІСЂРµРјСЏ РѕРєРѕРЅС‡Р°РЅРёСЏ (РѕР±СЏР·Р°С‚РµР»СЊРЅРѕРµ РїРѕР»Рµ, СЃС‚СЂРѕРєР° РІ С„РѕСЂРјР°С‚Рµ, СЂР°СЃРїРѕР·РЅР°РІР°РµРјРѕРј `Date`).
+   * @apiBody {Number[]} [divisionIds] РњР°СЃСЃРёРІ РёРґРµРЅС‚РёС„РёРєР°С‚РѕСЂРѕРІ РїРѕРґСЂР°Р·РґРµР»РµРЅРёР№ (РѕРїС†РёРѕРЅР°Р»СЊРЅРѕ, РјР°СЃСЃРёРІ С†РµР»С‹С… С‡РёСЃРµР»).
+   * @apiBody {Object[]} [agendaItems] РњР°СЃСЃРёРІ СЌР»РµРјРµРЅС‚РѕРІ РїРѕРІРµСЃС‚РєРё РґРЅСЏ (РѕРїС†РёРѕРЅР°Р»СЊРЅРѕ).
+   * @apiBody {Number} agendaItems.number РџРѕСЂСЏРґРєРѕРІС‹Р№ РЅРѕРјРµСЂ РІРѕРїСЂРѕСЃР° (С†РµР»РѕРµ С‡РёСЃР»Рѕ).
+   * @apiBody {String} agendaItems.title РќР°Р·РІР°РЅРёРµ РІРѕРїСЂРѕСЃР° (СЃС‚СЂРѕРєР°).
+   * @apiBody {Number} [agendaItems.speakerId] РРґРµРЅС‚РёС„РёРєР°С‚РѕСЂ РґРѕРєР»Р°РґС‡РёРєР° (С†РµР»РѕРµ С‡РёСЃР»Рѕ РёР»Рё `null`).
+   * @apiBody {String} [agendaItems.link] РЎСЃС‹Р»РєР° РЅР° РјР°С‚РµСЂРёР°Р»С‹ (СЃС‚СЂРѕРєР° РёР»Рё `null`).
+   * @apiBody {String} [status] РЎС‚Р°С‚СѓСЃ Р·Р°СЃРµРґР°РЅРёСЏ (РѕРїС†РёРѕРЅР°Р»СЊРЅРѕ, РѕРґРЅРѕ РёР·: `WAITING`, `IN_PROGRESS`, `COMPLETED`).
+   * @apiSuccess {Object} meeting РћР±РЅРѕРІР»С‘РЅРЅС‹Р№ РѕР±СЉРµРєС‚ Р·Р°СЃРµРґР°РЅРёСЏ.
+   * @apiSuccess {Number} meeting.id РРґРµРЅС‚РёС„РёРєР°С‚РѕСЂ Р·Р°СЃРµРґР°РЅРёСЏ.
+   * @apiSuccess {String} meeting.name РќР°Р·РІР°РЅРёРµ Р·Р°СЃРµРґР°РЅРёСЏ.
+   * @apiSuccess {String} meeting.startTime Р”Р°С‚Р° Рё РІСЂРµРјСЏ РЅР°С‡Р°Р»Р°.
+   * @apiSuccess {String} meeting.endTime Р”Р°С‚Р° Рё РІСЂРµРјСЏ РѕРєРѕРЅС‡Р°РЅРёСЏ.
+   * @apiSuccess {String} meeting.status РЎС‚Р°С‚СѓСЃ Р·Р°СЃРµРґР°РЅРёСЏ.
+   * @apiSuccess {Boolean} meeting.isArchived Р¤Р»Р°Рі Р°СЂС…РёРІР°С†РёРё (`false`).
+   * @apiSuccess {Object[]} meeting.divisions РњР°СЃСЃРёРІ СЃРІСЏР·Р°РЅРЅС‹С… РїРѕРґСЂР°Р·РґРµР»РµРЅРёР№.
+   * @apiSuccess {Number} meeting.divisions.id РРґРµРЅС‚РёС„РёРєР°С‚РѕСЂ РїРѕРґСЂР°Р·РґРµР»РµРЅРёСЏ.
+   * @apiSuccess {String} meeting.divisions.name РќР°Р·РІР°РЅРёРµ РїРѕРґСЂР°Р·РґРµР»РµРЅРёСЏ.
+   * @apiSuccess {Object[]} meeting.agendaItems РњР°СЃСЃРёРІ СЌР»РµРјРµРЅС‚РѕРІ РїРѕРІРµСЃС‚РєРё.
+   * @apiSuccess {Number} meeting.agendaItems.id РРґРµРЅС‚РёС„РёРєР°С‚РѕСЂ СЌР»РµРјРµРЅС‚Р°.
+   * @apiSuccess {Number} meeting.agendaItems.number РќРѕРјРµСЂ РІРѕРїСЂРѕСЃР°.
+   * @apiSuccess {String} meeting.agendaItems.title РќР°Р·РІР°РЅРёРµ РІРѕРїСЂРѕСЃР°.
+   * @apiSuccess {Number} [meeting.agendaItems.speakerId] РРґРµРЅС‚РёС„РёРєР°С‚РѕСЂ РґРѕРєР»Р°РґС‡РёРєР°.
+   * @apiSuccess {String} [meeting.agendaItems.link] РЎСЃС‹Р»РєР° РЅР° РјР°С‚РµСЂРёР°Р»С‹.
+   * @apiError (400) BadRequest РћС€РёР±РєР°, РµСЃР»Рё РѕС‚СЃСѓС‚СЃС‚РІСѓСЋС‚ РѕР±СЏР·Р°С‚РµР»СЊРЅС‹Рµ РїРѕР»СЏ, РЅРµРІР°Р»РёРґРЅС‹Рµ РґР°РЅРЅС‹Рµ (РґР°С‚С‹, СЃС‚Р°С‚СѓСЃ, РјР°СЃСЃРёРІС‹) РёР»Рё СЃРІСЏР·Р°РЅРЅС‹Рµ Р·Р°РїРёСЃРё РЅРµ РјРѕРіСѓС‚ Р±С‹С‚СЊ СѓРґР°Р»РµРЅС‹.
+   * @apiError (404) NotFound РћС€РёР±РєР°, РµСЃР»Рё Р·Р°СЃРµРґР°РЅРёРµ РЅРµ РЅР°Р№РґРµРЅРѕ.
+   * @apiErrorExample {json} РџСЂРёРјРµСЂ РѕС‚РІРµС‚Р° РїСЂРё РѕС€РёР±РєРµ (400):
    *     {
-   *         "error": "Поля name, startTime и endTime обязательны"
+   *         "error": "РџРѕР»СЏ name, startTime Рё endTime РѕР±СЏР·Р°С‚РµР»СЊРЅС‹"
    *     }
-   * @apiExample {curl} Пример запроса:
-   *     curl -X PUT -H "Content-Type: application/json" -d '{"name":"Обновлённое заседание","startTime":"2025-06-03T10:00:00Z","endTime":"2025-06-03T12:00:00Z","divisionIds":[1],"agendaItems":[{"number":1,"title":"Новый вопрос","speakerId":26}],"status":"IN_PROGRESS"}' http://217.114.10.226:5000/api/meetings/119
+   * @apiExample {curl} РџСЂРёРјРµСЂ Р·Р°РїСЂРѕСЃР°:
+   *     curl -X PUT -H "Content-Type: application/json" -d '{"name":"РћР±РЅРѕРІР»С‘РЅРЅРѕРµ Р·Р°СЃРµРґР°РЅРёРµ","startTime":"2025-06-03T10:00:00Z","endTime":"2025-06-03T12:00:00Z","divisionIds":[1],"agendaItems":[{"number":1,"title":"РќРѕРІС‹Р№ РІРѕРїСЂРѕСЃ","speakerId":26}],"status":"IN_PROGRESS"}' http://217.114.10.226:5000/api/meetings/119
    */
   router.put('/:id', async (req, res) => {
     const { id } = req.params;
     const { name, startTime, endTime, divisionIds, agendaItems, status } = req.body;
     console.log('Received update meeting data:', req.body);
     try {
-      // Валидация входных данных
+      // Р’Р°Р»РёРґР°С†РёСЏ РІС…РѕРґРЅС‹С… РґР°РЅРЅС‹С…
       if (!name || !startTime || !endTime) {
-        return res.status(400).json({ error: 'Поля name, startTime и endTime обязательны' });
+        return res.status(400).json({ error: 'РџРѕР»СЏ name, startTime Рё endTime РѕР±СЏР·Р°С‚РµР»СЊРЅС‹' });
       }
       const startDate = new Date(startTime);
       const endDate = new Date(endTime);
       if (isNaN(startDate.getTime()) || isNaN(endDate.getTime())) {
-        return res.status(400).json({ error: 'Некорректный формат дат startTime или endTime' });
+        return res.status(400).json({ error: 'РќРµРєРѕСЂСЂРµРєС‚РЅС‹Р№ С„РѕСЂРјР°С‚ РґР°С‚ startTime РёР»Рё endTime' });
       }
       if (divisionIds && !Array.isArray(divisionIds)) {
-        return res.status(400).json({ error: 'divisionIds должен быть массивом' });
+        return res.status(400).json({ error: 'divisionIds РґРѕР»Р¶РµРЅ Р±С‹С‚СЊ РјР°СЃСЃРёРІРѕРј' });
       }
       if (agendaItems && !Array.isArray(agendaItems)) {
-        return res.status(400).json({ error: 'agendaItems должен быть массивом' });
+        return res.status(400).json({ error: 'agendaItems РґРѕР»Р¶РµРЅ Р±С‹С‚СЊ РјР°СЃСЃРёРІРѕРј' });
       }
       if (status && !['WAITING', 'IN_PROGRESS', 'COMPLETED'].includes(status)) {
-        return res.status(400).json({ error: 'Некорректный статус заседания. Допустимые значения: WAITING, IN_PROGRESS, COMPLETED' });
+        return res.status(400).json({ error: 'РќРµРєРѕСЂСЂРµРєС‚РЅС‹Р№ СЃС‚Р°С‚СѓСЃ Р·Р°СЃРµРґР°РЅРёСЏ. Р”РѕРїСѓСЃС‚РёРјС‹Рµ Р·РЅР°С‡РµРЅРёСЏ: WAITING, IN_PROGRESS, COMPLETED' });
       }
 
-      // Проверка существования заседания
+      // РџСЂРѕРІРµСЂРєР° СЃСѓС‰РµСЃС‚РІРѕРІР°РЅРёСЏ Р·Р°СЃРµРґР°РЅРёСЏ
       const meeting = await prisma.meeting.findUnique({ 
         where: { id: parseInt(id) },
         include: { agendaItems: true }
       });
       if (!meeting) {
-        return res.status(404).json({ error: 'Заседание не найдено' });
+        return res.status(404).json({ error: 'Р—Р°СЃРµРґР°РЅРёРµ РЅРµ РЅР°Р№РґРµРЅРѕ' });
       }
 
-      // Удаление связанных данных и обновление в транзакции
+      // РЈРґР°Р»РµРЅРёРµ СЃРІСЏР·Р°РЅРЅС‹С… РґР°РЅРЅС‹С… Рё РѕР±РЅРѕРІР»РµРЅРёРµ РІ С‚СЂР°РЅР·Р°РєС†РёРё
       const updatedMeeting = await prisma.$transaction(async (tx) => {
-        // Удаляем VoteResult и Vote для каждого agendaItem
+        // РЈРґР°Р»СЏРµРј VoteResult Рё Vote РґР»СЏ РєР°Р¶РґРѕРіРѕ agendaItem
         for (const agendaItem of meeting.agendaItems) {
           await tx.vote.deleteMany({
             where: { agendaItemId: agendaItem.id },
@@ -391,11 +390,11 @@ module.exports = (prisma, pgClient) => {
             where: { agendaItemId: agendaItem.id },
           });
         }
-        // Удаляем agendaItems
+        // РЈРґР°Р»СЏРµРј agendaItems
         await tx.agendaItem.deleteMany({
           where: { meetingId: parseInt(id) },
         });
-        // Обновляем заседание
+        // РћР±РЅРѕРІР»СЏРµРј Р·Р°СЃРµРґР°РЅРёРµ
         return await tx.meeting.update({
           where: { id: parseInt(id) },
           data: {
@@ -426,25 +425,25 @@ module.exports = (prisma, pgClient) => {
 
       res.json(updatedMeeting);
     } catch (error) {
-      console.error('Ошибка при обновлении заседания:', error);
+      console.error('РћС€РёР±РєР° РїСЂРё РѕР±РЅРѕРІР»РµРЅРёРё Р·Р°СЃРµРґР°РЅРёСЏ:', error);
       res.status(400).json({ error: error.message });
     }
   });
 
   /**
-   * @api {delete} /api/meetings/:id Удаление заседания
-   * @apiName УдалениеЗаседания
-   * @apiGroup Заседания
-   * @apiDescription Удаляет заседание по его идентификатору, включая все связанные элементы повестки, голоса и результаты голосования. Выполняется в транзакции для обеспечения целостности данных. Используется для удаления ненужных или отменённых заседаний.
-   * @apiParam {Number} id Идентификатор заседания (параметр пути, целое число).
-   * @apiSuccess {Boolean} success Статус операции. Возвращает `true` при успешном удалении.
-   * @apiError (404) NotFound Ошибка, если заседание не найдено.
-   * @apiError (400) BadRequest Ошибка, если удаление заблокировано из-за ошибок базы данных.
-   * @apiErrorExample {json} Пример ответа при ошибке (404):
+   * @api {delete} /api/meetings/:id РЈРґР°Р»РµРЅРёРµ Р·Р°СЃРµРґР°РЅРёСЏ
+   * @apiName РЈРґР°Р»РµРЅРёРµР—Р°СЃРµРґР°РЅРёСЏ
+   * @apiGroup Р—Р°СЃРµРґР°РЅРёСЏ
+   * @apiDescription РЈРґР°Р»СЏРµС‚ Р·Р°СЃРµРґР°РЅРёРµ РїРѕ РµРіРѕ РёРґРµРЅС‚РёС„РёРєР°С‚РѕСЂСѓ, РІРєР»СЋС‡Р°СЏ РІСЃРµ СЃРІСЏР·Р°РЅРЅС‹Рµ СЌР»РµРјРµРЅС‚С‹ РїРѕРІРµСЃС‚РєРё, РіРѕР»РѕСЃР° Рё СЂРµР·СѓР»СЊС‚Р°С‚С‹ РіРѕР»РѕСЃРѕРІР°РЅРёСЏ. Р’С‹РїРѕР»РЅСЏРµС‚СЃСЏ РІ С‚СЂР°РЅР·Р°РєС†РёРё РґР»СЏ РѕР±РµСЃРїРµС‡РµРЅРёСЏ С†РµР»РѕСЃС‚РЅРѕСЃС‚Рё РґР°РЅРЅС‹С…. РСЃРїРѕР»СЊР·СѓРµС‚СЃСЏ РґР»СЏ СѓРґР°Р»РµРЅРёСЏ РЅРµРЅСѓР¶РЅС‹С… РёР»Рё РѕС‚РјРµРЅС‘РЅРЅС‹С… Р·Р°СЃРµРґР°РЅРёР№.
+   * @apiParam {Number} id РРґРµРЅС‚РёС„РёРєР°С‚РѕСЂ Р·Р°СЃРµРґР°РЅРёСЏ (РїР°СЂР°РјРµС‚СЂ РїСѓС‚Рё, С†РµР»РѕРµ С‡РёСЃР»Рѕ).
+   * @apiSuccess {Boolean} success РЎС‚Р°С‚СѓСЃ РѕРїРµСЂР°С†РёРё. Р’РѕР·РІСЂР°С‰Р°РµС‚ `true` РїСЂРё СѓСЃРїРµС€РЅРѕРј СѓРґР°Р»РµРЅРёРё.
+   * @apiError (404) NotFound РћС€РёР±РєР°, РµСЃР»Рё Р·Р°СЃРµРґР°РЅРёРµ РЅРµ РЅР°Р№РґРµРЅРѕ.
+   * @apiError (400) BadRequest РћС€РёР±РєР°, РµСЃР»Рё СѓРґР°Р»РµРЅРёРµ Р·Р°Р±Р»РѕРєРёСЂРѕРІР°РЅРѕ РёР·-Р·Р° РѕС€РёР±РѕРє Р±Р°Р·С‹ РґР°РЅРЅС‹С….
+   * @apiErrorExample {json} РџСЂРёРјРµСЂ РѕС‚РІРµС‚Р° РїСЂРё РѕС€РёР±РєРµ (404):
    *     {
-   *         "error": "Заседание не найдено"
+   *         "error": "Р—Р°СЃРµРґР°РЅРёРµ РЅРµ РЅР°Р№РґРµРЅРѕ"
    *     }
-   * @apiExample {curl} Пример запроса:
+   * @apiExample {curl} РџСЂРёРјРµСЂ Р·Р°РїСЂРѕСЃР°:
    *     curl -X DELETE http://217.114.10.226:5000/api/meetings/119
    */
   router.delete('/:id', async (req, res) => {
@@ -482,30 +481,30 @@ module.exports = (prisma, pgClient) => {
 
       res.json({ success: true });
     } catch (error) {
-      console.error('Ошибка при удалении заседания:', error);
+      console.error('РћС€РёР±РєР° РїСЂРё СѓРґР°Р»РµРЅРёРё Р·Р°СЃРµРґР°РЅРёСЏ:', error);
       res.status(400).json({ error: error.message });
     }
   });
 
   /**
-   * @api {post} /api/meetings/:id/archive Архивирование заседания
-   * @apiName АрхивированиеЗаседания
-   * @apiGroup Заседания
-   * @apiDescription Устанавливает флаг архивации (`isArchived: true`) для заседания по его идентификатору. Используется для перемещения завершённых или неактуальных заседаний в архив.
-   * @apiParam {Number} id Идентификатор заседания (параметр пути, целое число).
-   * @apiSuccess {Object} meeting Обновлённый объект заседания.
-   * @apiSuccess {Number} meeting.id Идентификатор заседания.
-   * @apiSuccess {String} meeting.name Название заседания.
-   * @apiSuccess {String} meeting.startTime Дата и время начала.
-   * @apiSuccess {String} meeting.endTime Дата и время окончания.
-   * @apiSuccess {String} meeting.status Статус заседания.
-   * @apiSuccess {Boolean} meeting.isArchived Флаг архивации (`true`).
-   * @apiError (400) BadRequest Ошибка, если заседание не найдено или обновление невозможно.
-   * @apiErrorExample {json} Пример ответа при ошибке:
+   * @api {post} /api/meetings/:id/archive РђСЂС…РёРІРёСЂРѕРІР°РЅРёРµ Р·Р°СЃРµРґР°РЅРёСЏ
+   * @apiName РђСЂС…РёРІРёСЂРѕРІР°РЅРёРµР—Р°СЃРµРґР°РЅРёСЏ
+   * @apiGroup Р—Р°СЃРµРґР°РЅРёСЏ
+   * @apiDescription РЈСЃС‚Р°РЅР°РІР»РёРІР°РµС‚ С„Р»Р°Рі Р°СЂС…РёРІР°С†РёРё (`isArchived: true`) РґР»СЏ Р·Р°СЃРµРґР°РЅРёСЏ РїРѕ РµРіРѕ РёРґРµРЅС‚РёС„РёРєР°С‚РѕСЂСѓ. РСЃРїРѕР»СЊР·СѓРµС‚СЃСЏ РґР»СЏ РїРµСЂРµРјРµС‰РµРЅРёСЏ Р·Р°РІРµСЂС€С‘РЅРЅС‹С… РёР»Рё РЅРµР°РєС‚СѓР°Р»СЊРЅС‹С… Р·Р°СЃРµРґР°РЅРёР№ РІ Р°СЂС…РёРІ.
+   * @apiParam {Number} id РРґРµРЅС‚РёС„РёРєР°С‚РѕСЂ Р·Р°СЃРµРґР°РЅРёСЏ (РїР°СЂР°РјРµС‚СЂ РїСѓС‚Рё, С†РµР»РѕРµ С‡РёСЃР»Рѕ).
+   * @apiSuccess {Object} meeting РћР±РЅРѕРІР»С‘РЅРЅС‹Р№ РѕР±СЉРµРєС‚ Р·Р°СЃРµРґР°РЅРёСЏ.
+   * @apiSuccess {Number} meeting.id РРґРµРЅС‚РёС„РёРєР°С‚РѕСЂ Р·Р°СЃРµРґР°РЅРёСЏ.
+   * @apiSuccess {String} meeting.name РќР°Р·РІР°РЅРёРµ Р·Р°СЃРµРґР°РЅРёСЏ.
+   * @apiSuccess {String} meeting.startTime Р”Р°С‚Р° Рё РІСЂРµРјСЏ РЅР°С‡Р°Р»Р°.
+   * @apiSuccess {String} meeting.endTime Р”Р°С‚Р° Рё РІСЂРµРјСЏ РѕРєРѕРЅС‡Р°РЅРёСЏ.
+   * @apiSuccess {String} meeting.status РЎС‚Р°С‚СѓСЃ Р·Р°СЃРµРґР°РЅРёСЏ.
+   * @apiSuccess {Boolean} meeting.isArchived Р¤Р»Р°Рі Р°СЂС…РёРІР°С†РёРё (`true`).
+   * @apiError (400) BadRequest РћС€РёР±РєР°, РµСЃР»Рё Р·Р°СЃРµРґР°РЅРёРµ РЅРµ РЅР°Р№РґРµРЅРѕ РёР»Рё РѕР±РЅРѕРІР»РµРЅРёРµ РЅРµРІРѕР·РјРѕР¶РЅРѕ.
+   * @apiErrorExample {json} РџСЂРёРјРµСЂ РѕС‚РІРµС‚Р° РїСЂРё РѕС€РёР±РєРµ:
    *     {
-   *         "error": "Заседание не найдено"
+   *         "error": "Р—Р°СЃРµРґР°РЅРёРµ РЅРµ РЅР°Р№РґРµРЅРѕ"
    *     }
-   * @apiExample {curl} Пример запроса:
+   * @apiExample {curl} РџСЂРёРјРµСЂ Р·Р°РїСЂРѕСЃР°:
    *     curl -X POST http://217.114.10.226:5000/api/meetings/119/archive
    */
   router.post('/:id/archive', async (req, res) => {
@@ -517,29 +516,29 @@ module.exports = (prisma, pgClient) => {
       });
       res.json(meeting);
     } catch (error) {
-      console.error('Ошибка при архивировании заседания:', error);
+      console.error('РћС€РёР±РєР° РїСЂРё Р°СЂС…РёРІРёСЂРѕРІР°РЅРёРё Р·Р°СЃРµРґР°РЅРёСЏ:', error);
       res.status(400).json({ error: error.message });
     }
   });
 
 
 /**
- * @api {get} /api/meetings/:id/participants Получение списка участников заседания
- * @apiName ПолучениеУчастниковЗаседания
- * @apiGroup Заседания
- * @apiDescription Возвращает список пользователей, участвующих в заседании, на основе связанных подразделений. Включает только идентификатор, имя и статус онлайн/оффлайн.
- * @apiParam {Number} id Идентификатор заседания (параметр пути, целое число).
- * @apiSuccess {Object[]} participants Массив объектов участников.
- * @apiSuccess {Number} participants.id Идентификатор пользователя.
- * @apiSuccess {String} participants.name Имя пользователя.
- * @apiSuccess {Boolean} participants.isOnline Статус пользователя (true, если онлайн).
- * @apiError (404) NotFound Ошибка, если заседание не найдено.
- * @apiError (500) ServerError Ошибка сервера или базы данных.
- * @apiErrorExample {json} Пример ответа при ошибке (404):
+ * @api {get} /api/meetings/:id/participants РџРѕР»СѓС‡РµРЅРёРµ СЃРїРёСЃРєР° СѓС‡Р°СЃС‚РЅРёРєРѕРІ Р·Р°СЃРµРґР°РЅРёСЏ
+ * @apiName РџРѕР»СѓС‡РµРЅРёРµРЈС‡Р°СЃС‚РЅРёРєРѕРІР—Р°СЃРµРґР°РЅРёСЏ
+ * @apiGroup Р—Р°СЃРµРґР°РЅРёСЏ
+ * @apiDescription Р’РѕР·РІСЂР°С‰Р°РµС‚ СЃРїРёСЃРѕРє РїРѕР»СЊР·РѕРІР°С‚РµР»РµР№, СѓС‡Р°СЃС‚РІСѓСЋС‰РёС… РІ Р·Р°СЃРµРґР°РЅРёРё, РЅР° РѕСЃРЅРѕРІРµ СЃРІСЏР·Р°РЅРЅС‹С… РїРѕРґСЂР°Р·РґРµР»РµРЅРёР№. Р’РєР»СЋС‡Р°РµС‚ С‚РѕР»СЊРєРѕ РёРґРµРЅС‚РёС„РёРєР°С‚РѕСЂ, РёРјСЏ Рё СЃС‚Р°С‚СѓСЃ РѕРЅР»Р°Р№РЅ/РѕС„С„Р»Р°Р№РЅ.
+ * @apiParam {Number} id РРґРµРЅС‚РёС„РёРєР°С‚РѕСЂ Р·Р°СЃРµРґР°РЅРёСЏ (РїР°СЂР°РјРµС‚СЂ РїСѓС‚Рё, С†РµР»РѕРµ С‡РёСЃР»Рѕ).
+ * @apiSuccess {Object[]} participants РњР°СЃСЃРёРІ РѕР±СЉРµРєС‚РѕРІ СѓС‡Р°СЃС‚РЅРёРєРѕРІ.
+ * @apiSuccess {Number} participants.id РРґРµРЅС‚РёС„РёРєР°С‚РѕСЂ РїРѕР»СЊР·РѕРІР°С‚РµР»СЏ.
+ * @apiSuccess {String} participants.name РРјСЏ РїРѕР»СЊР·РѕРІР°С‚РµР»СЏ.
+ * @apiSuccess {Boolean} participants.isOnline РЎС‚Р°С‚СѓСЃ РїРѕР»СЊР·РѕРІР°С‚РµР»СЏ (true, РµСЃР»Рё РѕРЅР»Р°Р№РЅ).
+ * @apiError (404) NotFound РћС€РёР±РєР°, РµСЃР»Рё Р·Р°СЃРµРґР°РЅРёРµ РЅРµ РЅР°Р№РґРµРЅРѕ.
+ * @apiError (500) ServerError РћС€РёР±РєР° СЃРµСЂРІРµСЂР° РёР»Рё Р±Р°Р·С‹ РґР°РЅРЅС‹С….
+ * @apiErrorExample {json} РџСЂРёРјРµСЂ РѕС‚РІРµС‚Р° РїСЂРё РѕС€РёР±РєРµ (404):
  *     {
- *         "error": "Заседание не найдено"
+ *         "error": "Р—Р°СЃРµРґР°РЅРёРµ РЅРµ РЅР°Р№РґРµРЅРѕ"
  *     }
- * @apiExample {curl} Пример запроса:
+ * @apiExample {curl} РџСЂРёРјРµСЂ Р·Р°РїСЂРѕСЃР°:
  *     curl http://217.114.10.226:5000/api/meetings/118/participants
  */
 router.get('/:id/participants', async (req, res) => {
@@ -558,12 +557,12 @@ router.get('/:id/participants', async (req, res) => {
       },
     });
     if (!meeting) {
-      return res.status(404).json({ error: 'Заседание не найдено' });
+      return res.status(404).json({ error: 'Р—Р°СЃРµРґР°РЅРёРµ РЅРµ РЅР°Р№РґРµРЅРѕ' });
     }
     res.json(meeting.participants);
   } catch (error) {
-    console.error('Ошибка при получении участников заседания:', error);
-    res.status(500).json({ error: 'Не удалось получить участников' });
+    console.error('РћС€РёР±РєР° РїСЂРё РїРѕР»СѓС‡РµРЅРёРё СѓС‡Р°СЃС‚РЅРёРєРѕРІ Р·Р°СЃРµРґР°РЅРёСЏ:', error);
+    res.status(500).json({ error: 'РќРµ СѓРґР°Р»РѕСЃСЊ РїРѕР»СѓС‡РёС‚СЊ СѓС‡Р°СЃС‚РЅРёРєРѕРІ' });
   }
 });
 
@@ -576,20 +575,20 @@ router.get('/:id/participants', async (req, res) => {
 
 
 /**
- * @api {get} /api/meetings/:id/total-users Получение общего количества пользователей по подразделениям заседания
- * @apiName ПолучениеОбщегоКоличестваПользователей
- * @apiGroup Заседания
- * @apiDescription Возвращает общее количество пользователей, связанных с подразделениями (divisions) указанного заседания. Используется для отображения итогового числа участников на странице заседания.
- * @apiParam {Number} id Идентификатор заседания (параметр пути, целое число).
- * @apiSuccess {Object} response Объект с общим количеством пользователей.
- * @apiSuccess {Number} response.totalUsers Общее количество пользователей.
- * @apiError (404) NotFound Ошибка, если заседание не найдено.
- * @apiError (500) ServerError Ошибка сервера или базы данных.
- * @apiErrorExample {json} Пример ответа при ошибке (404):
+ * @api {get} /api/meetings/:id/total-users РџРѕР»СѓС‡РµРЅРёРµ РѕР±С‰РµРіРѕ РєРѕР»РёС‡РµСЃС‚РІР° РїРѕР»СЊР·РѕРІР°С‚РµР»РµР№ РїРѕ РїРѕРґСЂР°Р·РґРµР»РµРЅРёСЏРј Р·Р°СЃРµРґР°РЅРёСЏ
+ * @apiName РџРѕР»СѓС‡РµРЅРёРµРћР±С‰РµРіРѕРљРѕР»РёС‡РµСЃС‚РІР°РџРѕР»СЊР·РѕРІР°С‚РµР»РµР№
+ * @apiGroup Р—Р°СЃРµРґР°РЅРёСЏ
+ * @apiDescription Р’РѕР·РІСЂР°С‰Р°РµС‚ РѕР±С‰РµРµ РєРѕР»РёС‡РµСЃС‚РІРѕ РїРѕР»СЊР·РѕРІР°С‚РµР»РµР№, СЃРІСЏР·Р°РЅРЅС‹С… СЃ РїРѕРґСЂР°Р·РґРµР»РµРЅРёСЏРјРё (divisions) СѓРєР°Р·Р°РЅРЅРѕРіРѕ Р·Р°СЃРµРґР°РЅРёСЏ. РСЃРїРѕР»СЊР·СѓРµС‚СЃСЏ РґР»СЏ РѕС‚РѕР±СЂР°Р¶РµРЅРёСЏ РёС‚РѕРіРѕРІРѕРіРѕ С‡РёСЃР»Р° СѓС‡Р°СЃС‚РЅРёРєРѕРІ РЅР° СЃС‚СЂР°РЅРёС†Рµ Р·Р°СЃРµРґР°РЅРёСЏ.
+ * @apiParam {Number} id РРґРµРЅС‚РёС„РёРєР°С‚РѕСЂ Р·Р°СЃРµРґР°РЅРёСЏ (РїР°СЂР°РјРµС‚СЂ РїСѓС‚Рё, С†РµР»РѕРµ С‡РёСЃР»Рѕ).
+ * @apiSuccess {Object} response РћР±СЉРµРєС‚ СЃ РѕР±С‰РёРј РєРѕР»РёС‡РµСЃС‚РІРѕРј РїРѕР»СЊР·РѕРІР°С‚РµР»РµР№.
+ * @apiSuccess {Number} response.totalUsers РћР±С‰РµРµ РєРѕР»РёС‡РµСЃС‚РІРѕ РїРѕР»СЊР·РѕРІР°С‚РµР»РµР№.
+ * @apiError (404) NotFound РћС€РёР±РєР°, РµСЃР»Рё Р·Р°СЃРµРґР°РЅРёРµ РЅРµ РЅР°Р№РґРµРЅРѕ.
+ * @apiError (500) ServerError РћС€РёР±РєР° СЃРµСЂРІРµСЂР° РёР»Рё Р±Р°Р·С‹ РґР°РЅРЅС‹С….
+ * @apiErrorExample {json} РџСЂРёРјРµСЂ РѕС‚РІРµС‚Р° РїСЂРё РѕС€РёР±РєРµ (404):
  *     {
- *         "error": "Заседание не найдено"
+ *         "error": "Р—Р°СЃРµРґР°РЅРёРµ РЅРµ РЅР°Р№РґРµРЅРѕ"
  *     }
- * @apiExample {curl} Пример запроса:
+ * @apiExample {curl} РџСЂРёРјРµСЂ Р·Р°РїСЂРѕСЃР°:
  *     curl http://217.114.10.226:5000/api/meetings/118/total-users
  */
 router.get('/:id/total-users', async (req, res) => {
@@ -597,7 +596,7 @@ router.get('/:id/total-users', async (req, res) => {
   try {
     const meeting = await prisma.meeting.findUnique({
       where: { id: parseInt(id) },
-      include: { divisions: true },
+      include: { divisions: true, agendaItems: true },
     });
     if (!meeting) {
       return res.status(404).json({ error: 'Meeting not found' });
@@ -614,7 +613,7 @@ router.get('/:id/total-users', async (req, res) => {
     const totalUsers = userCounts.reduce((sum, count) => sum + count, 0);
     res.json({ totalUsers });
   } catch (error) {
-    console.error('Ошибка при подсчёте общего количества пользователей:', error);
+    console.error('РћС€РёР±РєР° РїСЂРё РїРѕРґСЃС‡С‘С‚Рµ РѕР±С‰РµРіРѕ РєРѕР»РёС‡РµСЃС‚РІР° РїРѕР»СЊР·РѕРІР°С‚РµР»РµР№:', error);
     res.status(500).json({ error: error.message });
   }
 });
@@ -625,20 +624,20 @@ router.get('/:id/total-users', async (req, res) => {
 
 
 /**
- * @api {get} /api/meetings/:id/online-users Получение количества онлайн-пользователей по заседанию
- * @apiName ПолучениеОнлайнПользователей
- * @apiGroup Заседания
- * @apiDescription Возвращает количество пользователей с статусом `isOnline: true`, связанных с подразделениями (divisions) указанного заседания. Используется для отображения текущего числа присутствующих участников.
- * @apiParam {Number} id Идентификатор заседания (параметр пути, целое число).
- * @apiSuccess {Object} response Объект с количеством онлайн-пользователей.
- * @apiSuccess {Number} response.onlineUsers Количество пользователей онлайн.
- * @apiError (404) NotFound Ошибка, если заседание не найдено.
- * @apiError (500) ServerError Ошибка сервера или базы данных.
- * @apiErrorExample {json} Пример ответа при ошибке (404):
+ * @api {get} /api/meetings/:id/online-users РџРѕР»СѓС‡РµРЅРёРµ РєРѕР»РёС‡РµСЃС‚РІР° РѕРЅР»Р°Р№РЅ-РїРѕР»СЊР·РѕРІР°С‚РµР»РµР№ РїРѕ Р·Р°СЃРµРґР°РЅРёСЋ
+ * @apiName РџРѕР»СѓС‡РµРЅРёРµРћРЅР»Р°Р№РЅРџРѕР»СЊР·РѕРІР°С‚РµР»РµР№
+ * @apiGroup Р—Р°СЃРµРґР°РЅРёСЏ
+ * @apiDescription Р’РѕР·РІСЂР°С‰Р°РµС‚ РєРѕР»РёС‡РµСЃС‚РІРѕ РїРѕР»СЊР·РѕРІР°С‚РµР»РµР№ СЃ СЃС‚Р°С‚СѓСЃРѕРј `isOnline: true`, СЃРІСЏР·Р°РЅРЅС‹С… СЃ РїРѕРґСЂР°Р·РґРµР»РµРЅРёСЏРјРё (divisions) СѓРєР°Р·Р°РЅРЅРѕРіРѕ Р·Р°СЃРµРґР°РЅРёСЏ. РСЃРїРѕР»СЊР·СѓРµС‚СЃСЏ РґР»СЏ РѕС‚РѕР±СЂР°Р¶РµРЅРёСЏ С‚РµРєСѓС‰РµРіРѕ С‡РёСЃР»Р° РїСЂРёСЃСѓС‚СЃС‚РІСѓСЋС‰РёС… СѓС‡Р°СЃС‚РЅРёРєРѕРІ.
+ * @apiParam {Number} id РРґРµРЅС‚РёС„РёРєР°С‚РѕСЂ Р·Р°СЃРµРґР°РЅРёСЏ (РїР°СЂР°РјРµС‚СЂ РїСѓС‚Рё, С†РµР»РѕРµ С‡РёСЃР»Рѕ).
+ * @apiSuccess {Object} response РћР±СЉРµРєС‚ СЃ РєРѕР»РёС‡РµСЃС‚РІРѕРј РѕРЅР»Р°Р№РЅ-РїРѕР»СЊР·РѕРІР°С‚РµР»РµР№.
+ * @apiSuccess {Number} response.onlineUsers РљРѕР»РёС‡РµСЃС‚РІРѕ РїРѕР»СЊР·РѕРІР°С‚РµР»РµР№ РѕРЅР»Р°Р№РЅ.
+ * @apiError (404) NotFound РћС€РёР±РєР°, РµСЃР»Рё Р·Р°СЃРµРґР°РЅРёРµ РЅРµ РЅР°Р№РґРµРЅРѕ.
+ * @apiError (500) ServerError РћС€РёР±РєР° СЃРµСЂРІРµСЂР° РёР»Рё Р±Р°Р·С‹ РґР°РЅРЅС‹С….
+ * @apiErrorExample {json} РџСЂРёРјРµСЂ РѕС‚РІРµС‚Р° РїСЂРё РѕС€РёР±РєРµ (404):
  *     {
- *         "error": "Заседание не найдено"
+ *         "error": "Р—Р°СЃРµРґР°РЅРёРµ РЅРµ РЅР°Р№РґРµРЅРѕ"
  *     }
- * @apiExample {curl} Пример запроса:
+ * @apiExample {curl} РџСЂРёРјРµСЂ Р·Р°РїСЂРѕСЃР°:
  *     curl http://217.114.10.226:5000/api/meetings/118/online-users
  */
 router.get('/:id/online-users', async (req, res) => {
@@ -646,7 +645,7 @@ router.get('/:id/online-users', async (req, res) => {
   try {
     const meeting = await prisma.meeting.findUnique({
       where: { id: parseInt(id) },
-      include: { divisions: true },
+      include: { divisions: true, agendaItems: true },
     });
     if (!meeting) {
       return res.status(404).json({ error: 'Meeting not found' });
@@ -660,7 +659,7 @@ router.get('/:id/online-users', async (req, res) => {
     });
     res.json({ onlineUsers });
   } catch (error) {
-    console.error('Ошибка при подсчёте онлайн-пользователей:', error);
+    console.error('РћС€РёР±РєР° РїСЂРё РїРѕРґСЃС‡С‘С‚Рµ РѕРЅР»Р°Р№РЅ-РїРѕР»СЊР·РѕРІР°С‚РµР»РµР№:', error);
     res.status(500).json({ error: error.message });
   }
 });
@@ -672,20 +671,20 @@ router.get('/:id/online-users', async (req, res) => {
 
 
 /**
- * @api {get} /api/meetings/:id/absent-users Получение списка отсутствующих пользователей по заседанию
- * @apiName ПолучениеОтсутствующихПользователей
- * @apiGroup Заседания
- * @apiDescription Возвращает массив имён пользователей, связанных с подразделениями (divisions) указанного заседания, у которых статус `isOnline: false`. Используется для отображения списка отсутствующих участников.
- * @apiParam {Number} id Идентификатор заседания (параметр пути, целое число).
- * @apiSuccess {Object} response Объект с массивом имён отсутствующих пользователей.
- * @apiSuccess {String[]} absentUsers Массив имён пользователей с `isOnline: false`.
- * @apiError (404) NotFound Ошибка, если заседание не найдено.
- * @apiError (500) ServerError Ошибка сервера или базы данных.
- * @apiErrorExample {json} Пример ответа при ошибке (404):
+ * @api {get} /api/meetings/:id/absent-users РџРѕР»СѓС‡РµРЅРёРµ СЃРїРёСЃРєР° РѕС‚СЃСѓС‚СЃС‚РІСѓСЋС‰РёС… РїРѕР»СЊР·РѕРІР°С‚РµР»РµР№ РїРѕ Р·Р°СЃРµРґР°РЅРёСЋ
+ * @apiName РџРѕР»СѓС‡РµРЅРёРµРћС‚СЃСѓС‚СЃС‚РІСѓСЋС‰РёС…РџРѕР»СЊР·РѕРІР°С‚РµР»РµР№
+ * @apiGroup Р—Р°СЃРµРґР°РЅРёСЏ
+ * @apiDescription Р’РѕР·РІСЂР°С‰Р°РµС‚ РјР°СЃСЃРёРІ РёРјС‘РЅ РїРѕР»СЊР·РѕРІР°С‚РµР»РµР№, СЃРІСЏР·Р°РЅРЅС‹С… СЃ РїРѕРґСЂР°Р·РґРµР»РµРЅРёСЏРјРё (divisions) СѓРєР°Р·Р°РЅРЅРѕРіРѕ Р·Р°СЃРµРґР°РЅРёСЏ, Сѓ РєРѕС‚РѕСЂС‹С… СЃС‚Р°С‚СѓСЃ `isOnline: false`. РСЃРїРѕР»СЊР·СѓРµС‚СЃСЏ РґР»СЏ РѕС‚РѕР±СЂР°Р¶РµРЅРёСЏ СЃРїРёСЃРєР° РѕС‚СЃСѓС‚СЃС‚РІСѓСЋС‰РёС… СѓС‡Р°СЃС‚РЅРёРєРѕРІ.
+ * @apiParam {Number} id РРґРµРЅС‚РёС„РёРєР°С‚РѕСЂ Р·Р°СЃРµРґР°РЅРёСЏ (РїР°СЂР°РјРµС‚СЂ РїСѓС‚Рё, С†РµР»РѕРµ С‡РёСЃР»Рѕ).
+ * @apiSuccess {Object} response РћР±СЉРµРєС‚ СЃ РјР°СЃСЃРёРІРѕРј РёРјС‘РЅ РѕС‚СЃСѓС‚СЃС‚РІСѓСЋС‰РёС… РїРѕР»СЊР·РѕРІР°С‚РµР»РµР№.
+ * @apiSuccess {String[]} absentUsers РњР°СЃСЃРёРІ РёРјС‘РЅ РїРѕР»СЊР·РѕРІР°С‚РµР»РµР№ СЃ `isOnline: false`.
+ * @apiError (404) NotFound РћС€РёР±РєР°, РµСЃР»Рё Р·Р°СЃРµРґР°РЅРёРµ РЅРµ РЅР°Р№РґРµРЅРѕ.
+ * @apiError (500) ServerError РћС€РёР±РєР° СЃРµСЂРІРµСЂР° РёР»Рё Р±Р°Р·С‹ РґР°РЅРЅС‹С….
+ * @apiErrorExample {json} РџСЂРёРјРµСЂ РѕС‚РІРµС‚Р° РїСЂРё РѕС€РёР±РєРµ (404):
  *     {
- *         "error": "Заседание не найдено"
+ *         "error": "Р—Р°СЃРµРґР°РЅРёРµ РЅРµ РЅР°Р№РґРµРЅРѕ"
  *     }
- * @apiExample {curl} Пример запроса:
+ * @apiExample {curl} РџСЂРёРјРµСЂ Р·Р°РїСЂРѕСЃР°:
  *     curl http://217.114.10.226:5000/api/meetings/118/absent-users
  */
 router.get('/:id/absent-users', async (req, res) => {
@@ -693,7 +692,7 @@ router.get('/:id/absent-users', async (req, res) => {
   try {
     const meeting = await prisma.meeting.findUnique({
       where: { id: parseInt(id) },
-      include: { divisions: true },
+      include: { divisions: true, agendaItems: true },
     });
     if (!meeting) {
       return res.status(404).json({ error: 'Meeting not found' });
@@ -708,7 +707,7 @@ router.get('/:id/absent-users', async (req, res) => {
     });
     res.json({ absentUsers: absentUsers.map(user => user.name) });
   } catch (error) {
-    console.error('Ошибка при получении списка отсутствующих пользователей:', error);
+    console.error('РћС€РёР±РєР° РїСЂРё РїРѕР»СѓС‡РµРЅРёРё СЃРїРёСЃРєР° РѕС‚СЃСѓС‚СЃС‚РІСѓСЋС‰РёС… РїРѕР»СЊР·РѕРІР°С‚РµР»РµР№:', error);
     res.status(500).json({ error: error.message });
   }
 });
@@ -728,25 +727,25 @@ router.get('/:id/absent-users', async (req, res) => {
 
 
   /**
-   * @api {post} /api/meetings/:id/status Обновление статуса заседания
-   * @apiName ОбновлениеСтатусаЗаседания
-   * @apiGroup Заседания
-   * @apiDescription Обновляет статус заседания по его идентификатору. Если статус меняется на `COMPLETED`, все элементы повестки дня помечаются как завершённые (`completed: true`). Отправляет уведомление через канал PostgreSQL `meeting_status_channel`. Используется для управления жизненным циклом заседания.
-   * @apiParam {Number} id Идентификатор заседания (параметр пути, целое число).
-   * @apiBody {String} status Новый статус заседания (обязательное поле, одно из: `WAITING`, `IN_PROGRESS`, `COMPLETED`).
-   * @apiSuccess {Object} meeting Обновлённый объект заседания.
-   * @apiSuccess {Number} meeting.id Идентификатор заседания.
-   * @apiSuccess {String} meeting.name Название заседания.
-   * @apiSuccess {String} meeting.startTime Дата и время начала.
-   * @apiSuccess {String} meeting.endTime Дата и время окончания.
-   * @apiSuccess {String} meeting.status Новый статус заседания.
-   * @apiSuccess {Boolean} meeting.isArchived Флаг архивации.
-   * @apiError (400) BadRequest Ошибка, если заседание не найдено, статус некорректен или обновление невозможно.
-   * @apiErrorExample {json} Пример ответа при ошибке:
+   * @api {post} /api/meetings/:id/status РћР±РЅРѕРІР»РµРЅРёРµ СЃС‚Р°С‚СѓСЃР° Р·Р°СЃРµРґР°РЅРёСЏ
+   * @apiName РћР±РЅРѕРІР»РµРЅРёРµРЎС‚Р°С‚СѓСЃР°Р—Р°СЃРµРґР°РЅРёСЏ
+   * @apiGroup Р—Р°СЃРµРґР°РЅРёСЏ
+   * @apiDescription РћР±РЅРѕРІР»СЏРµС‚ СЃС‚Р°С‚СѓСЃ Р·Р°СЃРµРґР°РЅРёСЏ РїРѕ РµРіРѕ РёРґРµРЅС‚РёС„РёРєР°С‚РѕСЂСѓ. Р•СЃР»Рё СЃС‚Р°С‚СѓСЃ РјРµРЅСЏРµС‚СЃСЏ РЅР° `COMPLETED`, РІСЃРµ СЌР»РµРјРµРЅС‚С‹ РїРѕРІРµСЃС‚РєРё РґРЅСЏ РїРѕРјРµС‡Р°СЋС‚СЃСЏ РєР°Рє Р·Р°РІРµСЂС€С‘РЅРЅС‹Рµ (`completed: true`). РћС‚РїСЂР°РІР»СЏРµС‚ СѓРІРµРґРѕРјР»РµРЅРёРµ С‡РµСЂРµР· РєР°РЅР°Р» PostgreSQL `meeting_status_channel`. РСЃРїРѕР»СЊР·СѓРµС‚СЃСЏ РґР»СЏ СѓРїСЂР°РІР»РµРЅРёСЏ Р¶РёР·РЅРµРЅРЅС‹Рј С†РёРєР»РѕРј Р·Р°СЃРµРґР°РЅРёСЏ.
+   * @apiParam {Number} id РРґРµРЅС‚РёС„РёРєР°С‚РѕСЂ Р·Р°СЃРµРґР°РЅРёСЏ (РїР°СЂР°РјРµС‚СЂ РїСѓС‚Рё, С†РµР»РѕРµ С‡РёСЃР»Рѕ).
+   * @apiBody {String} status РќРѕРІС‹Р№ СЃС‚Р°С‚СѓСЃ Р·Р°СЃРµРґР°РЅРёСЏ (РѕР±СЏР·Р°С‚РµР»СЊРЅРѕРµ РїРѕР»Рµ, РѕРґРЅРѕ РёР·: `WAITING`, `IN_PROGRESS`, `COMPLETED`).
+   * @apiSuccess {Object} meeting РћР±РЅРѕРІР»С‘РЅРЅС‹Р№ РѕР±СЉРµРєС‚ Р·Р°СЃРµРґР°РЅРёСЏ.
+   * @apiSuccess {Number} meeting.id РРґРµРЅС‚РёС„РёРєР°С‚РѕСЂ Р·Р°СЃРµРґР°РЅРёСЏ.
+   * @apiSuccess {String} meeting.name РќР°Р·РІР°РЅРёРµ Р·Р°СЃРµРґР°РЅРёСЏ.
+   * @apiSuccess {String} meeting.startTime Р”Р°С‚Р° Рё РІСЂРµРјСЏ РЅР°С‡Р°Р»Р°.
+   * @apiSuccess {String} meeting.endTime Р”Р°С‚Р° Рё РІСЂРµРјСЏ РѕРєРѕРЅС‡Р°РЅРёСЏ.
+   * @apiSuccess {String} meeting.status РќРѕРІС‹Р№ СЃС‚Р°С‚СѓСЃ Р·Р°СЃРµРґР°РЅРёСЏ.
+   * @apiSuccess {Boolean} meeting.isArchived Р¤Р»Р°Рі Р°СЂС…РёРІР°С†РёРё.
+   * @apiError (400) BadRequest РћС€РёР±РєР°, РµСЃР»Рё Р·Р°СЃРµРґР°РЅРёРµ РЅРµ РЅР°Р№РґРµРЅРѕ, СЃС‚Р°С‚СѓСЃ РЅРµРєРѕСЂСЂРµРєС‚РµРЅ РёР»Рё РѕР±РЅРѕРІР»РµРЅРёРµ РЅРµРІРѕР·РјРѕР¶РЅРѕ.
+   * @apiErrorExample {json} РџСЂРёРјРµСЂ РѕС‚РІРµС‚Р° РїСЂРё РѕС€РёР±РєРµ:
    *     {
-   *         "error": "Некорректный статус заседания"
+   *         "error": "РќРµРєРѕСЂСЂРµРєС‚РЅС‹Р№ СЃС‚Р°С‚СѓСЃ Р·Р°СЃРµРґР°РЅРёСЏ"
    *     }
-   * @apiExample {curl} Пример запроса:
+   * @apiExample {curl} РџСЂРёРјРµСЂ Р·Р°РїСЂРѕСЃР°:
    *     curl -X POST -H "Content-Type: application/json" -d '{"status":"IN_PROGRESS"}' http://217.114.10.226:5000/api/meetings/119/status
    */
   router.post('/:id/status', async (req, res) => {
@@ -768,7 +767,7 @@ router.get('/:id/absent-users', async (req, res) => {
       await pgClient.query(`NOTIFY meeting_status_channel, '${JSON.stringify({ id: parseInt(id), status })}'`);
       res.json(meeting);
     } catch (error) {
-      console.error('Ошибка при обновлении статуса заседания:', error);
+      console.error('РћС€РёР±РєР° РїСЂРё РѕР±РЅРѕРІР»РµРЅРёРё СЃС‚Р°С‚СѓСЃР° Р·Р°СЃРµРґР°РЅРёСЏ:', error);
       res.status(400).json({ error: error.message });
     }
   });

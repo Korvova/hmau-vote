@@ -1,48 +1,12 @@
-import React, { useEffect, useState } from 'react';
-import usePersistentList from '../utils/usePersistentList.js';
+﻿import React, { useEffect, useState } from 'react';
 import MeetingModal from '../components/MeetingModal.jsx';
-import { getDivisions, getUsers } from '../utils/api.js';
-
-const LS_KEY = 'rms_meetings_v1';
+import { getDivisions, getUsers, getMeetings, createMeeting, updateMeeting, deleteMeeting, archiveMeeting } from '../utils/api.js';
 
 function MeetingsPage() {
   const [configOpen, setConfigOpen] = useState(false);
 
   // ��������� ������ (��������� ��� ������� �������)
-  const initialRows = [
-    {
-      id: 1,
-      title: 'Внесение изменений в Устав',
-      startDate: '2025-07-17',
-      startTime: '11:00',
-      endDate: '2025-07-17',
-      endTime: '15:00',
-      divisions: 'Рабочая группа по внесению изменений в Устав, совет директоров, отдел кадров',
-      status: 'WAITING', // WAITING | IN_PROGRESS | DONE
-    },
-    {
-      id: 2,
-      title: 'Внесение изменений в Устав',
-      startDate: '2025-07-17',
-      startTime: '11:00',
-      endDate: '2025-07-17',
-      endTime: '15:00',
-      divisions: 'Рабочая группа по внесению изменений в Устав, совет директоров, отдел кадров',
-      status: 'IN_PROGRESS',
-    },
-    {
-      id: 3,
-      title: 'Внесение изменений в Устав',
-      startDate: '2025-07-17',
-      startTime: '11:00',
-      endDate: '2025-07-17',
-      endTime: '15:00',
-      divisions: 'Рабочая группа по внесению изменений в Устав, совет директоров, отдел кадров',
-      status: 'DONE',
-    },
-  ];
-
-  const [rows, setRows] = usePersistentList(LS_KEY, initialRows);
+    const [rows, setRows] = useState([]);
   const [divisions, setDivisions] = useState([]);
   const [users, setUsers] = useState([]);
 
@@ -50,35 +14,35 @@ function MeetingsPage() {
   const [isOpen, setOpen] = useState(false);
   const [isAdd, setAdd] = useState(false);
 
-  // Load divisions and users for modal selects (best-effort; tolerate failures)
+  // Load divisions, users and meetings
   useEffect(() => {
     const load = async () => {
       try {
-        const [ds, us] = await Promise.all([
+        const [ds, us, ms] = await Promise.all([
           getDivisions().catch(() => []),
           getUsers().catch(() => []),
+          getMeetings().catch(() => []),
         ]);
         setDivisions(Array.isArray(ds) ? ds : []);
         setUsers(Array.isArray(us) ? us : []);
+        const pad = (n) => String(n).padStart(2, '0');
+        const normalized = (Array.isArray(ms) ? ms : []).map(m => {
+          const s = m.startTime ? new Date(m.startTime) : null;
+          const e = m.endTime ? new Date(m.endTime) : null;
+          const sd = s ? `${s.getFullYear()}-${pad(s.getMonth()+1)}-${pad(s.getDate())}` : '';
+          const st = s ? `${pad(s.getHours())}:${pad(s.getMinutes())}` : '';
+          const ed = e ? `${e.getFullYear()}-${pad(e.getMonth()+1)}-${pad(e.getDate())}` : '';
+          const et = e ? `${pad(e.getHours())}:${pad(e.getMinutes())}` : '';
+          return { id: m.id, title: m.name, startDate: sd, startTime: st, endDate: ed, endTime: et, divisions: m.divisions || '', status: m.status || 'WAITING' };
+        });
+        setRows(normalized);
       } catch {}
     };
     load();
   }, []);
 
   // Поля для формы заседаний
-  const fields = [
-    { name: 'title', label: 'Название заседания', type: 'text', required: true },
-    { name: 'startDate', label: 'Дата начала', type: 'date', required: true },
-    { name: 'startTime', label: 'Время начала', type: 'time', required: true },
-    { name: 'endDate', label: 'Дата окончания', type: 'date', required: true },
-    { name: 'endTime', label: 'Время окончания', type: 'time', required: true },
-    { name: 'divisions', label: 'Подразделения', type: 'textarea', required: false },
-    { name: 'status', label: 'Статус', type: 'select', required: true, options: [
-      { label: 'Ждёт запуска', value: 'WAITING' },
-      { label: 'Идет', value: 'IN_PROGRESS' },
-      { label: 'Завершено', value: 'DONE' },
-    ] },
-  ];
+  // fields removed
 
   const renderStatus = (status) => {
     if (status === 'WAITING') return 'Ждёт запуска';
@@ -108,21 +72,53 @@ function MeetingsPage() {
     setOpen(true);
   };
 
-  const handleSubmit = (formData /*, password */) => {
-    if (isAdd) {
-      const newId = (rows.reduce((m, r) => Math.max(m, r.id), 0) || 0) + 1;
-      setRows((prev) => [{ id: newId, status: 'WAITING', ...formData }, ...prev]);
-    } else if (selected) {
-      setRows((prev) => prev.map((r) => (r.id === selected.id ? { ...r, ...formData } : r)));
+  const handleSubmit = async (formData /*, password */) => {
+    try {
+      const toIso = (d, t) => (d && t) ? new Date(d + "T" + t).toISOString() : null;
+      const payload = {
+        name: formData.title,
+        startTime: toIso(formData.startDate, formData.startTime),
+        endTime: toIso(formData.endDate, formData.endTime),
+        divisionIds: formData.divisionIds || [],
+        agendaItems: (formData.agenda || []).map(a => ({ number: a.number, title: a.title, speakerId: a.speakerId ?? null, link: a.link ?? null })),
+      };
+      if (isAdd) await createMeeting(payload); else if (selected) await updateMeeting(selected.id, payload);
+      const ms = await getMeetings();
+      const pad = (n) => ("0" + n).slice(-2);
+      const formatDate = (d) => d ? [d.getFullYear(), pad(d.getMonth()+1), pad(d.getDate())].join("-") : "";
+      const formatTime = (d) => d ? [pad(d.getHours()), pad(d.getMinutes())].join(":") : "";
+      const normalized = (Array.isArray(ms) ? ms : []).map(m => {
+        const s = m.startTime ? new Date(m.startTime) : null;
+        const e = m.endTime ? new Date(m.endTime) : null;
+        const sd = formatDate(s);
+        const st = formatTime(s);
+        const ed = formatDate(e);
+        const et = formatTime(e);
+        return { id: m.id, title: m.name, startDate: sd, startTime: st, endDate: ed, endTime: et, divisions: m.divisions || "", status: m.status || "WAITING" };
+      });
+      setRows(normalized);
+      setOpen(false);
+    } catch (e) {
+      alert(e.message || "Ошибка сохранения заседания");
     }
-    setOpen(false);
   };
 
   const handleDelete = (id, e) => {
     e?.preventDefault?.();
     e?.stopPropagation?.();
-    if (!window.confirm('Удалить заседание?')) return;
-    setRows(prev => prev.filter(r => r.id !== id));
+    if (!window.confirm("Удалить заседание?")) return;
+    deleteMeeting(id)
+      .then(() => setRows(prev => prev.filter(r => r.id !== id)))
+      .catch(err => alert(err.message || "Ошибка удаления"));
+  };
+
+  const handleArchive = (id, e) => {
+    e?.preventDefault?.();
+    e?.stopPropagation?.();
+    if (!window.confirm("Переместить заседание в архив?")) return;
+    archiveMeeting(id)
+      .then(() => setRows(prev => prev.filter(r => r.id !== id)))
+      .catch(err => alert(err.message || "Ошибка архивации"));
   };
 
   return (
@@ -186,7 +182,7 @@ function MeetingsPage() {
                 </div>
                 <div className="top__wrapper">
                   <ul className="nav">
-                    <li><a href="#!"><img src="/img/icon_20.png" alt="" /></a></li>
+                    <li><a href="/meetings/archive"><img src="/img/icon_20.png" alt="" /></a></li>
                     <li><a href="#!"><img src="/img/icon_8.png" alt="" /></a></li>
                     <li><a href="#!"><img src="/img/icon_9.png" alt="" /></a></li>
                   </ul>
@@ -221,8 +217,8 @@ function MeetingsPage() {
                                 <img src="/img/icon_11.png" alt="" />Редактировать
                               </button>
                             </li>
-                            <li><button><img src="/img/icon_21.png" alt="" />Результат</button></li>
-                            <li><button><img src="/img/icon_13.png" alt="" />В архив</button></li>
+                            <li><a href="/console/meeting/${m.id}"><img src="/img/icon_21.png" alt="" />Управлять</a></li>
+                            <li><button onClick={(e) => handleArchive(m.id, e)}><img src="/img/icon_13.png" alt="" />В архив</button></li>
                             <li><button onClick={(e) => handleDelete(m.id, e)}><img src="/img/icon_14.png" alt="" />Удалить</button></li>
                           </ul>
                         </td>
@@ -272,6 +268,18 @@ function MeetingsPage() {
 }
 
 export default MeetingsPage;
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 

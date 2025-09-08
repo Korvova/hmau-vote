@@ -1,35 +1,23 @@
 import React, { useEffect, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { getMeetings } from '../utils/api.js';
+import { getArchivedMeetings } from '../utils/api.js';
 
-function ConfigPage() {
+function ArchivedMeetingsPage() {
   const [configOpen, setConfigOpen] = useState(false);
-  const navigate = useNavigate();
-
   const [rows, setRows] = useState([]);
 
   useEffect(() => {
     const load = async () => {
       try {
-        const ms = await getMeetings();
+        const ms = await getArchivedMeetings();
         const pad = (n) => String(n).padStart(2, '0');
-        const normalized = (Array.isArray(ms) ? ms : []).map((m) => {
+        const normalized = (Array.isArray(ms) ? ms : []).map(m => {
           const s = m.startTime ? new Date(m.startTime) : null;
           const e = m.endTime ? new Date(m.endTime) : null;
-          const sd = s ? `${s.getFullYear()}-${pad(s.getMonth() + 1)}-${pad(s.getDate())}` : '';
+          const sd = s ? `${s.getFullYear()}-${pad(s.getMonth()+1)}-${pad(s.getDate())}` : '';
           const st = s ? `${pad(s.getHours())}:${pad(s.getMinutes())}` : '';
-          const ed = e ? `${e.getFullYear()}-${pad(e.getMonth() + 1)}-${pad(e.getDate())}` : '';
+          const ed = e ? `${e.getFullYear()}-${pad(e.getMonth()+1)}-${pad(e.getDate())}` : '';
           const et = e ? `${pad(e.getHours())}:${pad(e.getMinutes())}` : '';
-          return {
-            id: m.id,
-            name: m.name,
-            startDate: sd,
-            startTime: st,
-            endDate: ed,
-            endTime: et,
-            divisions: m.divisions || '',
-            status: m.status || 'WAITING',
-          };
+          return { id: m.id, title: m.name, startDate: sd, startTime: st, endDate: ed, endTime: et, divisions: m.divisions || '', status: m.status || 'COMPLETED' };
         });
         setRows(normalized);
       } catch {}
@@ -38,19 +26,14 @@ function ConfigPage() {
   }, []);
 
   const renderStatus = (status) => {
-    if (status === 'WAITING') return 'Ждет запуска';
-    if (status === 'IN_PROGRESS') return 'Идет';
+    if (status === 'WAITING') return 'Ждёт запуска';
+    if (status === 'IN_PROGRESS') return 'Идёт';
     return 'Завершено';
-  };
-
-  const handleManage = (id, e) => {
-    e?.preventDefault?.();
-    navigate(`/console/meeting/${id}`);
   };
 
   return (
     <>
-      {/* HEADER */}
+      {/* HEADER (копия стиля, как на других страницах) */}
       <header className="page">
         <div className="header__top">
           <div className="container">
@@ -81,7 +64,7 @@ function ConfigPage() {
                 <li><a href="/users">Пользователи</a></li>
                 <li><a href="/divisions">Подразделения</a></li>
                 <li><a href="/meetings">Заседания</a></li>
-                <li className="current-menu-item"><a href="/console">Пульт заседания</a></li>
+                <li><a href="/console">Пульт заседания</a></li>
                 <li className={`menu-children${configOpen ? ' current-menu-item' : ''}`}>
                   <a href="#!" onClick={(e) => { e.preventDefault(); setConfigOpen(!configOpen); }}>Конфигурация</a>
                   <ul className="sub-menu" style={{ display: configOpen ? 'block' : 'none' }}>
@@ -104,7 +87,7 @@ function ConfigPage() {
             <div className="wrapper">
               <div className="page__top">
                 <div className="top__heading">
-                  <h1>Пульт заседания</h1>
+                  <h1>Архив заседаний</h1>
                 </div>
                 <div className="top__wrapper">
                   <ul className="nav">
@@ -124,20 +107,16 @@ function ConfigPage() {
                       <th>Конец</th>
                       <th>Подразделение</th>
                       <th>Статус</th>
-                      <th>Действие</th>
                     </tr>
                   </thead>
                   <tbody>
-                    {(rows || []).map((m) => (
+                    {rows.map(m => (
                       <tr key={m.id}>
-                        <td>{m.name}</td>
+                        <td>{m.title}</td>
                         <td className="date">{m.startDate} <span>{m.startTime}</span></td>
                         <td className="date">{m.endDate} <span>{m.endTime}</span></td>
                         <td>{m.divisions}</td>
                         <td style={{ whiteSpace: 'nowrap' }}>{renderStatus(m.status)}</td>
-                        <td>
-                          <a href="#!" onClick={(e) => handleManage(m.id, e)}>Управлять</a>
-                        </td>
                       </tr>
                     ))}
                   </tbody>
@@ -165,7 +144,7 @@ function ConfigPage() {
           <div className="container">
             <div className="wrapper">
               <p>&copy; rms-group.ru</p>
-              <p>RMS Voting 1.01 – 2025</p>
+              <p>RMS Voting 1.01 c 2025</p>
             </div>
           </div>
         </section>
@@ -174,5 +153,5 @@ function ConfigPage() {
   );
 }
 
-export default ConfigPage;
+export default ArchivedMeetingsPage;
 

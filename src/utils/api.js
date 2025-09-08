@@ -46,3 +46,16 @@ export const getUsers = () => apiRequest('/api/users');
 export const createUser = (payload) => apiRequest('/api/users', { method: 'POST', body: JSON.stringify(payload) });
 export const updateUser = (id, payload) => apiRequest(`/api/users/${id}`, { method: 'PUT', body: JSON.stringify(payload) });
 export const deleteUser = (id) => apiRequest(`/api/users/${id}`, { method: 'DELETE' });
+
+// Meetings
+export const getMeetings = () => apiRequest('/api/meetings');
+export const getArchivedMeetings = () => apiRequest('/api/meetings/archived');
+export const getMeeting = (id) => apiRequest(`/api/meetings/${id}`);
+export const getAgendaItems = (meetingId) => apiRequest(`/api/meetings/${meetingId}/agenda-items`);
+export const createMeeting = (payload) => apiRequest('/api/meetings', { method: 'POST', body: JSON.stringify(payload) });
+export const updateMeeting = (id, payload) => apiRequest(`/api/meetings/${id}`, { method: 'PUT', body: JSON.stringify(payload) });
+export const deleteMeeting = (id) => apiRequest(`/api/meetings/${id}`, { method: 'DELETE' });
+export const archiveMeeting = (id) => apiRequest(`/api/meetings/${id}/archive`, { method: 'POST' });
+
+// Vote results (for protocol)
+export const getVoteResults = (meetingId) => apiRequest(`/api/vote-results?meetingId=${encodeURIComponent(meetingId)}`);

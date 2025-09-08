@@ -193,7 +193,7 @@ function MeetingModal({ open, data, divisions = [], users = [], title = 'Ред�
             {agenda.map((item, idx) => (
               <div key={idx} style={{ borderTop: '1px solid #eaeaea', paddingTop: 16, marginTop: 16 }}>
                 {/* Верхняя строка: номер + наименование + крестик */}
-                <div style={{ display: 'grid', gridTemplateColumns: '24px 1fr auto', alignItems: 'center', columnGap: 12, marginBottom: 10 }}>
+                <div style={{ display: 'grid', gridTemplateColumns: '24px 1fr 32px', alignItems: 'center', columnGap: 12, marginBottom: 10 }}>
                   <div style={{ width: 24, textAlign: 'right' }}>{idx + 1}.</div>
                   <input
                     placeholder="Вопрос внесения изменений в Устав"
@@ -205,15 +205,15 @@ function MeetingModal({ open, data, divisions = [], users = [], title = 'Ред�
                     type="button"
                     title="Удалить вопрос"
                     onClick={() => handleRemoveAgenda(idx)}
-                    style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 18, lineHeight: 1 }}
+                    style={{ width: 32, height: 32, background: 'none', border: 'none', cursor: 'pointer', fontSize: 18, lineHeight: 1, color: '#6b7280', justifySelf: 'end', marginTop: 0, padding: 0 }}
                   >
                     ×
                   </button>
                 </div>
                 {/* Нижняя строка: Докладчик + Ссылка */}
-                <div style={{ display: 'flex', gap: 12 }}>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', columnGap: 12 }}>
                   <select
-                    style={{ ...inputStyle, flex: 1 }}
+                    style={{ ...inputStyle, width: '100%' }}
                     value={item.speakerId ?? ''}
                     onChange={(e) => handleAgendaChange(idx, { speakerId: e.target.value ? Number(e.target.value) : null })}
                   >
@@ -224,7 +224,7 @@ function MeetingModal({ open, data, divisions = [], users = [], title = 'Ред�
                   </select>
                   <input
                     placeholder="Ссылка"
-                    style={{ ...inputStyle, flex: 1 }}
+                    style={{ ...inputStyle, width: '100%' }}
                     value={item.link}
                     onChange={(e) => handleAgendaChange(idx, { link: e.target.value })}
                   />
