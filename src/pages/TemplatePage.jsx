@@ -1,28 +1,37 @@
-import React, { useState } from 'react';
-import usePersistentList from '../utils/usePersistentList.js';
+import React, { useEffect, useState } from 'react';
+import { getVoteTemplates, createVoteTemplate, updateVoteTemplate, deleteVoteTemplate } from '../utils/api.js';
 import EditModal from '../components/EditModal.jsx';
-
-const LS_KEY = 'rms_template_v1';
 
 function TemplatePage() {
   const [configOpen, setConfigOpen] = useState(true);
 
-  // Стартовые строки из текущей вёрстки (структуру таблицы НЕ меняем)
-  const initialRows = [
-    { id: 1, title: 'Внесение изменений в Устав (полномочия комиссий)' },
-    { id: 2, title: 'Внесение изменений в Устав (полномочия комиссий)' },
-    { id: 3, title: 'Внесение изменений в Устав (полномочия комиссий)' },
-    { id: 4, title: 'Внесение изменений в Устав (полномочия комиссий)' },
-  ];
+  // Data from API
+  const [rows, setRows] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
 
-  const [rows, setRows] = usePersistentList(LS_KEY, initialRows);
-
-  // Модалка
+  // Modal state
   const [selected, setSelected] = useState(null);
   const [isOpen, setOpen] = useState(false);
   const [isAdd, setAdd] = useState(false);
 
-  // Поля формы (НЕ меняем структуру таблицы — редактируем только «Название»)
+  useEffect(() => {
+    const load = async () => {
+      setLoading(true);
+      setError('');
+      try {
+        const list = await getVoteTemplates();
+        const normalized = (Array.isArray(list) ? list : []).map(t => ({ id: t.id, title: t.title }));
+        setRows(normalized);
+      } catch (e) {
+        setError(e.message || 'Ошибка загрузки шаблонов голосования');
+      } finally {
+        setLoading(false);
+      }
+    };
+    load();
+  }, []);
+
   const fields = [
     { name: 'title', label: 'Название', type: 'text', required: true },
   ];
@@ -36,18 +45,35 @@ function TemplatePage() {
 
   const handleEdit = (row) => {
     setAdd(false);
-    setSelected(row);
+    setSelected({ id: row.id, title: row.title });
     setOpen(true);
   };
 
-  const handleSubmit = (formData /*, password */) => {
-    if (isAdd) {
-      const newId = (rows.reduce((m, r) => Math.max(m, r.id), 0) || 0) + 1;
-      setRows((prev) => [{ id: newId, ...formData }, ...prev]);
-    } else if (selected) {
-      setRows((prev) => prev.map((r) => (r.id === selected.id ? { ...r, ...formData } : r)));
+  const handleSubmit = async (formData /*, password */) => {
+    try {
+      if (isAdd) {
+        const created = await createVoteTemplate({ title: formData.title });
+        setRows(prev => [{ id: created.id, title: created.title }, ...prev]);
+      } else if (selected?.id) {
+        const updated = await updateVoteTemplate(selected.id, { title: formData.title });
+        setRows(prev => prev.map(r => (r.id === selected.id ? { id: updated.id, title: updated.title } : r)));
+      }
+      setOpen(false);
+    } catch (e) {
+      alert(e.message || 'Ошибка сохранения шаблона');
     }
-    setOpen(false);
+  };
+
+  const handleDelete = async (row, e) => {
+    e?.preventDefault?.();
+    e?.stopPropagation?.();
+    if (!window.confirm('Удалить шаблон голосования?')) return;
+    try {
+      await deleteVoteTemplate(row.id);
+      setRows(prev => prev.filter(r => r.id !== row.id));
+    } catch (e) {
+      alert(e.message || 'Ошибка удаления');
+    }
   };
 
   return (
@@ -83,11 +109,11 @@ function TemplatePage() {
                 <li><a href="/users">Пользователи</a></li>
                 <li><a href="/divisions">Подразделения</a></li>
                 <li><a href="/meetings">Заседания</a></li>
-                <li><a href="/console">Пульт Заседания</a></li>
+                <li><a href="/console">Пульт заседания</a></li>
                 <li className={`menu-children${configOpen ? ' current-menu-item' : ''}`}>
                   <a href="#!" onClick={(e) => { e.preventDefault(); setConfigOpen(!configOpen); }}>Конфигурация</a>
                   <ul className="sub-menu" style={{ display: configOpen ? 'block' : 'none' }}>
-                    <li className="current-menu-item"><a href="/template">Шаблон голосования</a></li>
+                    <li className="current-menu-item"><a href="/template">Шаблоны голосования</a></li>
                     <li><a href="/vote">Процедура подсчета голосов</a></li>
                     <li><a href="/screen">Экран трансляции</a></li>
                     <li><a href="/linkprofile">Связать профиль с ID</a></li>
@@ -106,24 +132,16 @@ function TemplatePage() {
             <div className="wrapper">
               <div className="page__top">
                 <div className="top__heading">
-                  <h1>Шаблон голосования</h1>
+                  <h1>Шаблоны голосования</h1>
                   <a href="#!" className="btn btn-add" onClick={handleAdd}><span>Добавить</span></a>
                 </div>
                 <div className="top__wrapper">
-                  <select>
-                    <option value="По дате">По дате</option>
-                    <option value="По дате 1">По дате 1</option>
-                    <option value="По дате 2">По дате 2</option>
-                  </select>
-                  <form className="search">
-                    <input type="text" placeholder="Поиск" />
-                    <button type="submit"></button>
-                  </form>
                   <ul className="nav">
                     <li><a href="#!"><img src="/img/icon_8.png" alt="" /></a></li>
                     <li><a href="#!"><img src="/img/icon_9.png" alt="" /></a></li>
                   </ul>
                 </div>
+                {error && <div style={{ color: 'red', marginTop: 8 }}>{error}</div>}
               </div>
 
               <div className="page__table">
@@ -131,19 +149,26 @@ function TemplatePage() {
                   <thead>
                     <tr>
                       <th>Название</th>
-                      <th>Действие</th>
+                      <th>Действия</th>
                     </tr>
                   </thead>
                   <tbody>
-                    {rows.map((row) => (
+                    {(loading ? [] : rows).map((row) => (
                       <tr key={row.id}>
                         <td>{row.title}</td>
                         <td className="action">
                           <ul>
-                            {/* первая иконка — редактирование (структуру не меняем) */}
-                            <li><a href="#!" onClick={(e) => { e.preventDefault(); handleEdit(row); }}><img src="/img/icon_24.png" alt="" /></a></li>
-                            <li><a href="#!"><img src="/img/icon_25.png" alt="" /></a></li>
-                            <li><a href="#!"><img src="/img/icon_26.png" alt="" /></a></li>
+                            <li>
+                              <a href="#!" onClick={(e) => { e.preventDefault(); handleEdit(row); }}>
+                                <img src="/img/icon_24.png" alt="" />
+                              </a>
+                            </li>
+                            {/* Удалена лишняя кнопка с icon_25 */}
+                            <li>
+                              <a href="#!" onClick={(e) => handleDelete(row, e)}>
+                                <img src="/img/icon_26.png" alt="" />
+                              </a>
+                            </li>
                           </ul>
                         </td>
                       </tr>
@@ -182,7 +207,7 @@ function TemplatePage() {
           <div className="container">
             <div className="wrapper">
               <p>&copy; rms-group.ru</p>
-              <p>RMS Voting 1.2 – 2025</p>
+              <p>RMS Voting 1.2 © 2025</p>
             </div>
           </div>
         </section>
@@ -192,3 +217,4 @@ function TemplatePage() {
 }
 
 export default TemplatePage;
+

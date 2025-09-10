@@ -91,7 +91,7 @@ function ScreenPage() {
 					<div className="container">
 						<div className="wrapper">
 							<p>&copy; rms-group.ru</p>
-							<p>RMS Voting 1.01 – 2025</p>
+							<p>RMS Voting 1.2 © 2025</p>
 						</div>
 					</div>
 				</section>

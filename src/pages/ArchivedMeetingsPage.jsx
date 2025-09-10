@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { getArchivedMeetings } from '../utils/api.js';
+import { getArchivedMeetings, deleteMeeting } from '../utils/api.js';
 
 function ArchivedMeetingsPage() {
   const [configOpen, setConfigOpen] = useState(false);
@@ -29,6 +29,18 @@ function ArchivedMeetingsPage() {
     if (status === 'WAITING') return 'Ждёт запуска';
     if (status === 'IN_PROGRESS') return 'Идёт';
     return 'Завершено';
+  };
+
+  const handleDelete = async (id, e) => {
+    e?.preventDefault?.();
+    e?.stopPropagation?.();
+    if (!window.confirm('Удалить заседание?')) return;
+    try {
+      await deleteMeeting(id);
+      setRows(prev => prev.filter(r => r.id !== id));
+    } catch (e) {
+      alert(e.message || 'Ошибка удаления');
+    }
   };
 
   return (
@@ -68,10 +80,10 @@ function ArchivedMeetingsPage() {
                 <li className={`menu-children${configOpen ? ' current-menu-item' : ''}`}>
                   <a href="#!" onClick={(e) => { e.preventDefault(); setConfigOpen(!configOpen); }}>Конфигурация</a>
                   <ul className="sub-menu" style={{ display: configOpen ? 'block' : 'none' }}>
-                    <li><a href="/template">Шаблоны документов</a></li>
-                    <li><a href="/vote">Параметры голосования</a></li>
-                    <li><a href="/screen">Экран отображения</a></li>
-                    <li><a href="/linkprofile">Привязка профиля к ID</a></li>
+                    <li><a href="/template">Шаблоны голосования</a></li>
+                    <li><a href="/vote">Процедура подсчёта голосов</a></li>
+                    <li><a href="/screen">Экран трансляции</a></li>
+                    <li><a href="/linkprofile">Связать профиль с ID</a></li>
                   </ul>
                 </li>
               </ul>
@@ -107,6 +119,7 @@ function ArchivedMeetingsPage() {
                       <th>Конец</th>
                       <th>Подразделение</th>
                       <th>Статус</th>
+                      <th></th>
                     </tr>
                   </thead>
                   <tbody>
@@ -117,6 +130,15 @@ function ArchivedMeetingsPage() {
                         <td className="date">{m.endDate} <span>{m.endTime}</span></td>
                         <td>{m.divisions}</td>
                         <td style={{ whiteSpace: 'nowrap' }}>{renderStatus(m.status)}</td>
+                        <td className="action action-small">
+                          <ul>
+                            <li>
+                              <a href="#!" onClick={(e) => handleDelete(m.id, e)}>
+                                <img src="/img/icon_14.png" alt="" />
+                              </a>
+                            </li>
+                          </ul>
+                        </td>
                       </tr>
                     ))}
                   </tbody>
@@ -144,7 +166,7 @@ function ArchivedMeetingsPage() {
           <div className="container">
             <div className="wrapper">
               <p>&copy; rms-group.ru</p>
-              <p>RMS Voting 1.01 c 2025</p>
+              <p>RMS Voting 1.2 © 2025</p>
             </div>
           </div>
         </section>
@@ -154,4 +176,3 @@ function ArchivedMeetingsPage() {
 }
 
 export default ArchivedMeetingsPage;
-

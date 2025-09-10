@@ -85,10 +85,10 @@ function ConfigPage() {
                 <li className={`menu-children${configOpen ? ' current-menu-item' : ''}`}>
                   <a href="#!" onClick={(e) => { e.preventDefault(); setConfigOpen(!configOpen); }}>Конфигурация</a>
                   <ul className="sub-menu" style={{ display: configOpen ? 'block' : 'none' }}>
-                    <li><a href="/template">Шаблоны документов</a></li>
-                    <li><a href="/vote">Параметры голосования</a></li>
-                    <li><a href="/screen">Экран отображения</a></li>
-                    <li><a href="/linkprofile">Привязка профиля к ID</a></li>
+                    <li><a href="/template">Шаблоны голосования</a></li>
+                    <li><a href="/vote">Процедура подсчёта голосов</a></li>
+                    <li><a href="/screen">Экран трансляции</a></li>
+                    <li><a href="/linkprofile">Связать профиль с ID</a></li>
                   </ul>
                 </li>
               </ul>
@@ -165,7 +165,7 @@ function ConfigPage() {
           <div className="container">
             <div className="wrapper">
               <p>&copy; rms-group.ru</p>
-              <p>RMS Voting 1.01 – 2025</p>
+              <p>RMS Voting 1.2 © 2025</p>
             </div>
           </div>
         </section>

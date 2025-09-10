@@ -217,7 +217,11 @@ function MeetingsPage() {
                                 <img src="/img/icon_11.png" alt="" />Редактировать
                               </button>
                             </li>
-                            <li><a href="/console/meeting/${m.id}"><img src="/img/icon_21.png" alt="" />Управлять</a></li>
+                            <li>
+                              <button onClick={() => { window.location.href = `/report/meeting/${m.id}`; }}>
+                                <img src="/img/icon_21.png" alt="" />Результат
+                              </button>
+                            </li>
                             <li><button onClick={(e) => handleArchive(m.id, e)}><img src="/img/icon_13.png" alt="" />В архив</button></li>
                             <li><button onClick={(e) => handleDelete(m.id, e)}><img src="/img/icon_14.png" alt="" />Удалить</button></li>
                           </ul>
@@ -258,7 +262,7 @@ function MeetingsPage() {
           <div className="container">
             <div className="wrapper">
               <p>&copy; rms-group.ru</p>
-              <p>RMS Voting 1.01 © 2025</p>
+              <p>RMS Voting 1.2 © 2025</p>
             </div>
           </div>
         </section>

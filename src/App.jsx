@@ -11,6 +11,7 @@ import TemplatePage from './pages/TemplatePage.jsx';
 import LinkProfilePage from './pages/LinkProfilePage.jsx';
 import ConfigPage from './pages/ConfigPage.jsx';
 import ControlMeetingPage from './pages/ControlMeetingPage.jsx';
+import ProtocolMeetingPage from './pages/ProtocolMeetingPage.jsx';
 
 function App() {
   return (
@@ -26,6 +27,7 @@ function App() {
       <Route path="/linkprofile" element={<LinkProfilePage />} />
       <Route path="/console" element={<ConfigPage />} />
       <Route path="/console/meeting/:id" element={<ControlMeetingPage />} />
+      <Route path="/report/meeting/:id" element={<ProtocolMeetingPage />} />
     </Routes>
   );
 }

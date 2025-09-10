@@ -1,87 +1,91 @@
-import React, { useState } from 'react';
-import usePersistentList from '../utils/usePersistentList.js';
-import EditModal from '../components/EditModal.jsx';
-
-const LS_KEY = 'rms_voting_rules_v1';
+import React, { useEffect, useMemo, useState } from 'react';
+import ProcedureModal from '../components/ProcedureModal.jsx';
+import { getVoteProcedures, createVoteProcedure, updateVoteProcedure, deleteVoteProcedure } from '../utils/api.js';
 
 function VotingPage() {
   const [configOpen, setConfigOpen] = useState(true);
 
-  // Стартовые строки из текущей вёрстки
-  const initialRows = [
-    {
-      id: 1,
-      rule: 'Все пользователи онлайн х 50% > За',
-      formula: 'Все пользователи онлайн x 50% > За \nЗа > Против',
-      accepted: false, // Не принято
-    },
-    {
-      id: 2,
-      rule: 'Не менее 2/3 от установленного числа депутатов',
-      formula: 'Все пользователи онлайн x 66,67% > За \nЗа > Против',
-      accepted: true, // Принято
-    },
-    {
-      id: 3,
-      rule: 'Не менее 3/4 от установленного числа депутатов',
-      formula: 'Все пользователи онлайн x 75% > За \nЗа > Против',
-      accepted: true,
-    },
-    {
-      id: 4,
-      rule: 'Больше голосов «За», чем «Против»',
-      formula: 'За > Против',
-      accepted: true,
-    },
-  ];
+  // Data
+  const [rows, setRows] = useState([]); // { id, name, conditions, resultIfTrue }
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
 
-  const [rows, setRows] = usePersistentList(LS_KEY, initialRows);
+  // Modal state
   const [selected, setSelected] = useState(null);
   const [isOpen, setOpen] = useState(false);
   const [isAdd, setAdd] = useState(false);
 
-  // Поля формы (структуру таблицы НЕ меняем)
-  const fields = [
-    { name: 'rule', label: 'Название правила', type: 'text', required: true },
-    { name: 'formula', label: 'Формула', type: 'textarea', required: true },
-    { name: 'accepted', label: 'Статус', type: 'select', required: true, options: [
-      { label: 'Не принято', value: 'false' },
-      { label: 'Принято', value: 'true' },
-    ] },
-  ];
+  useEffect(() => {
+    const load = async () => {
+      setLoading(true);
+      setError('');
+      try {
+        const list = await getVoteProcedures();
+        const normalized = (Array.isArray(list) ? list : []).map(p => ({ id: p.id, name: p.name, conditions: p.conditions || [], resultIfTrue: p.resultIfTrue || 'Принято' }));
+        setRows(normalized);
+      } catch (e) {
+        setError(e.message || 'Ошибка загрузки процедур');
+      } finally {
+        setLoading(false);
+      }
+    };
+    load();
+  }, []);
 
-  const renderAccepted = (a) => a ? (
-    <span><img src="/img/icon_28.png" alt="" />Принято</span>
-  ) : (
-    <span><img src="/img/icon_27.png" alt="" />Не принято</span>
-  );
+  const stringify = useMemo(() => (proc) => {
+    try {
+      const blocks = (proc.conditions || []).map(b => (b.tokens || []).map(t => {
+        if (t.type === 'number') return String(t.number ?? 0);
+        if (t.type === 'percent') return `${t.number ?? 0}%`;
+        return t.value;
+      }).join(' '));
+      const ops = (proc.conditions || []).map(b => b.op).filter(Boolean);
+      let out = '';
+      for (let i = 0; i < blocks.length; i++) {
+        out += (i ? `\n${ops[i-1] || ''}\n` : '') + (blocks[i] || '');
+      }
+      return out || '-';
+    } catch { return '-'; }
+  }, []);
 
   const handleAdd = (e) => {
     e?.preventDefault?.();
     setAdd(true);
-    setSelected({ id: null, rule: '', formula: '', accepted: false });
+    setSelected({ id: null, name: '', resultIfTrue: 'Принято', conditions: [{ tokens: [], op: null }] });
     setOpen(true);
   };
 
   const handleEdit = (row) => {
     setAdd(false);
-    setSelected(row);
+    setSelected({ ...row });
     setOpen(true);
   };
 
-  const handleSubmit = (formData /*, password */) => {
-    const normalized = {
-      ...formData,
-      accepted: String(formData.accepted) === 'true',
-    };
-
-    if (isAdd) {
-      const newId = (rows.reduce((m, r) => Math.max(m, r.id), 0) || 0) + 1;
-      setRows((prev) => [{ id: newId, ...normalized }, ...prev]);
-    } else if (selected) {
-      setRows((prev) => prev.map((r) => (r.id === selected.id ? { ...r, ...normalized } : r)));
+  const handleSubmit = async (payload) => {
+    try {
+      if (isAdd) {
+        const created = await createVoteProcedure(payload);
+        setRows(prev => [{ id: created.id, name: created.name, conditions: created.conditions || [], resultIfTrue: created.resultIfTrue || 'Принято' }, ...prev]);
+      } else if (selected?.id) {
+        const updated = await updateVoteProcedure(selected.id, payload);
+        setRows(prev => prev.map(r => (r.id === selected.id ? { id: updated.id, name: updated.name, conditions: updated.conditions || [], resultIfTrue: updated.resultIfTrue || 'Принято' } : r)));
+      }
+      setOpen(false);
+    } catch (e) {
+      alert(e.message || 'Ошибка сохранения');
     }
-    setOpen(false);
+  };
+
+  const handleDelete = async (id, e) => {
+    e?.preventDefault?.();
+    e?.stopPropagation?.();
+    if (!window.confirm('Удалить процедуру подсчёта голосов?')) return;
+    try {
+      await deleteVoteProcedure(id);
+      setRows(prev => prev.filter(p => p.id !== id));
+    } catch (e) {
+      alert(e.message || 'Ошибка удаления');
+    }
   };
 
   return (
@@ -117,7 +121,7 @@ function VotingPage() {
                 <li><a href="/users">Пользователи</a></li>
                 <li><a href="/divisions">Подразделения</a></li>
                 <li><a href="/meetings">Заседания</a></li>
-                <li className="current-menu-item"><a href="/console">Пульт Заседания</a></li>
+                <li className="current-menu-item"><a href="/console">Пульт заседания</a></li>
                 <li className={`menu-children${configOpen ? ' current-menu-item' : ''}`}>
                   <a href="#!" onClick={(e) => { e.preventDefault(); setConfigOpen(!configOpen); }}>Конфигурация</a>
                   <ul className="sub-menu" style={{ display: configOpen ? 'block' : 'none' }}>
@@ -140,47 +144,46 @@ function VotingPage() {
             <div className="wrapper">
               <div className="page__top">
                 <div className="top__heading">
-                  <h1>Процедура подсчета голосов</h1>
+                  <h1>Процедура подсчёта голосов</h1>
                   <a href="#!" className="btn btn-add" onClick={handleAdd}><span>Добавить</span></a>
                 </div>
                 <div className="top__wrapper">
-                  <select>
-                    <option value="По дате">По дате</option>
-                    <option value="По дате 1">По дате 1</option>
-                    <option value="По дате 2">По дате 2</option>
-                  </select>
-                  <form className="search">
-                    <input type="text" placeholder="Поиск" />
-                    <button type="submit"></button>
-                  </form>
                   <ul className="nav">
                     <li><a href="#!"><img src="/img/icon_8.png" alt="" /></a></li>
                     <li><a href="#!"><img src="/img/icon_9.png" alt="" /></a></li>
                   </ul>
                 </div>
+                {error && <div style={{ color: 'red', marginTop: 8 }}>{error}</div>}
               </div>
 
               <div className="page__table">
                 <table>
                   <thead>
                     <tr>
-                      <th>Критерий</th>
-                      <th>Формула</th>
-                      <th>Принято</th>
+                      <th>Название</th>
+                      <th>Условия</th>
+                      <th>Результат</th>
                       <th></th>
                     </tr>
                   </thead>
                   <tbody>
-                    {rows.map((row) => (
+                    {(loading ? [] : rows).map((row) => (
                       <tr key={row.id}>
-                        <td>{row.rule}</td>
-                        <td dangerouslySetInnerHTML={{ __html: row.formula.replace(/\n/g, '<br />') }} />
-                        <td className="accepted">{renderAccepted(row.accepted)}</td>
+                        <td>{row.name}</td>
+                        <td dangerouslySetInnerHTML={{ __html: stringify(row).replace(/\n/g, '<br />') }} />
+                        <td className="accepted">{row.resultIfTrue}</td>
                         <td className="action action-small">
                           <ul>
-                            {/* первая иконка — редактирование */}
-                            <li><a href="#!" onClick={(e) => { e.preventDefault(); handleEdit(row); }}><img src="/img/icon_24.png" alt="" /></a></li>
-                            <li><a href="#!"><img src="/img/icon_26.png" alt="" /></a></li>
+                            <li>
+                              <a href="#!" onClick={(e) => { e.preventDefault(); handleEdit(row); }}>
+                                <img src="/img/icon_24.png" alt="" />
+                              </a>
+                            </li>
+                            <li>
+                              <a href="#!" onClick={(e) => handleDelete(row.id, e)}>
+                                <img src="/img/icon_26.png" alt="" />
+                              </a>
+                            </li>
                           </ul>
                         </td>
                       </tr>
@@ -199,7 +202,6 @@ function VotingPage() {
                   <a href="#" className="nextpostslink"></a>
                 </div>
               </div>
-
             </div>
           </div>
         </section>
@@ -211,18 +213,17 @@ function VotingPage() {
           <div className="container">
             <div className="wrapper">
               <p>&copy; rms-group.ru</p>
-              <p>RMS Voting 1.01 – 2025</p>
+              <p>RMS Voting 1.2 © 2025</p>
             </div>
           </div>
         </section>
       </footer>
 
       {/* MODAL */}
-      <EditModal
+      <ProcedureModal
         open={isOpen}
         data={selected}
-        fields={fields}
-        title={isAdd ? 'Добавить правило' : 'Редактировать правило'}
+        title={isAdd ? 'Добавить процедуру' : 'Редактировать процедуру'}
         onClose={() => setOpen(false)}
         onSubmit={handleSubmit}
       />
@@ -231,4 +232,3 @@ function VotingPage() {
 }
 
 export default VotingPage;
-

@@ -59,3 +59,16 @@ export const archiveMeeting = (id) => apiRequest(`/api/meetings/${id}/archive`, 
 
 // Vote results (for protocol)
 export const getVoteResults = (meetingId) => apiRequest(`/api/vote-results?meetingId=${encodeURIComponent(meetingId)}`);
+
+// Vote templates
+export const getVoteTemplates = () => apiRequest('/api/vote-templates');
+export const createVoteTemplate = (payload) => apiRequest('/api/vote-templates', { method: 'POST', body: JSON.stringify(payload) });
+export const updateVoteTemplate = (id, payload) => apiRequest(`/api/vote-templates/${id}`, { method: 'PUT', body: JSON.stringify(payload) });
+export const deleteVoteTemplate = (id) => apiRequest(`/api/vote-templates/${id}`, { method: 'DELETE' });
+
+// Vote procedures
+export const getVoteProcedures = () => apiRequest('/api/vote-procedures');
+export const getVoteProcedure = (id) => apiRequest(`/api/vote-procedures/${id}`);
+export const createVoteProcedure = (payload) => apiRequest('/api/vote-procedures', { method: 'POST', body: JSON.stringify(payload) });
+export const updateVoteProcedure = (id, payload) => apiRequest(`/api/vote-procedures/${id}`, { method: 'PUT', body: JSON.stringify(payload) });
+export const deleteVoteProcedure = (id) => apiRequest(`/api/vote-procedures/${id}`, { method: 'DELETE' });

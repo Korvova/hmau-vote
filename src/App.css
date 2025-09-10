@@ -85,6 +85,22 @@ button:hover {
   text-decoration: underline;
 }
 
+/* Sticky footer layout across all pages */
+html, body, #root {
+  height: 100%;
+}
+body {
+  margin: 0;
+}
+#root {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+header.page { flex: 0 0 auto; }
+main { flex: 1 0 auto; }
+footer { flex: 0 0 auto; margin-top: auto; }
+
 .modal {
   position: fixed;
   top: 0;
