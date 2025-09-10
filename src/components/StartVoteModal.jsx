@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import '../App.css';
 import { getVoteTemplates, getVoteProcedures, startVote } from '../utils/api.js';
 
-function StartVoteModal({ open, agendaItemId, onClose }) {
+function StartVoteModal({ open, agendaItemId, onClose, onStarted }) {
   const [templates, setTemplates] = useState([]);
   const [procedures, setProcedures] = useState([]);
   const [templateId, setTemplateId] = useState('');
@@ -46,6 +46,7 @@ function StartVoteModal({ open, agendaItemId, onClose }) {
         voteType,
       });
       alert('Голосование запущено');
+      onStarted?.(agendaItemId);
       onClose(true);
     } catch (err) {
       alert(err.message || 'Не удалось запустить голосование');

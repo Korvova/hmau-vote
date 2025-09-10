@@ -1,6 +1,6 @@
 ﻿import React, { useEffect, useState, useMemo } from 'react';
 import { useParams } from 'react-router-dom';
-import { getMeeting, getAgendaItems, startAgendaItem as startAgendaItemRequest, apiRequest, getVoteResults } from '../utils/api.js';
+import { getMeeting, getAgendaItems, startAgendaItem as startAgendaItemRequest, apiRequest, getVoteResults, endVote } from '../utils/api.js';
 import StartVoteModal from '../components/StartVoteModal.jsx';
 
 function ControlMeetingPage() {
@@ -11,13 +11,20 @@ function ControlMeetingPage() {
   const [voteModal, setVoteModal] = useState({ open: false, agendaId: null });
   const [results, setResults] = useState([]);
 
+  const processAgenda = (items) =>
+    items.map((it) => ({
+      ...it,
+      inVote: Boolean(it.inVote || it.activeIssue),
+      completed: Boolean(it.completed),
+    }));
+
   useEffect(() => {
     (async () => {
       try {
-        const [m, ag] = await Promise.all([ getMeeting(id), getAgendaItems(id).catch(() => []) ]);
-        setMeeting(m || null);        
-        const items = Array.isArray(ag) && ag.length ? ag : (Array.isArray(m?.agendaItems) ? m.agendaItems : []);
-        setAgenda(items);
+        const [m, ag] = await Promise.all([getMeeting(id), getAgendaItems(id).catch(() => [])]);
+        setMeeting(m || null);
+        const items = Array.isArray(ag) && ag.length ? ag : Array.isArray(m?.agendaItems) ? m.agendaItems : [];
+        setAgenda(processAgenda(items));
       } catch {}
     })();
   }, [id]);
@@ -50,6 +57,22 @@ function ControlMeetingPage() {
       alert('Пункт повестки запущен');
     } catch (e) {
       alert(e.message || 'Не удалось запустить пункт повестки');
+    }
+  };
+
+  const endAgendaVote = async (agendaId) => {
+    try {
+      await endVote(agendaId);
+      setAgenda((prev) =>
+        prev.map((it) =>
+          it.id === agendaId ? { ...it, inVote: false, completed: true } : it
+        )
+      );
+      const rs = await getVoteResults(id).catch(() => []);
+      setResults(Array.isArray(rs) ? rs : []);
+      alert('Голосование завершено');
+    } catch (e) {
+      alert(e.message || 'Не удалось завершить голосование');
     }
   };
 
@@ -124,7 +147,7 @@ function ControlMeetingPage() {
                 <div className="top__heading" style={{ display: 'flex', alignItems: 'center' }}>
                   <h1>{meeting?.name || 'Заседание'}</h1>
                   <button
-                    className={`btn btn-add${meeting?.status === 'IN_PROGRESS' ? ' btn-stop' : ''}`}
+                    className={`btn btn-add btn-meeting${meeting?.status === 'IN_PROGRESS' ? ' btn-stop' : ''}`}
                     style={{ marginLeft: '20px' }}
                     onClick={startMeeting}
                   >
@@ -134,7 +157,7 @@ function ControlMeetingPage() {
                     href={`/console/meeting/${id}/screen`}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="btn btn-add btn-screen"
+                    className="btn btn-add btn-stream"
                     style={{ marginLeft: 'auto' }}
                   >
                     <span>Экран трансляции</span>
@@ -155,15 +178,27 @@ function ControlMeetingPage() {
                   </thead>
                   <tbody>
                     {(agenda || []).map((a, idx) => (
-                      <tr key={a.id || idx}>
-                        <td>{a.number ?? (idx + 1)}</td>
+                      <tr key={a.id || idx} className={a.completed ? 'agenda-completed' : ''}>
+                        <td>{a.number ?? idx + 1}</td>
                         <td>{a.title}</td>
                         <td>{a.speaker || a.speakerId || ''}</td>
                         <td>{renderResult(a)}</td>
                         <td>
-                          <button className="btn btn-play" onClick={() => setVoteModal({ open: true, agendaId: a.id })}>
-                            <img src="/img/icon_play.png" alt="Запустить" />
-                          </button>
+                          {!a.completed && (
+                            <button
+                              className={`btn ${a.inVote ? 'btn-stop' : 'btn-play'}`}
+                              onClick={() =>
+                                a.inVote
+                                  ? endAgendaVote(a.id)
+                                  : setVoteModal({ open: true, agendaId: a.id })
+                              }
+                            >
+                              <img
+                                src={a.inVote ? '/img/icon_31.png' : '/img/icon_30.png'}
+                                alt={a.inVote ? 'Завершить' : 'Запустить'}
+                              />
+                            </button>
+                          )}
                         </td>
                       </tr>
                     ))}
@@ -188,12 +223,31 @@ function ControlMeetingPage() {
       <StartVoteModal
         open={voteModal.open}
         agendaItemId={voteModal.agendaId}
+        onStarted={(agendaId) =>
+          setAgenda((prev) =>
+            prev.map((it) =>
+              it.id === agendaId ? { ...it, inVote: true, completed: false } : it
+            )
+          )
+        }
         onClose={async (refresh) => {
           setVoteModal({ open: false, agendaId: null });
           if (refresh) {
             try {
               const ag = await getAgendaItems(id).catch(() => []);
-              setAgenda(Array.isArray(ag) ? ag : []);
+              if (Array.isArray(ag)) {
+                setAgenda((prev) => {
+                  const prevMap = new Map((prev || []).map((p) => [p.id, p]));
+                  return ag.map((item) => {
+                    const old = prevMap.get(item.id) || {};
+                    return {
+                      ...item,
+                      inVote: item.inVote ?? old.inVote,
+                      completed: item.completed ?? old.completed,
+                    };
+                  });
+                });
+              }
             } catch {}
           }
         }}

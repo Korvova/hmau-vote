@@ -78,3 +78,7 @@ export const deleteVoteProcedure = (id) => apiRequest(`/api/vote-procedures/${id
 // Start vote
 export const startVote = (payload) =>
   apiRequest('/api/start-vote', { method: 'POST', body: JSON.stringify(payload) });
+
+// End vote
+export const endVote = (agendaItemId) =>
+  apiRequest(`/api/vote-results/${agendaItemId}/end`, { method: 'POST' });

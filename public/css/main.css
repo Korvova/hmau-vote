@@ -1164,3 +1164,7 @@ table tr td.input-id input {
 .form__inner .form__submit .btn {
   min-width: 174px
 }
+
+.agenda-completed {
+  opacity: 0.5;
+}
