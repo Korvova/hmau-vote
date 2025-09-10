@@ -1,6 +1,6 @@
-﻿import React, { useEffect, useState } from 'react';
+﻿import React, { useEffect, useState, useMemo } from 'react';
 import { useParams } from 'react-router-dom';
-import { getMeeting, getAgendaItems, startAgendaItem as startAgendaItemRequest, apiRequest } from '../utils/api.js';
+import { getMeeting, getAgendaItems, startAgendaItem as startAgendaItemRequest, apiRequest, getVoteResults } from '../utils/api.js';
 import StartVoteModal from '../components/StartVoteModal.jsx';
 
 function ControlMeetingPage() {
@@ -9,6 +9,7 @@ function ControlMeetingPage() {
   const [meeting, setMeeting] = useState(null);
   const [agenda, setAgenda] = useState([]);
   const [voteModal, setVoteModal] = useState({ open: false, agendaId: null });
+  const [results, setResults] = useState([]);
 
   useEffect(() => {
     (async () => {
@@ -22,12 +23,49 @@ function ControlMeetingPage() {
   }, [id]);
 
   const startMeeting = async () => {
-    try {
-      await apiRequest(`/api/meetings/${id}/status`, { method: 'POST', body: JSON.stringify({ status: 'IN_PROGRESS' }) });
-      alert('Заседание запущено');
-    } catch (e) {
-      alert(e.message || 'Не удалось запустить заседание');
+    if (meeting?.status === 'IN_PROGRESS') {
+      try {
+        await apiRequest(`/api/meetings/${id}/status`, { method: 'POST', body: JSON.stringify({ status: 'COMPLETED' }) });
+        setMeeting((prev) => (prev ? { ...prev, status: 'COMPLETED' } : prev));
+        const rs = await getVoteResults(id).catch(() => []);
+        setResults(Array.isArray(rs) ? rs : []);
+        alert('Заседание завершено');
+      } catch (e) {
+        alert(e.message || 'Не удалось завершить заседание');
+      }
+    } else {
+      try {
+        await apiRequest(`/api/meetings/${id}/status`, { method: 'POST', body: JSON.stringify({ status: 'IN_PROGRESS' }) });
+        setMeeting((prev) => (prev ? { ...prev, status: 'IN_PROGRESS' } : prev));
+        alert('Заседание запущено');
+      } catch (e) {
+        alert(e.message || 'Не удалось запустить заседание');
+      }
     }
+  };
+
+  const startAgendaItem = async (agendaId) => {
+    try {
+      await startAgendaItemRequest(id, agendaId);
+      alert('Пункт повестки запущен');
+    } catch (e) {
+      alert(e.message || 'Не удалось запустить пункт повестки');
+    }
+  };
+
+  const resultsMap = useMemo(() => {
+    const map = new Map();
+    for (const r of results || []) {
+      const key = r.agendaItemId ?? r.agendaId ?? r.itemId ?? r.id;
+      map.set(key, r);
+    }
+    return map;
+  }, [results]);
+
+  const renderResult = (item) => {
+    const r = resultsMap.get(item.id);
+    if (!r) return '-';
+    return `За: ${r.votesFor}, Против: ${r.votesAgainst}, Воздерж.: ${r.votesAbstain}, Не голос.: ${r.votesAbsent}`;
   };
 
   return (
@@ -83,9 +121,24 @@ function ControlMeetingPage() {
           <div className="container">
             <div className="wrapper">
               <div className="page__top">
-                <div className="top__heading" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                <div className="top__heading" style={{ display: 'flex', alignItems: 'center' }}>
                   <h1>{meeting?.name || 'Заседание'}</h1>
-                  <button className="btn btn-add" onClick={startMeeting}><span>Начать заседание</span></button>
+                  <button
+                    className={`btn btn-add${meeting?.status === 'IN_PROGRESS' ? ' btn-stop' : ''}`}
+                    style={{ marginLeft: '20px' }}
+                    onClick={startMeeting}
+                  >
+                    <span>{meeting?.status === 'IN_PROGRESS' ? 'Закончить заседание' : 'Начать заседание'}</span>
+                  </button>
+                  <a
+                    href={`/console/meeting/${id}/screen`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="btn btn-add btn-screen"
+                    style={{ marginLeft: 'auto' }}
+                  >
+                    <span>Экран трансляции</span>
+                  </a>
                 </div>
               </div>
 
@@ -106,7 +159,7 @@ function ControlMeetingPage() {
                         <td>{a.number ?? (idx + 1)}</td>
                         <td>{a.title}</td>
                         <td>{a.speaker || a.speakerId || ''}</td>
-                        <td>-</td>
+                        <td>{renderResult(a)}</td>
                         <td>
                           <button className="btn btn-play" onClick={() => setVoteModal({ open: true, agendaId: a.id })}>
                             <img src="/img/icon_play.png" alt="Запустить" />

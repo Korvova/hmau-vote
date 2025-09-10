@@ -135,6 +135,24 @@ h6 {
   left: 0;
   margin: auto
 }
+.btn.btn-meeting span:after {
+  background-image: url(../img/icon_30.png);
+}
+.btn.btn-meeting.btn-stop span:after {
+  background-image: url(../img/icon_31.png);
+}
+.btn.btn-stream span:after {
+  background-image: url(../img/icon_32.png);
+}
+.btn.btn-stream {
+  min-width: 180px;
+}
+.btn.btn-stop {
+  background-color: #dc3545;
+}
+.btn.btn-stop:hover {
+  background-color: #c82333;
+}
 .btn.btn-big {
   padding: 13px 25px;
   margin:0
