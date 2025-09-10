@@ -52,6 +52,8 @@ export const getMeetings = () => apiRequest('/api/meetings');
 export const getArchivedMeetings = () => apiRequest('/api/meetings/archived');
 export const getMeeting = (id) => apiRequest(`/api/meetings/${id}`);
 export const getAgendaItems = (meetingId) => apiRequest(`/api/meetings/${meetingId}/agenda-items`);
+export const startAgendaItem = (meetingId, agendaId) =>
+  apiRequest(`/api/meetings/${meetingId}/agenda-items/${agendaId}/start`, { method: 'POST' });
 export const createMeeting = (payload) => apiRequest('/api/meetings', { method: 'POST', body: JSON.stringify(payload) });
 export const updateMeeting = (id, payload) => apiRequest(`/api/meetings/${id}`, { method: 'PUT', body: JSON.stringify(payload) });
 export const deleteMeeting = (id) => apiRequest(`/api/meetings/${id}`, { method: 'DELETE' });

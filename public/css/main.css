@@ -139,6 +139,13 @@ h6 {
   padding: 13px 25px;
   margin:0
 }
+.btn.btn-play {
+  min-width: 40px;
+  padding: 5px 10px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
 a {
   -webkit-transition: .25s all;
   transition: .25s all;

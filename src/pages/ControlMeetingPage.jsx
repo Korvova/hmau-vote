@@ -1,7 +1,6 @@
 ﻿import React, { useEffect, useState } from 'react';
 import { useParams } from 'react-router-dom';
-import { getMeeting, getAgendaItems } from '../utils/api.js';
-import { apiRequest } from '../utils/api.js';
+import { getMeeting, getAgendaItems, startAgendaItem as startAgendaItemRequest, apiRequest } from '../utils/api.js';
 
 function ControlMeetingPage() {
   const { id } = useParams();
@@ -26,6 +25,15 @@ function ControlMeetingPage() {
       alert('Заседание запущено');
     } catch (e) {
       alert(e.message || 'Не удалось запустить заседание');
+    }
+  };
+
+  const startAgendaItem = async (agendaId) => {
+    try {
+      await startAgendaItemRequest(id, agendaId);
+      alert('Пункт повестки запущен');
+    } catch (e) {
+      alert(e.message || 'Не удалось запустить пункт повестки');
     }
   };
 
@@ -107,7 +115,9 @@ function ControlMeetingPage() {
                         <td>{a.speaker || a.speakerId || ''}</td>
                         <td>-</td>
                         <td>
-                          <a href="/vote">Управлять</a>
+                          <button className="btn btn-play" onClick={() => startAgendaItem(a.id)}>
+                            <img src="/img/icon_play.png" alt="Запустить" />
+                          </button>
                         </td>
                       </tr>
                     ))}
