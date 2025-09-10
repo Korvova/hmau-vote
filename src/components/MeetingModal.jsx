@@ -1,10 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
 
-// Модалка редактирования/создания заседания
-// - Название
-// - Дата и время начала/окончания (datetime-local)
-// - Подразделения (мультивыбор)
-// - Список вопросов (номер, наименование, докладчик из выбранных подразделений, ссылка, удалить)
 function MeetingModal({ open, data, divisions = [], users = [], title = 'Редактировать заседание', onClose, onSubmit }) {
   const [form, setForm] = useState({ title: '', startAt: '', endAt: '' });
   const [divisionIds, setDivisionIds] = useState([]);

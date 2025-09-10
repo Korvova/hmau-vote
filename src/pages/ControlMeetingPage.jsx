@@ -1,12 +1,14 @@
 ﻿import React, { useEffect, useState } from 'react';
 import { useParams } from 'react-router-dom';
 import { getMeeting, getAgendaItems, startAgendaItem as startAgendaItemRequest, apiRequest } from '../utils/api.js';
+import StartVoteModal from '../components/StartVoteModal.jsx';
 
 function ControlMeetingPage() {
   const { id } = useParams();
   const [configOpen, setConfigOpen] = useState(false);
   const [meeting, setMeeting] = useState(null);
   const [agenda, setAgenda] = useState([]);
+  const [voteModal, setVoteModal] = useState({ open: false, agendaId: null });
 
   useEffect(() => {
     (async () => {
@@ -25,15 +27,6 @@ function ControlMeetingPage() {
       alert('Заседание запущено');
     } catch (e) {
       alert(e.message || 'Не удалось запустить заседание');
-    }
-  };
-
-  const startAgendaItem = async (agendaId) => {
-    try {
-      await startAgendaItemRequest(id, agendaId);
-      alert('Пункт повестки запущен');
-    } catch (e) {
-      alert(e.message || 'Не удалось запустить пункт повестки');
     }
   };
 
@@ -115,7 +108,7 @@ function ControlMeetingPage() {
                         <td>{a.speaker || a.speakerId || ''}</td>
                         <td>-</td>
                         <td>
-                          <button className="btn btn-play" onClick={() => startAgendaItem(a.id)}>
+                          <button className="btn btn-play" onClick={() => setVoteModal({ open: true, agendaId: a.id })}>
                             <img src="/img/icon_play.png" alt="Запустить" />
                           </button>
                         </td>
@@ -139,6 +132,19 @@ function ControlMeetingPage() {
           </div>
         </section>
       </footer>
+      <StartVoteModal
+        open={voteModal.open}
+        agendaItemId={voteModal.agendaId}
+        onClose={async (refresh) => {
+          setVoteModal({ open: false, agendaId: null });
+          if (refresh) {
+            try {
+              const ag = await getAgendaItems(id).catch(() => []);
+              setAgenda(Array.isArray(ag) ? ag : []);
+            } catch {}
+          }
+        }}
+      />
     </>
   );
 }

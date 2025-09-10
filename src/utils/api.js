@@ -74,3 +74,7 @@ export const getVoteProcedure = (id) => apiRequest(`/api/vote-procedures/${id}`)
 export const createVoteProcedure = (payload) => apiRequest('/api/vote-procedures', { method: 'POST', body: JSON.stringify(payload) });
 export const updateVoteProcedure = (id, payload) => apiRequest(`/api/vote-procedures/${id}`, { method: 'PUT', body: JSON.stringify(payload) });
 export const deleteVoteProcedure = (id) => apiRequest(`/api/vote-procedures/${id}`, { method: 'DELETE' });
+
+// Start vote
+export const startVote = (payload) =>
+  apiRequest('/api/start-vote', { method: 'POST', body: JSON.stringify(payload) });
