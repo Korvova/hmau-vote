@@ -1,5 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { getMeetings, getUsers } from '../utils/api.js';
+import { getMeetings, getUsers, logout as apiLogout } from '../utils/api.js';
+import { useNavigate } from 'react-router-dom';
+
 function HomePage() {
   const [configOpen, setConfigOpen] = useState(false);
   const [meetings, setMeetings] = useState([]);
@@ -38,6 +40,19 @@ function HomePage() {
       return '';
     }
   };
+
+  const navigate = useNavigate();
+  const auth = useMemo(() => {
+    try { const raw = localStorage.getItem('authUser'); return raw ? JSON.parse(raw) : null; } catch { return null; }
+  }, []);
+
+  const handleLogout = async (e) => {
+    e?.preventDefault?.();
+    try { if (auth?.email) await apiLogout(auth.email); } catch {}
+    localStorage.removeItem('authUser');
+    navigate('/login', { replace: true });
+  };
+  
   return (
     <>
       {/* HEADER */}
@@ -55,7 +70,10 @@ function HomePage() {
                   <a href="#!" className="support"><img src="/img/icon_1.png" alt="" />Поддержка</a>
                   <ul>
                     <li className="menu-children">
-                      <a href="#!"><img src="/img/icon_2.png" alt="" />admin@admin.ru</a>
+                      <a href="#!"><img src="/img/icon_2.png" alt="" />{auth?.email || 'user'}</a>
+                    </li>
+                    <li>
+                      <button className="logout-button" onClick={handleLogout}>Выйти</button>
                     </li>
                   </ul>
                 </div>
