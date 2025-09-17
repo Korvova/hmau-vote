@@ -13,18 +13,16 @@ function ProtocolMeetingPage() {
   useEffect(() => {
     (async () => {
       try {
-        const [m, ag, us] = await Promise.all([
+        const [m, ag, us, rs] = await Promise.all([
           getMeeting(id).catch(() => null),
           getAgendaItems(id).catch(() => []),
           getUsers().catch(() => []),
+          getVoteResults(id).catch(() => []),
         ]);
         setMeeting(m);
         const items = Array.isArray(ag) && ag.length ? ag : (Array.isArray(m?.agendaItems) ? m.agendaItems : []);
         setAgenda(items || []);
         setUsers(Array.isArray(us) ? us : []);
-      } catch {}
-      try {
-        const rs = await getVoteResults(id).catch(() => []);
         setResults(Array.isArray(rs) ? rs : []);
       } catch {}
     })();
@@ -36,14 +34,13 @@ function ProtocolMeetingPage() {
     const map = new Map();
     for (const r of results || []) {
       const key = r.agendaItemId ?? r.agendaId ?? r.itemId ?? r.id;
-      if (!map.has(key)) map.set(key, { yes: 0, no: 0, abstain: 0, text: null, accepted: undefined });
-      const acc = map.get(key);
-      const v = String(r.vote ?? r.value ?? r.result ?? '').toLowerCase();
-      if (v.includes('за') || v === 'yes' || v === 'for' || v === '1' || v === 'true') acc.yes += 1;
-      else if (v.includes('против') || v === 'no' || v === 'against' || v === '0' || v === 'false') acc.no += 1;
-      else if (v.includes('воздерж') || v === 'abstain' || v === 'null' || v === '') acc.abstain += 1;
-      else acc.text = (acc.text ? acc.text + '; ' : '') + (r.text || r.result || r.vote || '');
-      if (typeof r.accepted === 'boolean') acc.accepted = r.accepted;
+      map.set(key, {
+        yes: Number(r.votesFor) || 0,
+        no: Number(r.votesAgainst) || 0,
+        abstain: Number(r.votesAbstain) || 0,
+        absent: Number(r.votesAbsent) || 0,
+        decision: r.decision || null,
+      });
     }
     return map;
   }, [results]);
@@ -56,10 +53,8 @@ function ProtocolMeetingPage() {
     if (r.yes) parts.push(`За: ${r.yes}`);
     if (r.no) parts.push(`Против: ${r.no}`);
     if (r.abstain) parts.push(`Воздерж.: ${r.abstain}`);
+    if (r.absent) parts.push(`Не голос.: ${r.absent}`);
     const base = parts.length ? parts.join(', ') : 'Голосование не проводилось';
-    if (typeof r.accepted === 'boolean') {
-      return `${base} — ${r.accepted ? 'Решение принято' : 'Решение не принято'}`;
-    }
     return base;
   };
 
@@ -104,10 +99,10 @@ function ProtocolMeetingPage() {
                 <li className={`menu-children${configOpen ? ' current-menu-item' : ''}`}>
                   <a href="#!" onClick={(e) => { e.preventDefault(); setConfigOpen(!configOpen); }}>Конфигурация</a>
                   <ul className="sub-menu" style={{ display: configOpen ? 'block' : 'none' }}>
-                    <li><a href="/template">Шаблон голосования</a></li>
-                    <li><a href="/vote">Процедура подсчета голосов</a></li>
+                    <li><a href="/template">Шаблоны голосования</a></li>
+                    <li><a href="/vote">Процедуры принятия решений</a></li>
                     <li><a href="/screen">Экран трансляции</a></li>
-                    <li><a href="/linkprofile">Связать профиль с ID</a></li>
+                    <li><a href="/linkprofile">Привязка профиля к ID</a></li>
                   </ul>
                 </li>
               </ul>
@@ -169,3 +164,4 @@ function ProtocolMeetingPage() {
 }
 
 export default ProtocolMeetingPage;
+

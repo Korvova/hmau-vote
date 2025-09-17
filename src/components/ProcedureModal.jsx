@@ -1,4 +1,46 @@
 import React, { useEffect, useMemo, useState } from 'react';
+function tokensToElements(tokens = []) {
+  const elements = [];
+  for (let i = 0; i < tokens.length; i++) {
+    const t = tokens[i];
+    if (t.type === 'token') {
+      elements.push(t.value);
+    } else if (t.type === 'number') {
+      elements.push({ value: t.number, type: 'input' });
+    } else if (t.type === 'percent') {
+      elements.push({ value: (t.number ?? 0) / 100, type: 'input' });
+      const next = tokens[i + 1];
+      if (!next || !(next.type === 'token' && next.value === '*')) {
+        elements.push('*');
+      }
+    }
+  }
+  return elements;
+}
+
+function elementsToTokens(elements = []) {
+  const tokens = [];
+  for (let i = 0; i < elements.length; i++) {
+    const el = elements[i];
+    const value = typeof el === 'string' ? el : el?.value;
+    const type = typeof el === 'string' ? 'token' : el?.type;
+
+    if (type === 'input') {
+      const num = Number(value);
+      const next = elements[i + 1];
+      const nextVal = typeof next === 'string' ? next : next?.value;
+      if (nextVal === '*' && num >= 0 && num <= 1) {
+        tokens.push({ type: 'percent', value: '%', number: num * 100 });
+        i += 1;
+      } else {
+        tokens.push({ type: 'number', value: 'Число', number: num });
+      }
+    } else {
+      tokens.push({ type: 'token', value, number: 0 });
+    }
+  }
+  return tokens;
+}
 
 // Конструктор процедуры подсчёта голосов с блоками условий
 // props: { open, data, onClose, onSubmit, title }
@@ -29,8 +71,17 @@ function ProcedureModal({ open, data, onClose, onSubmit, title = 'Редакти
       if (!data?.conditions) return [];
       try { return Array.isArray(data.conditions) ? data.conditions : []; } catch { return []; }
     })();
-    if (parsed.length) setConditions(parsed);
-    else setConditions([{ tokens: [], op: null }]);
+    if (parsed.length) {
+      setConditions(parsed.map((b) => {
+        if (Array.isArray(b.tokens)) {
+          return { tokens: b.tokens, op: b.op || b.operator || null };
+        }
+        return {
+          tokens: elementsToTokens(b.elements || []),
+          op: b.operator || null,
+        };
+      }));
+    } else setConditions([{ tokens: [], op: null }]);
   }, [open, data]);
 
   const addBlock = () => setConditions(prev => [...prev, { tokens: [], op: null }]);
@@ -65,7 +116,10 @@ function ProcedureModal({ open, data, onClose, onSubmit, title = 'Редакти
     const payload = {
       name: name.trim(),
       resultIfTrue,
-      conditions,
+      conditions: conditions.map((b) => ({
+        elements: tokensToElements(b.tokens || []),
+        operator: b.op || null,
+      })),
     };
     onSubmit?.(payload);
   };

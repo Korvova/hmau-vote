@@ -53,6 +53,45 @@ const io = new Server(httpServer, {
  */
 const prisma = new PrismaClient();
 
+// Normalize stored vote procedures to the new "elements" format if they still
+// use legacy { tokens, op } blocks. This keeps vote evaluation consistent and
+// prevents runtime crashes inside the vote module.
+async function normalizeVoteProcedures() {
+  const toElements = (tokens = []) => {
+    const out = [];
+    for (let i = 0; i < tokens.length; i++) {
+      const t = tokens[i];
+      if (!t || typeof t !== 'object') continue;
+      if (t.type === 'token') out.push(t.value);
+      else if (t.type === 'number') out.push({ value: Number(t.number) || 0, type: 'input' });
+      else if (t.type === 'percent') {
+        out.push({ value: ((Number(t.number) || 0) / 100), type: 'input' });
+        const next = tokens[i + 1];
+        if (!next || !(next.type === 'token' && next.value === '*')) out.push('*');
+      }
+    }
+    return out;
+  };
+
+  try {
+    const all = await prisma.voteProcedure.findMany();
+    for (const p of all) {
+      if (!Array.isArray(p.conditions)) continue;
+      let needsUpdate = false;
+      const next = p.conditions.map((b) => {
+        if (Array.isArray(b.elements)) return { elements: b.elements, operator: b.operator || b.op || null };
+        if (Array.isArray(b.tokens)) { needsUpdate = true; return { elements: toElements(b.tokens), operator: b.operator || b.op || null }; }
+        return { elements: [], operator: null };
+      });
+      if (needsUpdate) {
+        await prisma.voteProcedure.update({ where: { id: p.id }, data: { conditions: next } });
+      }
+    }
+  } catch (e) {
+    console.error('Failed to normalize vote procedures:', e?.message || e);
+  }
+}
+
 /**
  * Порт, на котором запускается сервер.
  * @type {Number}
@@ -70,6 +109,20 @@ const port = 5000;
 app.use((req, res, next) => {
   console.log(`[${new Date().toISOString()}] ${req.method} ${req.url}`);
   next();
+});
+
+// Global error guards so the server does not crash on async timer errors
+process.on('unhandledRejection', (reason, p) => {
+  try {
+    const msg = reason && reason.stack ? reason.stack : String(reason);
+    console.error('Unhandled promise rejection:', msg);
+  } catch {}
+});
+process.on('uncaughtException', (err) => {
+  try {
+    const msg = err && err.stack ? err.stack : String(err);
+    console.error('Uncaught exception:', msg);
+  } catch {}
 });
 
 // Prisma middleware
@@ -111,6 +164,11 @@ app.use(cors({
  */
 app.use(express.json());
 
+// Normalize procedures in background on startup
+(async () => {
+  try { await normalizeVoteProcedures(); } catch {}
+})();
+
 // PostgreSQL notifications
 /**
  * Клиент PostgreSQL для подключения к базе данных и получения уведомлений.
@@ -146,6 +204,28 @@ pgClient.on('notification', (msg) => {
     } else if (data.voteStatus === 'ENDED') {
       console.log('Отправка события vote-ended:', data);
       io.emit('vote-ended', data);
+      // Correct decision if all abstained or no YES/NO votes
+      (async () => {
+        try {
+          const id = Number(data.id || data.voteResultId);
+          if (Number.isFinite(id) && (Number(data.votesFor) === 0 && Number(data.votesAgainst) === 0) && (Number(data.votesAbstain) > 0 || Number(data.votesFor) + Number(data.votesAgainst) + Number(data.votesAbstain) === 0)) {
+            const updated = await prisma.voteResult.update({ where: { id }, data: { decision: 'Не принято' } });
+            await pgClient.query(`NOTIFY vote_result_channel, '${JSON.stringify({ ...data, decision: 'Не принято' })}'`);
+          }
+        } catch {}
+      })();
+      // Ensure agenda state reflects finished vote when ended by timer
+      (async () => {
+        try {
+          await prisma.agendaItem.update({
+            where: { id: Number(data.agendaItemId) },
+            data: { completed: true, activeIssue: false, voting: false },
+          });
+          await pgClient.query(`NOTIFY meeting_status_channel, '${JSON.stringify({ id: Number(data.agendaItemId), meetingId: Number(data.meetingId), activeIssue: false, completed: true })}'`);
+        } catch (e) {
+          console.error('Failed to mark agenda item completed on vote end:', e?.message || e);
+        }
+      })();
     } else if (data.voteStatus === 'APPLIED') {
       console.log('Отправка события vote-applied:', data);
       io.emit('vote-applied', data);
@@ -215,6 +295,212 @@ app.use('/api', require('./root/agenda-items.cjs')(prisma));
 app.use('/api', require('./root/vote-procedures.cjs')(prisma));
 app.use('/api', require('./root/vote-templates.cjs')(prisma));
 app.use('/api', require('./root/vote.cjs')(prisma, pgClient));
+
+// Manual end of vote for an agenda item
+// Important: implemented here to avoid touching files in api/root
+app.post('/api/vote-results/:agendaItemId/end', async (req, res) => {
+  const { agendaItemId } = req.params;
+  const agendaId = parseInt(agendaItemId, 10);
+  if (!agendaId || Number.isNaN(agendaId)) {
+    return res.status(400).json({ error: 'Invalid agendaItemId' });
+  }
+
+  // Helpers compatible with both old (tokens/op) and new (elements/operator) formats
+  const tokensToElements = (tokens = []) => {
+    const out = [];
+    for (let i = 0; i < tokens.length; i++) {
+      const t = tokens[i];
+      if (!t || typeof t !== 'object') continue;
+      if (t.type === 'token') {
+        out.push(t.value);
+      } else if (t.type === 'number') {
+        out.push({ value: Number(t.number) || 0, type: 'input' });
+      } else if (t.type === 'percent') {
+        out.push({ value: ((Number(t.number) || 0) / 100), type: 'input' });
+        const next = tokens[i + 1];
+        if (!next || !(next.type === 'token' && next.value === '*')) {
+          out.push('*');
+        }
+      }
+    }
+    return out;
+  };
+
+  // Maps a selector token to a numeric value from context
+  const valueFromToken = (value, type, ctx) => {
+    if (type === 'input') return Number(value) || 0;
+    if (!value || typeof value !== 'string') return 0;
+
+    const v = value.toLowerCase();
+    // Heuristic mapping tolerant to wording
+    if (/(общ|вс[её]го).*(участ)/.test(v) && !/(онлайн|on ?line)/.test(v)) return ctx.totalParticipants;
+    if (/(онлайн|on ?line)/.test(v)) return ctx.totalOnlineParticipants;
+    if (/(вс[её]го).*(голос)/.test(v)) return ctx.totalVotes;
+    if (/\bза\b/.test(v)) return ctx.votesFor;
+    if (/(против)/.test(v)) return ctx.votesAgainst;
+    if (/(воздерж)/.test(v)) return ctx.votesAbstain;
+    if (/(отсутств)/.test(v)) return ctx.votesAbsent;
+    return 0;
+  };
+
+  const evaluateElements = (elements, ctx) => {
+    if (!Array.isArray(elements)) return false;
+    const stack = [];
+    const ops = [];
+
+    const precedence = (op) => {
+      switch (op) {
+        case '*': case '/': return 3;
+        case '+': case '-': return 2;
+        case '>': case '<': case '>=': case '<=': case '=': return 1;
+        case 'AND': case 'OR': case 'XOR': case 'ANDNOT': return 0;
+        default: return -1;
+      }
+    };
+
+    const applyOp = (op) => {
+      const b = stack.pop();
+      const a = stack.pop();
+      switch (op) {
+        case '*': stack.push(a * b); break;
+        case '+': stack.push(a + b); break;
+        case '-': stack.push(a - b); break;
+        case '/': stack.push(b === 0 ? 0 : a / b); break;
+        case '>': stack.push(a > b); break;
+        case '>=': stack.push(a >= b); break;
+        case '<': stack.push(a < b); break;
+        case '<=': stack.push(a <= b); break;
+        case '=': stack.push(a == b); break; // intentional loose equality, mirrors current logic
+        case 'AND': stack.push(Boolean(a) && Boolean(b)); break;
+        case 'OR': stack.push(Boolean(a) || Boolean(b)); break;
+        case 'XOR': stack.push(Boolean(a) !== Boolean(b)); break;
+        case 'ANDNOT': stack.push(Boolean(a) && !Boolean(b)); break;
+        default: break;
+      }
+    };
+
+    const norm = (token) => {
+      if (typeof token !== 'string') return token;
+      const t = token.trim().toUpperCase();
+      if (t === 'И') return 'AND';
+      if (t === 'ИЛИ') return 'OR';
+      if (t === 'XOR' || t === 'ИСЛИ') return 'XOR';
+      if (t === 'И-НЕ' || t === 'ANDNOT') return 'ANDNOT';
+      return token;
+    };
+
+    for (let i = 0; i < elements.length; i++) {
+      const el = elements[i];
+      const v = typeof el === 'string' ? norm(el) : el.value;
+      const t = typeof el === 'string' ? 'select' : el.type;
+
+      if (v === '(') {
+        ops.push(v);
+      } else if (v === ')') {
+        while (ops.length && ops[ops.length - 1] !== '(') applyOp(ops.pop());
+        if (ops[ops.length - 1] === '(') ops.pop();
+      } else if (['*','+','-','/','>','<','>=','<=','=','AND','OR','XOR','ANDNOT'].includes(v)) {
+        while (ops.length && precedence(ops[ops.length - 1]) >= precedence(v)) applyOp(ops.pop());
+        ops.push(v);
+      } else {
+        stack.push(valueFromToken(v, t, ctx));
+      }
+    }
+    while (ops.length) applyOp(ops.pop());
+    return Boolean(stack.pop());
+  };
+
+  try {
+    // Find the latest vote result for this agenda item
+    const finalVoteResult = await prisma.voteResult.findFirst({
+      where: { agendaItemId: agendaId },
+      orderBy: { createdAt: 'desc' },
+      include: { meeting: { include: { divisions: true } } },
+    });
+    if (!finalVoteResult) return res.status(404).json({ error: 'Vote result not found' });
+
+    // Gather votes and participants
+    const votes = await prisma.vote.findMany({ where: { agendaItemId: agendaId } });
+    const votedUserIds = [...new Set(votes.map(v => v.userId))];
+
+    const participants = await prisma.user.findMany({
+      where: {
+        divisionId: { in: finalVoteResult.meeting.divisions ? finalVoteResult.meeting.divisions.map(d => d.id) : [] },
+        isAdmin: false,
+      },
+    });
+
+    let notVotedCount = 0;
+    for (const p of participants) if (!votedUserIds.includes(p.id)) notVotedCount += 1;
+
+    const ctx = {
+      totalParticipants: participants.length,
+      totalOnlineParticipants: await prisma.user.count({ where: { divisionId: { in: finalVoteResult.meeting.divisions ? finalVoteResult.meeting.divisions.map(d => d.id) : [] }, isAdmin: false, isOnline: true } }),
+      totalVotes: (finalVoteResult.votesFor + finalVoteResult.votesAgainst + finalVoteResult.votesAbstain),
+      votesFor: finalVoteResult.votesFor,
+      votesAgainst: finalVoteResult.votesAgainst,
+      votesAbstain: finalVoteResult.votesAbstain,
+      votesAbsent: notVotedCount,
+    };
+
+    // Load procedure and evaluate with backward compatibility
+    const procedure = await prisma.voteProcedure.findUnique({ where: { id: finalVoteResult.procedureId } });
+    let decision = null;
+
+    // Hard safety: if все воздержались или нет ни одного голоса «за/против» — решение не принято
+    if ((finalVoteResult.votesFor === 0 && finalVoteResult.votesAgainst === 0) && (finalVoteResult.votesAbstain > 0 || ctx.totalVotes === 0)) {
+      decision = 'Не принято';
+    }
+    if (procedure && Array.isArray(procedure.conditions) && procedure.conditions.length) {
+      const blocks = procedure.conditions.map((b) => {
+        if (Array.isArray(b.elements)) return { elements: b.elements, operator: b.operator || b.op || null };
+        if (Array.isArray(b.tokens)) return { elements: tokensToElements(b.tokens), operator: b.operator || b.op || null };
+        return { elements: [], operator: null };
+      });
+      let final = null;
+      for (let i = 0; i < blocks.length; i++) {
+        const cur = evaluateElements(blocks[i].elements, ctx);
+        if (i === 0) final = cur;
+        else {
+          const prevOp = (blocks[i - 1].operator || 'AND').toString().toUpperCase();
+          if (prevOp === 'AND' || prevOp === 'И') final = final && cur;
+          else if (prevOp === 'OR' || prevOp === 'ИЛИ') final = final || cur;
+          else if (prevOp === 'XOR') final = Boolean(final) !== Boolean(cur);
+          else if (prevOp === 'ANDNOT' || prevOp === 'И-НЕ') final = Boolean(final) && !Boolean(cur);
+          else final = final && cur;
+        }
+      }
+      const positive = Boolean(final);
+      const trueText = procedure.resultIfTrue || 'Принято';
+      decision = positive ? trueText : (trueText === 'Принято' ? 'Не принято' : 'Принято');
+    } else {
+      // Fallback: simple majority if no conditions
+      if (!decision) {
+        decision = finalVoteResult.votesFor > finalVoteResult.votesAgainst ? 'Принято' : 'Не принято';
+      }
+    }
+
+    const updatedVoteResult = await prisma.voteResult.update({
+      where: { id: finalVoteResult.id },
+      data: { voteStatus: 'ENDED', votesAbsent: notVotedCount, decision },
+    });
+
+    await prisma.agendaItem.update({ where: { id: agendaId }, data: { voting: false, activeIssue: false, completed: true } });
+
+    // Broadcast agenda item state change to connected clients
+    try {
+      await pgClient.query(`NOTIFY meeting_status_channel, '${JSON.stringify({ id: agendaId, meetingId: finalVoteResult.meetingId, activeIssue: false, completed: true })}'`);
+    } catch {}
+
+    const payload = { ...updatedVoteResult, createdAt: updatedVoteResult.createdAt instanceof Date ? updatedVoteResult.createdAt.toISOString() : updatedVoteResult.createdAt };
+    await pgClient.query(`NOTIFY vote_result_channel, '${JSON.stringify(payload)}'`);
+
+    res.json({ success: true, voteResult: updatedVoteResult });
+  } catch (error) {
+    console.error('Error finishing vote:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
 
 // WebSocket connection
 /**

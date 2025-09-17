@@ -14,7 +14,7 @@ function ControlMeetingPage() {
   const processAgenda = (items) =>
     items.map((it) => ({
       ...it,
-      inVote: Boolean(it.inVote || it.activeIssue),
+      inVote: Boolean(it.inVote || it.voting || it.activeIssue),
       completed: Boolean(it.completed),
     }));
 
@@ -25,6 +25,10 @@ function ControlMeetingPage() {
         setMeeting(m || null);
         const items = Array.isArray(ag) && ag.length ? ag : Array.isArray(m?.agendaItems) ? m.agendaItems : [];
         setAgenda(processAgenda(items));
+        try {
+          const rs = await getVoteResults(id).catch(() => []);
+          setResults(Array.isArray(rs) ? rs : []);
+        } catch {}
       } catch {}
     })();
   }, [id]);
@@ -242,8 +246,8 @@ function ControlMeetingPage() {
                     const old = prevMap.get(item.id) || {};
                     return {
                       ...item,
-                      inVote: item.inVote ?? old.inVote,
-                      completed: item.completed ?? old.completed,
+                      inVote: Boolean((item.inVote ?? item.voting ?? item.activeIssue ?? old.inVote)),
+                      completed: Boolean(item.completed ?? old.completed),
                     };
                   });
                 });
@@ -257,6 +261,9 @@ function ControlMeetingPage() {
 }
 
 export default ControlMeetingPage;
+
+
+
 
 
 
