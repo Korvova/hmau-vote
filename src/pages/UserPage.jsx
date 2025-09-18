@@ -54,9 +54,11 @@ function UserPage() {
                   <ul>
                     <li className="menu-children">
                       <a href="#!"><img src="/img/icon_2.png" alt="" />{auth?.email || 'user'}</a>
-                    </li>
-                    <li>
-                      <button className="logout-button" onClick={handleLogout}>Выйти</button>
+                      <ul className="sub-menu">
+                        <li>
+                          <button type="button" className="logout-button" onClick={handleLogout}>Выйти</button>
+                        </li>
+                      </ul>
                     </li>
                   </ul>
                 </div>
