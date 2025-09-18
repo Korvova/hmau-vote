@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react';
+import HeaderDropdown from '../components/HeaderDropdown.jsx';
 import { getArchivedMeetings, deleteMeeting } from '../utils/api.js';
 
 function ArchivedMeetingsPage() {

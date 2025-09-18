@@ -68,52 +68,6 @@ document.addEventListener('DOMContentLoaded', function () {
         }
     }
 
-    // header__menu & header__top dropdowns
-    const menuChildren = document.querySelectorAll('.header__menu .menu-children, .header__top .menu-children');
-    const getDirectChild = (root, selector) => {
-        if (!root) return null;
-        try {
-            return root.querySelector(`:scope > ${selector}`);
-        } catch {
-            const children = root.children || [];
-            for (let i = 0; i < children.length; i += 1) {
-                const child = children[i];
-                if (child.matches && child.matches(selector)) {
-                    return child;
-                }
-            }
-            return null;
-        }
-    };
-    const closeAllMenuChildren = (excludeItem = null) => {
-        menuChildren.forEach((menuItem) => {
-            if (excludeItem && menuItem === excludeItem) return;
-            const subMenu = getDirectChild(menuItem, '.sub-menu') || menuItem.querySelector('.sub-menu');
-            if (subMenu && window.getComputedStyle(subMenu).display !== 'none') {
-                slideUp(subMenu, 200);
-            }
-        });
-    };
-
-    menuChildren.forEach(function (item) {
-        const link = getDirectChild(item, 'a') || item.querySelector('a');
-        const subMenu = getDirectChild(item, '.sub-menu') || item.querySelector('.sub-menu');
-        if (!link || !subMenu) return;
-
-        link.addEventListener('click', function (e) {
-            e.preventDefault();
-            e.stopPropagation();
-            closeAllMenuChildren(item);
-            slideToggle(subMenu, 200);
-        });
-    });
-
-    document.addEventListener('click', function (e) {
-        if (!e.target.closest('.header__menu .menu-children, .header__top .menu-children')) {
-            closeAllMenuChildren();
-        }
-    });
-
     // context menu for three-dots (delegated to document for SPA navigation)
     const closeAllUserMenus = () => {
         document.querySelectorAll('.user__nav .user__button.active').forEach(btn => btn.classList.remove('active'));
@@ -162,7 +116,6 @@ document.addEventListener('DOMContentLoaded', function () {
     // close on ESC
     document.addEventListener('keydown', function (e) {
         if (e.key === 'Escape') {
-            closeAllMenuChildren();
             closeAllUserMenus();
         }
     });

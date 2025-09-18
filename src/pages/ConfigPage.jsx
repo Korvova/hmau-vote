@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { getMeetings } from '../utils/api.js';
+import HeaderDropdown from '../components/HeaderDropdown.jsx';
 
 function ConfigPage() {
   const [configOpen, setConfigOpen] = useState(false);

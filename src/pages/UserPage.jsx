@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { getMeetings, getMeeting, getAgendaItems, getUsers, logout as apiLogout } from '../utils/api.js';
+import HeaderDropdown from '../components/HeaderDropdown.jsx';
 function useAuth() {
   try { const raw = localStorage.getItem('authUser'); return raw ? JSON.parse(raw) : null; } catch { return null; }
 }
@@ -52,14 +53,13 @@ function UserPage() {
                 <div className="user__inner">
                   <a href="#!" className="support"><img src="/img/icon_1.png" alt="" />Поддержка</a>
                   <ul>
-                    <li className="menu-children">
-                      <a href="#!"><img src="/img/icon_2.png" alt="" />{auth?.email || 'user'}</a>
-                      <ul className="sub-menu">
-                        <li>
-                          <button type="button" className="logout-button" onClick={handleLogout}>Выйти</button>
-                        </li>
-                      </ul>
-                    </li>
+                    <HeaderDropdown
+                      trigger={(<><img src="/img/icon_2.png" alt="" />{auth?.email || 'user'}</>)}
+                    >
+                      <li>
+                        <button type="button" className="logout-button" onClick={handleLogout}>Выйти</button>
+                      </li>
+                    </HeaderDropdown>
                   </ul>
                 </div>
               </div>

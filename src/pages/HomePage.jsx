@@ -1,12 +1,14 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { getMeetings, getUsers, logout as apiLogout } from '../utils/api.js';
 import { useNavigate } from 'react-router-dom';
+import HeaderDropdown from '../components/HeaderDropdown.jsx';
 
 function HomePage() {
   const [configOpen, setConfigOpen] = useState(false);
   const [meetings, setMeetings] = useState([]);
   const [users, setUsers] = useState([]);
   const [filter, setFilter] = useState('ALL'); // ALL | ACTIVE | COMPLETED
+  
   useEffect(() => {
     (async () => {
       try {
@@ -19,6 +21,7 @@ function HomePage() {
       } catch {}
     })();
   }, []);
+  
   const filteredMeetings = useMemo(() => {
     let arr = Array.isArray(meetings) ? meetings.slice() : [];
     if (filter === 'ACTIVE') arr = arr.filter((m) => m.status === 'IN_PROGRESS');
@@ -26,11 +29,13 @@ function HomePage() {
     arr.sort((a, b) => new Date(b.startTime || 0) - new Date(a.startTime || 0));
     return arr.slice(0, 3);
   }, [meetings, filter]);
+  
   const recentUsers = useMemo(() => {
     const arr = Array.isArray(users) ? users.slice() : [];
     arr.sort((a, b) => String(a.name || '').localeCompare(String(b.name || '')));
     return arr.slice(0, 4);
   }, [users]);
+  
   const fmtDate = (iso) => {
     try {
       const d = new Date(iso);
@@ -69,14 +74,13 @@ function HomePage() {
                 <div className="user__inner">
                   <a href="#!" className="support"><img src="/img/icon_1.png" alt="" />Поддержка</a>
                   <ul>
-                    <li className="menu-children">
-                      <a href="#!"><img src="/img/icon_2.png" alt="" />{auth?.email || 'user'}</a>
-                      <ul className="sub-menu">
-                        <li>
-                          <button type="button" className="logout-button" onClick={handleLogout}>Выйти</button>
-                        </li>
-                      </ul>
-                    </li>
+                    <HeaderDropdown
+                      trigger={(<><img src="/img/icon_2.png" alt="" />{auth?.email || 'user'}</>)}
+                    >
+                      <li>
+                        <button type="button" className="logout-button" onClick={handleLogout}>Выйти</button>
+                      </li>
+                    </HeaderDropdown>
                   </ul>
                 </div>
               </div>
@@ -91,15 +95,12 @@ function HomePage() {
                 <li><a href="/divisions">Подразделения</a></li>
                 <li><a href="/meetings">Заседания</a></li>
                 <li><a href="/console">Пульт заседания</a></li>
-                <li className={`menu-children${configOpen ? ' current-menu-item' : ''}`}>
-                  <a href="#!" onClick={(e) => { e.preventDefault(); setConfigOpen(!configOpen); }}>Конфигурация</a>
-                  <ul className="sub-menu" style={{ display: configOpen ? 'block' : 'none' }}>
-                    <li><a href="/template">Шаблоны голосования</a></li>
-                    <li><a href="/vote">Процедуры принятия решений</a></li>
-                    <li><a href="/screen">Экран трансляции</a></li>
-                    <li><a href="/linkprofile">Привязка профиля к ID</a></li>
-                  </ul>
-                </li>
+                <HeaderDropdown trigger="Конфигурация">
+                  <li><a href="/template">Шаблоны голосования</a></li>
+                  <li><a href="/vote">Процедуры принятия решений</a></li>
+                  <li><a href="/screen">Экран трансляции</a></li>
+                  <li><a href="/linkprofile">Привязка профиля к ID</a></li>
+                </HeaderDropdown>
               </ul>
             </div>
           </div>
