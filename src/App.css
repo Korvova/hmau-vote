@@ -134,6 +134,125 @@ footer { flex: 0 0 auto; margin-top: auto; }
   margin: 0 0.5rem;
 }
 
+.vote-modal {
+  text-align: left;
+}
+
+.vote-modal h2 {
+  margin-top: 0;
+  margin-bottom: 0.75rem;
+  font-size: 1.75rem;
+  color: #1f2a44;
+}
+
+.vote-modal__question {
+  margin: 0 0 1.25rem;
+  font-size: 1.05rem;
+  color: #42526e;
+}
+
+.vote-modal__timer {
+  margin-bottom: 1.5rem;
+  font-weight: 600;
+  color: #1a73e8;
+}
+
+.vote-modal__timer span {
+  font-variant-numeric: tabular-nums;
+}
+
+.vote-modal__options {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin-bottom: 1.25rem;
+}
+
+.vote-choice-button {
+  flex: 1;
+  min-width: 140px;
+  padding: 0.9rem 1rem;
+  border-radius: 10px;
+  border: 1px solid #d0d7e2;
+  background: #f7f9fc;
+  color: #1f2a44;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.vote-choice-button:hover:not(.locked) {
+  transform: translateY(-1px);
+  box-shadow: 0 6px 18px rgba(26, 115, 232, 0.15);
+}
+
+.vote-choice-button.selected {
+  color: #fff;
+}
+
+.vote-choice-button--for {
+  border-color: rgba(26, 115, 232, 0.4);
+  background: rgba(26, 115, 232, 0.08);
+  color: #1a73e8;
+}
+
+.vote-choice-button--for.selected {
+  background: #1a73e8;
+  border-color: #1a73e8;
+  box-shadow: 0 8px 20px rgba(26, 115, 232, 0.35);
+}
+
+.vote-choice-button--against {
+  border-color: rgba(217, 48, 37, 0.4);
+  background: rgba(217, 48, 37, 0.08);
+  color: #d93025;
+}
+
+.vote-choice-button--against.selected {
+  background: #d93025;
+  border-color: #d93025;
+  box-shadow: 0 8px 20px rgba(217, 48, 37, 0.35);
+}
+
+.vote-choice-button--abstain {
+  border-color: rgba(95, 99, 104, 0.4);
+  background: rgba(95, 99, 104, 0.08);
+  color: #5f6368;
+}
+
+.vote-choice-button--abstain.selected {
+  background: #5f6368;
+  border-color: #5f6368;
+  box-shadow: 0 8px 20px rgba(95, 99, 104, 0.3);
+}
+
+.vote-choice-button.locked {
+  cursor: default;
+  opacity: 0.7;
+  box-shadow: none;
+  transform: none;
+}
+
+.vote-modal__hint {
+  font-size: 0.95rem;
+  color: #42526e;
+}
+
+.vote-modal__error {
+  margin-top: 0.75rem;
+  color: #c62828;
+  font-weight: 600;
+}
+
+.page__table tr.agenda-active td {
+  background: #e8f1ff;
+  font-weight: 600;
+}
+
+.page__table tr.agenda-active td:first-child {
+  border-left: 3px solid #1a73e8;
+}
+
 .admin-panel {
   display: flex;
   flex-direction: column;

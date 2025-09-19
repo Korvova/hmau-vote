@@ -62,6 +62,26 @@ export const archiveMeeting = (id) => apiRequest(`/api/meetings/${id}/archive`, 
 // Vote results (for protocol)
 export const getVoteResults = (meetingId) => apiRequest(`/api/vote-results?meetingId=${encodeURIComponent(meetingId)}`);
 
+export const submitVote = ({ userId, agendaItemId, choice }) =>
+  apiRequest('/api/vote', {
+    method: 'POST',
+    body: JSON.stringify({ userId, agendaItemId, choice }),
+  });
+
+export const submitVoteByResult = ({ userId, voteResultId, choice }) =>
+  apiRequest('/api/vote-by-result', {
+    method: 'POST',
+    body: JSON.stringify({ userId, voteResultId, choice }),
+  });
+
+export const getActiveVoteResult = async (meetingId) => {
+  if (!meetingId) return null;
+  const results = await getVoteResults(meetingId);
+  if (!Array.isArray(results)) return null;
+  return results.find((result) => result?.voteStatus === 'PENDING') || null;
+};
+
+
 // Vote templates
 export const getVoteTemplates = () => apiRequest('/api/vote-templates');
 export const createVoteTemplate = (payload) => apiRequest('/api/vote-templates', { method: 'POST', body: JSON.stringify(payload) });
