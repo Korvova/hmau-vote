@@ -1,4 +1,6 @@
 import React, { useEffect, useMemo, useState } from 'react';
+import './ModalHeader.css';
+
 function tokensToElements(tokens = []) {
   const elements = [];
   for (let i = 0; i < tokens.length; i++) {
@@ -42,14 +44,11 @@ function elementsToTokens(elements = []) {
   return tokens;
 }
 
-// Конструктор процедуры подсчёта голосов с блоками условий
-// props: { open, data, onClose, onSubmit, title }
 function ProcedureModal({ open, data, onClose, onSubmit, title = 'Редактировать процедуру' }) {
   const [name, setName] = useState('');
   const [resultIfTrue, setResultIfTrue] = useState('Принято');
-  const [conditions, setConditions] = useState([]); // [{ tokens:[{type:'token'|'number', value}], op:'И'|... }]
+  const [conditions, setConditions] = useState([]); 
 
-  // варианты токенов (как на скриншотах 2/3)
   const TOKEN_OPTIONS = useMemo(() => [
     'Все пользователи заседания',
     'Все пользователи онлайн',
@@ -136,7 +135,16 @@ function ProcedureModal({ open, data, onClose, onSubmit, title = 'Редакти
   return (
     <div style={overlay} onClick={onClose}>
       <div style={modal} onClick={(e) => e.stopPropagation()}>
-        <h2 style={{ textAlign: 'center', marginTop: 0 }}>{title}</h2>
+        <div className="modal-header">
+          <span className="modal-header-spacer" aria-hidden="true" />
+          <h2 className="modal-title">{title}</h2>
+          <button
+            type="button"
+            className="modal-close"
+            aria-label="Закрыть модальное окно"
+            onClick={onClose}
+          />
+        </div>
 
         <div style={{ marginBottom: 12 }}>
           <label style={{ display: 'block', marginBottom: 6 }}>Название процедуры</label>
@@ -158,7 +166,6 @@ function ProcedureModal({ open, data, onClose, onSubmit, title = 'Редакти
               <strong>Условие {idx + 1}</strong>
             </div>
 
-            {/* токены в строке (плюс/минус управляют последним элементом) */}
             <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
               {block.tokens.map((t, ti) => (
                 <div key={ti} style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
@@ -198,7 +205,6 @@ function ProcedureModal({ open, data, onClose, onSubmit, title = 'Редакти
               <button type="button" style={blueBtn} onClick={() => addToken(idx)}>+</button>
             </div>
 
-            {/* Оператор между условиями (к следующему) */}
             {idx < conditions.length - 1 && (
               <div style={{ marginTop: 12 }}>
                 <label style={{ display: 'block', marginBottom: 6 }}>Оператор</label>

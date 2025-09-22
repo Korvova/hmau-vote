@@ -5,12 +5,10 @@ import { getVoteProcedures, createVoteProcedure, updateVoteProcedure, deleteVote
 function VotingPage() {
   const [configOpen, setConfigOpen] = useState(true);
 
-  // Data
-  const [rows, setRows] = useState([]); // { id, name, conditions, resultIfTrue }
+  const [rows, setRows] = useState([]); 
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
 
-  // Modal state
   const [selected, setSelected] = useState(null);
   const [isOpen, setOpen] = useState(false);
   const [isAdd, setAdd] = useState(false);

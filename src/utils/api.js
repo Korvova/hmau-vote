@@ -1,9 +1,7 @@
 function resolveUrl(path) {
   try {
     if (path.startsWith('/')) {
-      // 1) Explicit base from env (Vite). Expected to be an origin, like "http://localhost:5000".
       try {
-        // eslint-disable-next-line no-undef
         const base = typeof import.meta !== 'undefined' && import.meta.env && import.meta.env.VITE_API_BASE;
         if (typeof base === 'string' && base.trim()) {
           const trimmed = base.replace(/\/$/, '');
@@ -11,7 +9,6 @@ function resolveUrl(path) {
         }
       } catch {}
 
-      // 2) Default: keep the path relative (same-origin). Dev is handled via Vite proxy.
       return path;
     }
   } catch {}
@@ -59,7 +56,7 @@ export const updateMeeting = (id, payload) => apiRequest(`/api/meetings/${id}`, 
 export const deleteMeeting = (id) => apiRequest(`/api/meetings/${id}`, { method: 'DELETE' });
 export const archiveMeeting = (id) => apiRequest(`/api/meetings/${id}/archive`, { method: 'POST' });
 
-// Vote results (for protocol)
+// Vote results
 export const getVoteResults = (meetingId) => apiRequest(`/api/vote-results?meetingId=${encodeURIComponent(meetingId)}`);
 
 export const submitVote = ({ userId, agendaItemId, choice }) =>

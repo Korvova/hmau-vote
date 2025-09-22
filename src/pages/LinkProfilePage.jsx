@@ -7,7 +7,6 @@ const LS_KEY = 'rms_link_profile_v1';
 function LinkProfilePage() {
   const [configOpen, setConfigOpen] = useState(true);
 
-  // Стартовые строки (совпадают с текущей таблицей: select + input + действия)
   const initialRows = [
     { id: 1, fullName: 'Иванов Н. А.', externalId: '124779' },
     { id: 2, fullName: 'Иванов Н. Б.', externalId: '124779' },
@@ -19,7 +18,6 @@ function LinkProfilePage() {
   const [isOpen, setOpen] = useState(false);
   const [isAdd, setAdd] = useState(false);
 
-  // Поля формы
   const fields = [
     { name: 'fullName', label: 'ФИО', type: 'text', required: true },
     { name: 'externalId', label: 'ID', type: 'text', required: true },
@@ -124,7 +122,6 @@ function LinkProfilePage() {
                     {rows.map((row) => (
                       <tr key={row.id}>
                         <td className="select-name">
-                          {/* оставляем select как в макете */}
                           <select
                             value={row.fullName}
                             onChange={(e) => {
@@ -149,7 +146,6 @@ function LinkProfilePage() {
                         </td>
                         <td className="action action-small">
                           <ul>
-                            {/* первая иконка — редактирование через модалку (оставляю структуру) */}
                             <li><a href="#!" onClick={(e) => { e.preventDefault(); handleEdit(row); }}><img src="/img/icon_29.png" alt="" /></a></li>
                             <li><a href="#!"><img src="/img/icon_26.png" alt="" /></a></li>
                           </ul>

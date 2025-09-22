@@ -5,12 +5,10 @@ import EditModal from '../components/EditModal.jsx';
 function TemplatePage() {
   const [configOpen, setConfigOpen] = useState(true);
 
-  // Data from API
   const [rows, setRows] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
 
-  // Modal state
   const [selected, setSelected] = useState(null);
   const [isOpen, setOpen] = useState(false);
   const [isAdd, setAdd] = useState(false);
@@ -163,7 +161,6 @@ function TemplatePage() {
                                 <img src="/img/icon_24.png" alt="" />
                               </a>
                             </li>
-                            {/* Удалена лишняя кнопка с icon_25 */}
                             <li>
                               <a href="#!" onClick={(e) => handleDelete(row, e)}>
                                 <img src="/img/icon_26.png" alt="" />

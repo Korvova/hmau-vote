@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import './ModalHeader.css';
 
 function EditModal({ open, data, fields, onClose, onSubmit, title = 'Редактировать' }) {
   const [formState, setFormState] = useState({});
@@ -14,7 +15,6 @@ function EditModal({ open, data, fields, onClose, onSubmit, title = 'Редак�
     }
   }, [data, fields]);
 
-  // Группируем поля: первая строка одиночная, затем парами
   const groupedFields = [];
   if (fields) {
     for (let i = 0; i < fields.length; ) {
@@ -39,7 +39,6 @@ function EditModal({ open, data, fields, onClose, onSubmit, title = 'Редак�
 
   if (!open) return null;
 
-  // Базовые стили оверлея и окна
   const overlayStyle = {
     position: 'fixed',
     top: 0,
@@ -60,35 +59,25 @@ function EditModal({ open, data, fields, onClose, onSubmit, title = 'Редак�
     width: '600px',
     maxWidth: '90%',
     boxShadow: '0 4px 12px rgba(0, 0, 0, 0.2)',
-    position: 'relative',
-  };
-
-  const closeButtonStyle = {
-    position: 'absolute',
-    top: '12px',
-    right: '12px',
-    fontSize: '18px',
-    background: 'none',
-    border: 'none',
-    cursor: 'pointer',
   };
 
   return (
     <div style={overlayStyle} onClick={onClose}>
       <div style={modalStyle} onClick={(e) => e.stopPropagation()}>
-        {/* Кнопка закрытия */}
-        <button style={closeButtonStyle} onClick={onClose}>
-          ×
-        </button>
-        {/* Заголовок */}
-        <div style={{ textAlign: 'center', marginBottom: '24px' }}>
-          <h2>Редактировать</h2>
+        <div className="modal-header">
+          <span className="modal-header-spacer" aria-hidden="true" />
+          <h2 className="modal-title">{title}</h2>
+          <button
+            type="button"
+            className="modal-close"
+            aria-label="Закрыть модальное окно"
+            onClick={onClose}
+          />
         </div>
         {/* Форма */}
         <form onSubmit={handleSubmit}>
           {groupedFields.map((group, idx) => (
             group.length === 1 ? (
-              // Одиночное поле (полная ширина)
               <div key={idx} style={{ marginBottom: '16px' }}>
                 <label style={{ display: 'block', marginBottom: '8px', fontSize: '14px' }}>
                   {group[0].label}
@@ -120,7 +109,6 @@ function EditModal({ open, data, fields, onClose, onSubmit, title = 'Редак�
                 )}
               </div>
             ) : (
-              // Пара полей в одной строке
               <div key={idx} style={{ display: 'flex', gap: '20px', marginBottom: '16px' }}>
                 {group.map((field) => (
                   <div key={field.name} style={{ flex: 1 }}>

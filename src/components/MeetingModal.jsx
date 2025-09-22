@@ -1,17 +1,16 @@
 import React, { useEffect, useMemo, useState } from 'react';
+import './ModalHeader.css';
 
 function MeetingModal({ open, data, divisions = [], users = [], title = 'Редактировать заседание', onClose, onSubmit }) {
   const [form, setForm] = useState({ title: '', startAt: '', endAt: '' });
   const [divisionIds, setDivisionIds] = useState([]);
-  const [agenda, setAgenda] = useState([]); // { title, speakerId, link }
+  const [agenda, setAgenda] = useState([]); 
   const [addDivisionId, setAddDivisionId] = useState('');
   const [password, setPassword] = useState('');
 
-  // Инициализация из входных данных
   useEffect(() => {
     if (!open) return;
     const next = { title: data?.title || data?.name || '', startAt: '', endAt: '' };
-    // Преобразуем (startDate,startTime)/(endDate,endTime) -> datetime-local
     if (data?.startDate || data?.startTime) {
       const sd = data.startDate || '';
       const st = data.startTime || '';
@@ -22,7 +21,7 @@ function MeetingModal({ open, data, divisions = [], users = [], title = 'Ред�
       const et = data.endTime || '';
       if (ed || et) next.endAt = `${ed}T${et}`.replace(/T$/, '');
     }
-    // Либо строка "YYYY-MM-DD HH:mm"
+
     if (!next.startAt && typeof data?.startTime === 'string' && data.startTime.includes(' ')) {
       const [sd, st] = data.startTime.split(' ');
       next.startAt = `${sd}T${st}`;
@@ -33,7 +32,6 @@ function MeetingModal({ open, data, divisions = [], users = [], title = 'Ред�
     }
     setForm(next);
 
-    // Подразделения: id или восстановить по названиям из строки
     let ids = Array.isArray(data?.divisionIds) ? data.divisionIds.slice() : [];
     if (!ids.length && typeof data?.divisions === 'string' && data.divisions.trim()) {
       const names = data.divisions.split(',').map(s => s.trim()).filter(Boolean);
@@ -41,7 +39,6 @@ function MeetingModal({ open, data, divisions = [], users = [], title = 'Ред�
     }
     setDivisionIds(ids);
 
-    // Вопросы
     const ag = Array.isArray(data?.agenda) ? data.agenda.map(a => ({
       title: a.title || '',
       speakerId: a.speakerId ?? null,
@@ -56,7 +53,6 @@ function MeetingModal({ open, data, divisions = [], users = [], title = 'Ред�
     [divisionIds, divisions]
   );
 
-  // Докладчики: по названию подразделения (бэк сейчас даёт users.division = имя)
   const eligibleUsers = useMemo(() => {
     if (!selectedDivisionNames.length) return [];
     return (users || []).filter(u => selectedDivisionNames.includes(u.division));
@@ -96,7 +92,6 @@ function MeetingModal({ open, data, divisions = [], users = [], title = 'Ред�
 
   if (!open) return null;
 
-  // Внешний слой скроллится колёсиком, а ещё сам модальный блок имеет внутренний скролл.
   const overlayStyle = {
     position: 'fixed', top: 0, left: 0, width: '100%', height: '100%',
     backgroundColor: 'rgba(0, 0, 0, 0.4)', display: 'flex', justifyContent: 'center', alignItems: 'center', zIndex: 999,
@@ -104,7 +99,7 @@ function MeetingModal({ open, data, divisions = [], users = [], title = 'Ред�
   };
   const modalStyle = {
     backgroundColor: '#fff', borderRadius: 12, padding: 32, width: 820, maxWidth: '95%',
-    maxHeight: '80vh', overflowY: 'auto', position: 'relative',
+    maxHeight: '80vh', overflowY: 'auto',
   };
   const labelStyle = { display: 'block', marginBottom: 8, fontSize: 14 };
   const inputStyle = { width: '100%', padding: 12, borderRadius: 8, border: '1px solid #e5e7eb', background: '#f3f4f6' };
@@ -114,13 +109,15 @@ function MeetingModal({ open, data, divisions = [], users = [], title = 'Ред�
   return (
     <div style={overlayStyle} onClick={onClose}>
       <div style={modalStyle} onClick={(e) => e.stopPropagation()}>
-        <button
-          style={{ position: 'absolute', top: 12, right: 12, fontSize: 18, background: 'none', border: 'none', cursor: 'pointer' }}
-          onClick={onClose}
-        >×</button>
-
-        <div style={{ textAlign: 'center', marginBottom: 24 }}>
-          <h2>{title}</h2>
+        <div className="modal-header">
+          <span className="modal-header-spacer" aria-hidden="true" />
+          <h2 className="modal-title">{title}</h2>
+          <button
+            type="button"
+            className="modal-close"
+            aria-label="Закрыть модальное окно"
+            onClick={onClose}
+          />
         </div>
 
         <form onSubmit={handleSubmit}>

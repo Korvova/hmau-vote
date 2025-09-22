@@ -4,8 +4,6 @@ import { getDivisions, getUsers, getMeetings, createMeeting, updateMeeting, dele
 
 function MeetingsPage() {
   const [configOpen, setConfigOpen] = useState(false);
-
-  // ��������� ������ (��������� ��� ������� �������)
     const [rows, setRows] = useState([]);
   const [divisions, setDivisions] = useState([]);
   const [users, setUsers] = useState([]);
@@ -14,7 +12,6 @@ function MeetingsPage() {
   const [isOpen, setOpen] = useState(false);
   const [isAdd, setAdd] = useState(false);
 
-  // Load divisions, users and meetings
   useEffect(() => {
     const load = async () => {
       try {
@@ -40,9 +37,6 @@ function MeetingsPage() {
     };
     load();
   }, []);
-
-  // Поля для формы заседаний
-  // fields removed
 
   const renderStatus = (status) => {
     if (status === 'WAITING') return 'Ждёт запуска';

@@ -1,12 +1,14 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { login } from '../utils/api.js';
+
 function LoginPage() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const navigate = useNavigate();
+
   const handleSubmit = async (e) => {
     e?.preventDefault?.();
     setError('');
@@ -15,7 +17,6 @@ function LoginPage() {
       const res = await login(email.trim(), password);
       if (res?.success && res?.user) {
         localStorage.setItem('authUser', JSON.stringify(res.user));
-        // Роутинг по роли
         if (res.user.isAdmin) navigate('/', { replace: true });
         else navigate('/user', { replace: true });
       } else {
@@ -27,6 +28,7 @@ function LoginPage() {
       setLoading(false);
     }
   };
+
   return (
     <main style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#f4f6fb' }}>
       <form onSubmit={handleSubmit} style={{ width: 360, background: '#fff', borderRadius: 8, padding: 24, boxShadow: '0 6px 24px rgba(0,0,0,.08)' }}>
@@ -43,4 +45,5 @@ function LoginPage() {
     </main>
   );
 }
+
 export default LoginPage;

@@ -1,13 +1,14 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import EditModal from '../components/EditModal.jsx';
 import { getUsers, createUser, updateUser, deleteUser, getDivisions } from '../utils/api.js';
+
 function UsersPage() {
   const [configOpen, setConfigOpen] = useState(false);
-  // UI state
+
   const [selectedUser, setSelectedUser] = useState(null);
   const [isModalOpen, setModalOpen] = useState(false);
   const [isAddMode, setAddMode] = useState(false);
-  // Data from API
+
   const [users, setUsers] = useState([]);
   const [divisions, setDivisions] = useState([]);
   const [loading, setLoading] = useState(true);
