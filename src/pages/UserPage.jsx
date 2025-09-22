@@ -28,7 +28,8 @@ function UserPage() {
   const [meeting, setMeeting] = useState(null);
   const [agenda, setAgenda] = useState([]);
   const [users, setUsers] = useState([]);
-    const [activeVote, setActiveVote] = useState(null);
+  const [nextMeetingDate, setNextMeetingDate] = useState(null);
+  const [activeVote, setActiveVote] = useState(null);
   const [isVoteModalOpen, setVoteModalOpen] = useState(false);
   const [voteDeadline, setVoteDeadline] = useState(null);
   const [remainingSeconds, setRemainingSeconds] = useState(null);
@@ -191,6 +192,11 @@ function UserPage() {
     const seconds = Math.max(0, totalSeconds % 60);
     return `${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
   }, []);
+  const formatMeetingDate = useCallback((date) => {
+    if (!(date instanceof Date) || Number.isNaN(date.getTime())) return null;
+    const pad = (value) => String(value).padStart(2, '0');
+    return `${pad(date.getDate())}.${pad(date.getMonth() + 1)}.${date.getFullYear()} ${pad(date.getHours())}:${pad(date.getMinutes())}`;
+  }, []);
   useEffect(() => {
     if (!changeDeadline || voteLocked) {
       if (changeCountdownRef.current) {
@@ -266,22 +272,82 @@ function UserPage() {
   }, []);
 
   useEffect(() => {
+    let isMounted = true;
     (async () => {
       try {
         const [ms, us] = await Promise.all([getMeetings().catch(() => []), getUsers().catch(() => [])]);
-        setUsers(Array.isArray(us) ? us : []);
-        const all = Array.isArray(ms) ? ms : [];
-        let m = all.find(x => x.status === 'IN_PROGRESS') || all[0] || null;
-        if (m) {
-          const full = await getMeeting(m.id).catch(() => null);
-          setMeeting(full || m);
-          const ag = await getAgendaItems(m.id).catch(() => []);
-          const agendaItems = Array.isArray(ag) && ag.length ? ag : (full?.agendaItems || []);
-          setAgenda(normalizeAgendaItems(agendaItems));
+        const normalizedUsers = Array.isArray(us) ? us : [];
+        if (isMounted) {
+          setUsers(normalizedUsers);
         }
-      } catch {}
+
+        const allMeetings = Array.isArray(ms) ? ms : [];
+        const normalizedEmail = typeof auth?.email === 'string' ? auth.email.trim().toLowerCase() : null;
+        const currentUser = normalizedEmail
+          ? normalizedUsers.find((u) => typeof u?.email === 'string' && u.email.trim().toLowerCase() === normalizedEmail)
+          : null;
+        const candidateTokens = [
+          auth?.email,
+          currentUser?.email,
+          currentUser?.name,
+          currentUser?.division,
+          currentUser?.divisionName,
+        ]
+          .filter((value) => typeof value === 'string' && value.trim())
+          .map((value) => value.trim().toLowerCase());
+        const hasUserInMeeting = (meetingItem) => {
+          if (!meetingItem || typeof meetingItem.divisions !== 'string') return false;
+          const raw = meetingItem.divisions.trim();
+          if (!raw || raw.toLowerCase() === 'нет') return false;
+          if (!candidateTokens.length) return false;
+          const divisionTokens = raw
+            .split(',')
+            .map((part) => part.trim().toLowerCase())
+            .filter(Boolean);
+          if (divisionTokens.some((token) => candidateTokens.includes(token))) return true;
+          const lowered = raw.toLowerCase();
+          return candidateTokens.some((token) => lowered.includes(token));
+        };
+
+        const now = Date.now();
+        const upcoming = allMeetings
+          .map((item) => ({ item, start: item?.startTime ? new Date(item.startTime) : null }))
+          .filter(({ item, start }) => {
+            if (!start || Number.isNaN(start.getTime())) return false;
+            if (start.getTime() < now) return false;
+            return hasUserInMeeting(item);
+          })
+          .sort((a, b) => a.start - b.start)[0];
+        if (isMounted) {
+          setNextMeetingDate(upcoming?.start ? formatMeetingDate(upcoming.start) : null);
+        }
+
+        const activeMeeting = allMeetings.find((entry) => entry?.status === 'IN_PROGRESS') || null;
+        if (activeMeeting) {
+          const [full, ag] = await Promise.all([
+            getMeeting(activeMeeting.id).catch(() => null),
+            getAgendaItems(activeMeeting.id).catch(() => []),
+          ]);
+          if (!isMounted) return;
+          const agendaItems = Array.isArray(ag) && ag.length ? ag : (full?.agendaItems || []);
+          setMeeting(full || activeMeeting);
+          setAgenda(normalizeAgendaItems(agendaItems));
+        } else if (isMounted) {
+          setMeeting(null);
+          setAgenda([]);
+        }
+      } catch {
+        if (!isMounted) return;
+        setUsers([]);
+        setMeeting(null);
+        setAgenda([]);
+        setNextMeetingDate(null);
+      }
     })();
-  }, [normalizeAgendaItems]);
+    return () => {
+      isMounted = false;
+    };
+  }, [auth?.email, formatMeetingDate, normalizeAgendaItems]);
 
   useEffect(() => {
     meetingIdRef.current = meeting?.id ? String(meeting.id) : null;
@@ -389,54 +455,62 @@ function UserPage() {
                   <h1>{meeting?.name || 'Заседание'}</h1>
                 </div>
               </div>
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 360px', gap: 20 }}>
-                <div>
-                  <h2 style={{ margin: '0 0 12px' }}>Вопросы повестки:</h2>
-                  <div className="page__table">
-                    <table>
-                      <thead>
-                        <tr>
-                          <th>Номер</th>
-                          <th>Вопрос</th>
-                          <th>Докладчик</th>
-                          <th>Ссылка</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {(agenda || []).map((a, idx) => (
-                          <tr key={a.id || idx} className={a.activeIssue ? 'agenda-active' : undefined}>
-                            <td>{a.number ?? idx + 1}</td>
-                            <td>{a.title}</td>
-                            <td>{a.speaker || a.speakerId || '-'}</td>
-                            <td>{a.link || '-'}</td>
+              {meeting ? (
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 360px', gap: 20 }}>
+                  <div>
+                    <h2 style={{ margin: '0 0 12px' }}>Вопросы повестки:</h2>
+                    <div className="page__table">
+                      <table>
+                        <thead>
+                          <tr>
+                            <th>Номер</th>
+                            <th>Вопрос</th>
+                            <th>Докладчик</th>
+                            <th>Ссылка</th>
                           </tr>
-                        ))}
-                      </tbody>
-                    </table>
+                        </thead>
+                        <tbody>
+                          {(agenda || []).map((a, idx) => (
+                            <tr key={a.id || idx} className={a.activeIssue ? 'agenda-active' : undefined}>
+                              <td>{a.number ?? idx + 1}</td>
+                              <td>{a.title}</td>
+                              <td>{a.speaker || a.speakerId || '-'}</td>
+                              <td>{a.link || '-'}</td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+                  <div>
+                    <h2 style={{ margin: '0 0 12px' }}>Список участников</h2>
+                    <div className="page__table">
+                      <table>
+                        <thead>
+                          <tr>
+                            <th>ФИО</th>
+                            <th>Статус</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {(meetingUsers || []).map(u => (
+                            <tr key={u.id}>
+                              <td>{u.name}</td>
+                              <td className={`state state-${u.isOnline ? 'on' : 'off'}`}><span /></td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
                   </div>
                 </div>
-                <div>
-                  <h2 style={{ margin: '0 0 12px' }}>Список участников</h2>
-                  <div className="page__table">
-                    <table>
-                      <thead>
-                        <tr>
-                          <th>ФИО</th>
-                          <th>Статус</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {(meetingUsers || []).map(u => (
-                          <tr key={u.id}>
-                            <td>{u.name}</td>
-                            <td className={`state state-${u.isOnline ? 'on' : 'off'}`}><span /></td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
+              ) : (
+                <div className="no-meeting-wrapper">
+                  <div className="no-meeting-banner">
+                    Нет активных заседаний, ближайшее: {nextMeetingDate || '—'}
                   </div>
                 </div>
-              </div>
+              )}
             </div>
           </div>
         </section>
