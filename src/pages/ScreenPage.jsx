@@ -1,7 +1,20 @@
 import React from 'react';
+import HeaderDropdown from '../components/HeaderDropdown.jsx';
+import { logout as apiLogout } from '../utils/api.js';
 
 function ScreenPage() {
 	const [configOpen, setConfigOpen] = React.useState(true);
+
+	const handleLogout = async (e) => {
+		e?.preventDefault?.();
+		try {
+			const raw = localStorage.getItem('authUser');
+			const auth = raw ? JSON.parse(raw) : null;
+			if (auth?.username || auth?.email) await apiLogout(auth.username, auth.email);
+		} catch {}
+		localStorage.removeItem('authUser');
+		window.location.href = '/hmau-vote/login';
+	};
 	return (
 		<>
 			{/* HEADER */}
@@ -11,22 +24,27 @@ function ScreenPage() {
 						<div className="wrapper">
 							<div className="header__logo">
 								<div className="logo__inner">
-									<a href="/">
-										<img src="/img/logo.png" alt="" />
+									<a href="/hmau-vote/">
+										<img src="/hmau-vote/img/logo.png" alt="" />
 									</a>
 								</div>
 							</div>
 							<div className="header__user">
 								<div className="user__inner">
-									<a href="#!" className="support">
-										<img src="/img/icon_1.png" alt="" />Поддержка
-									</a>
+
 									<ul>
-										<li className="menu-children">
-											<a href="#!">
-												<img src="/img/icon_2.png" alt="" />admin@admin.ru
-											</a>
-										</li>
+										<HeaderDropdown
+											trigger={(
+												<>
+													<img src="/hmau-vote/img/icon_2.png" alt="" />
+													{(() => { try { const a = JSON.parse(localStorage.getItem('authUser')||'null'); return a?.name || a?.email || 'admin@admin.ru'; } catch { return 'admin@admin.ru'; } })()}
+												</>
+											)}
+										>
+											<li>
+												<button type="button" className="logout-button" onClick={handleLogout}>Выйти</button>
+											</li>
+										</HeaderDropdown>
 									</ul>
 								</div>
 							</div>
@@ -39,24 +57,26 @@ function ScreenPage() {
 						<div className="wrapper">
 							<ul>
 								<li>
-									<a href="/users">Пользователи</a>
+									<a href="/hmau-vote/users">Пользователи</a>
 								</li>
 								<li>
-									<a href="/divisions">Подразделения</a>
+									<a href="/hmau-vote/divisions">Подразделения</a>
 								</li>
 								<li>
-									<a href="/meetings">Заседания</a>
+									<a href="/hmau-vote/meetings">Заседания</a>
 								</li>
 								<li>
-									<a href="/console">Пульт Заседания</a>
+									<a href="/hmau-vote/console">Пульт Заседания</a>
 								</li>
 								<li className={`menu-children current-menu-item`}>
 									<a href="#!" onClick={(e) => { e.preventDefault(); setConfigOpen(!configOpen); }}>Конфигурация</a>
 									<ul className="sub-menu" style={{ display: configOpen ? 'block' : 'none' }}>
-										<li><a href="/template">Шаблон голосования</a></li>
-										<li><a href="/vote">Процедура подсчета голосов</a></li>
-										<li className="current-menu-item"><a href="/screen">Экран трансляции</a></li>
-										<li><a href="/linkprofile">Связать профиль с ID</a></li>
+										<li><a href="/hmau-vote/template">Шаблон голосования</a></li>
+										<li><a href="/hmau-vote/duration-templates">Шаблоны времени</a></li>
+										<li><a href="/hmau-vote/vote">Процедура подсчета голосов</a></li>
+										<li className="current-menu-item"><a href="/hmau-vote/screen">Экран трансляции</a></li>
+										<li><a href="/hmau-vote/linkprofile">Связать профиль с ID</a></li>
+                    <li><a href="/hmau-vote/contacts">Контакты</a></li>
 									</ul>
 								</li>
 							</ul>

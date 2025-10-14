@@ -67,15 +67,15 @@ function HomePage() {
             <div className="wrapper">
               <div className="header__logo">
                 <div className="logo__inner">
-                  <a href="/"><img src="/img/logo.png" alt="" /></a>
+                  <a href="/hmau-vote/"><img src="/hmau-vote/img/logo.png" alt="" /></a>
                 </div>
               </div>
               <div className="header__user">
                 <div className="user__inner">
-                  <a href="#!" className="support"><img src="/img/icon_1.png" alt="" />Поддержка</a>
+
                   <ul>
                     <HeaderDropdown
-                      trigger={(<><img src="/img/icon_2.png" alt="" />{auth?.email || 'user'}</>)}
+                      trigger={(<><img src="/hmau-vote/img/icon_2.png" alt="" />{auth?.email || 'user'}</>)}
                     >
                       <li>
                         <button type="button" className="logout-button" onClick={handleLogout}>Выйти</button>
@@ -91,15 +91,16 @@ function HomePage() {
           <div className="container">
             <div className="wrapper">
               <ul>
-                <li><a href="/users">Пользователи</a></li>
-                <li><a href="/divisions">Подразделения</a></li>
-                <li><a href="/meetings">Заседания</a></li>
-                <li><a href="/console">Пульт заседания</a></li>
+                <li><a href="/hmau-vote/users">Пользователи</a></li>
+                <li><a href="/hmau-vote/divisions">Подразделения</a></li>
+                <li><a href="/hmau-vote/meetings">Заседания</a></li>
+                <li><a href="/hmau-vote/console">Пульт заседания</a></li>
                 <HeaderDropdown trigger="Конфигурация">
-                  <li><a href="/template">Шаблоны голосования</a></li>
-                  <li><a href="/vote">Процедуры принятия решений</a></li>
-                  <li><a href="/screen">Экран трансляции</a></li>
-                  <li><a href="/linkprofile">Привязка профиля к ID</a></li>
+                  <li><a href="/hmau-vote/template">Шаблоны голосования</a></li>
+                  <li><a href="/hmau-vote/duration-templates">Шаблоны времени</a></li>
+                  <li><a href="/hmau-vote/vote">Процедуры принятия решений</a></li>
+                  <li><a href="/hmau-vote/screen">Экран трансляции</a></li>
+                  <li><a href="/hmau-vote/linkprofile">Привязка профиля к ID</a></li>
                 </HeaderDropdown>
               </ul>
             </div>
@@ -136,8 +137,8 @@ function HomePage() {
                   </tbody>
                 </table>
                 <div className="box__buttons">
-                  <a href="/meetings" className="link">Перейти к разделу</a>
-                  <a href="/meetings" className="btn btn-border">Все заседания</a>
+                  <a href="/hmau-vote/meetings" className="link">Перейти к разделу</a>
+                  <a href="/hmau-vote/meetings" className="btn btn-border">Все заседания</a>
                 </div>
               </div>
               <div className="item item-users">
@@ -154,8 +155,8 @@ function HomePage() {
                   </tbody>
                 </table>
                 <div className="box__buttons">
-                  <a href="/users" className="link">Перейти к разделу</a>
-                  <a href="/users" className="btn btn-border">Все пользователи</a>
+                  <a href="/hmau-vote/users" className="link">Перейти к разделу</a>
+                  <a href="/hmau-vote/users" className="btn btn-border">Все пользователи</a>
                 </div>
               </div>
             </div>

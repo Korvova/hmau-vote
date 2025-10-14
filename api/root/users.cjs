@@ -30,6 +30,13 @@ router.post('/:id/disconnect', async (req, res) => {
       where: { id: parseInt(id) },
       data: { isOnline: false },
     });
+    // Emit realtime notification so clients can react immediately
+    try {
+      const payload = JSON.stringify({ id: Number(user.id), email: user.email, isOnline: false });
+      await req.prisma.$executeRawUnsafe(`SELECT pg_notify('user_status_channel', '${payload.replace(/'/g, "''")}')`);
+    } catch (e) {
+      console.error('Failed to pg_notify user_status_channel:', e?.message || e);
+    }
     res.json({ success: true, user });
   } catch (error) {
     console.error('Ошибка при отключении пользователя:', error);
@@ -59,17 +66,58 @@ router.post('/:id/disconnect', async (req, res) => {
  */
 router.get('/', async (req, res) => {
   try {
-    const users = await req.prisma.user.findMany({
-      include: { division: true },
+    // Ensure helper table exists (safety)
+    try {
+      await req.prisma.$executeRawUnsafe('CREATE TABLE IF NOT EXISTS "UserExtraDivision" (id SERIAL PRIMARY KEY, "userId" INT NOT NULL, "divisionId" INT NOT NULL)');
+    } catch {}
+
+    const users = await req.prisma.user.findMany({ include: { division: true } });
+    const userIds = users.map(u => u.id);
+    // Simpler: read all extras and filter in memory
+    let extras = [];
+    try {
+      extras = await req.prisma.$queryRawUnsafe('SELECT "userId", "divisionId" FROM "UserExtraDivision"');
+    } catch {}
+    const extraMap = new Map();
+    for (const row of Array.isArray(extras) ? extras : []) {
+      if (!userIds.includes(row.userId)) continue;
+      const arr = extraMap.get(row.userId) || [];
+      arr.push(row.divisionId);
+      extraMap.set(row.userId, arr);
+    }
+
+    const allDivisionIds = new Set();
+    for (const u of users) (extraMap.get(u.id) || []).forEach(d => allDivisionIds.add(d));
+    const divNames = new Map();
+    if (allDivisionIds.size) {
+      const idsArr = Array.from(allDivisionIds);
+      try {
+        const rows = await req.prisma.division.findMany({ where: { id: { in: idsArr } } });
+        for (const d of rows) divNames.set(d.id, d.name);
+      } catch {}
+    }
+
+    const out = users.map(user => {
+      const extraIds = extraMap.get(user.id) || [];
+      const names = [];
+      if (user.division?.name) names.push(user.division.name);
+      for (const did of extraIds) {
+        const nm = divNames.get(did);
+        if (nm && !names.includes(nm)) names.push(nm);
+      }
+      const pretty = names.map(n => (/(^|\s)Приглашенные(\s|$)/i.test(n) ? '👥Приглашенные' : n));
+      return {
+        id: user.id,
+        name: user.name,
+        email: user.email,
+        phone: user.phone,
+        division: pretty.join(', ') || 'Нет',
+        divisionIds: [user.divisionId, ...extraIds].filter(Boolean),
+        isOnline: user.isOnline,
+      };
     });
-    res.json(users.map(user => ({
-      id: user.id,
-      name: user.name,
-      email: user.email,
-      phone: user.phone,
-      division: user.division ? user.division.name : 'Нет',
-      isOnline: user.isOnline
-    })));
+    try { console.log('[GET /api/users] out sample:', out.slice(0, 3)); } catch {}
+    res.json(out);
   } catch (error) {
     console.error('Ошибка при получении списка пользователей:', error);
     res.status(500).json({ error: error.message });
@@ -103,15 +151,18 @@ router.get('/', async (req, res) => {
 router.post('/', async (req, res) => {
   const { name, email, phone, divisionId, password } = req.body;
   try {
+    const divisionIds = Array.isArray(req.body?.divisionIds) ? req.body.divisionIds.map((v) => parseInt(v)).filter(Boolean) : [];
+    const primary = divisionId ? parseInt(divisionId) : (divisionIds[0] ?? null);
     const user = await req.prisma.user.create({
-      data: {
-        name,
-        email,
-        phone,
-        password,
-        divisionId: divisionId ? parseInt(divisionId) : null,
-      },
+      data: { name, email, phone, password, divisionId: primary },
     });
+    try {
+      const extras = divisionIds.filter((v) => v && v !== primary);
+      for (const d of extras) {
+        try { await req.prisma.$executeRawUnsafe('INSERT INTO "UserExtraDivision" ("userId", "divisionId") VALUES ($1, $2) ON CONFLICT DO NOTHING', user.id, d); } catch {}
+      }
+      console.log('[POST /api/users] saved extras', { userId: user.id, primary, extras });
+    } catch (e) { console.log('[POST /api/users] extras error', e?.message || e); }
     res.json(user);
   } catch (error) {
     console.error('Ошибка при создании пользователя:', error);
@@ -146,7 +197,7 @@ router.post('/', async (req, res) => {
  */
 router.put('/:id', async (req, res) => {
   const { id } = req.params;
-  const { name, email, phone, divisionId, password } = req.body;
+  const { name, email, phone, divisionId, divisionIds, password } = req.body;
   try {
     const user = await req.prisma.user.update({
       where: { id: parseInt(id) },
@@ -158,6 +209,16 @@ router.put('/:id', async (req, res) => {
         password: password || undefined,
       },
     });
+    try {
+      const ids = Array.isArray(divisionIds) ? divisionIds.map((v) => parseInt(v)).filter(Boolean) : [];
+      const primary = divisionId ? parseInt(divisionId) : null;
+      const extras = ids.filter((v) => v && v !== primary);
+      await req.prisma.$executeRawUnsafe('DELETE FROM "UserExtraDivision" WHERE "userId" = $1', user.id);
+      for (const d of extras) {
+        try { await req.prisma.$executeRawUnsafe('INSERT INTO "UserExtraDivision" ("userId", "divisionId") VALUES ($1, $2) ON CONFLICT DO NOTHING', user.id, d); } catch {}
+      }
+      console.log('[PUT /api/users/:id] saved extras', { userId: user.id, primary, extras });
+    } catch (e) { console.log('[PUT /api/users/:id] extras error', e?.message || e); }
     res.json(user);
   } catch (error) {
     console.error('Ошибка при обновлении пользователя:', error);

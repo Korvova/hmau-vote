@@ -1,0 +1,64 @@
+.chip-multi {
+  position: relative;
+}
+.chip-multi__control {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  align-items: center;
+  padding: 6px 8px;
+  border: 1px solid #dcdcdc;
+  border-radius: 6px;
+  min-height: 44px;
+  background: #fff;
+}
+.chip-multi__chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: #e8f1ff;
+  color: #1a73e8;
+  border: 1px solid #d0e2ff;
+  border-radius: 14px;
+  padding: 4px 8px;
+  font-size: 12px;
+}
+.chip-multi__chip button {
+  background: transparent;
+  border: none;
+  color: #1a73e8;
+  cursor: pointer;
+  padding: 0;
+  line-height: 1;
+}
+.chip-multi__input {
+  flex: 1;
+  min-width: 120px;
+  border: none;
+  outline: none;
+  font-size: 14px;
+  padding: 6px 4px;
+}
+.chip-multi__menu {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: calc(100% + 4px);
+  background: #fff;
+  border: 1px solid #dcdcdc;
+  border-radius: 6px;
+  box-shadow: 0 6px 24px rgba(0,0,0,.08);
+  max-height: 220px;
+  overflow-y: auto;
+  z-index: 1000;
+}
+.chip-multi__option {
+  padding: 8px 10px;
+  cursor: pointer;
+}
+.chip-multi__option:hover {
+  background: #f4f6fb;
+}
+.chip-multi__placeholder {
+  color: #999;
+}

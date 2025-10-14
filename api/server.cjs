@@ -4,6 +4,7 @@ const { createServer } = require('http');
 const { Server } = require('socket.io');
 const { Client } = require('pg');
 const { PrismaClient } = require('@prisma/client');
+const { randomUUID } = require('crypto');
 
 const path = require('path');
 const fs = require('fs');
@@ -32,6 +33,8 @@ const allowedOrigins = [
   'http://localhost:4173',
   'http://127.0.0.1:5173',
   'http://127.0.0.1:3000',
+  'https://rms-bot.com',
+  'http://rms-bot.com',
 ];
 
 const io = new Server(httpServer, {
@@ -92,11 +95,42 @@ async function normalizeVoteProcedures() {
   }
 }
 
+// Ensure the default system division exists
+async function ensureSystemDivision() {
+  try {
+    const name = '👥Приглашенные';
+    const existing = await prisma.division.findFirst({ where: { name } });
+    if (!existing) {
+      await prisma.division.create({ data: { name } });
+    }
+  } catch (e) {
+    console.error('Failed to ensure system division:', e?.message || e);
+  }
+}
+
+// Ensure helper table for extra user divisions exists (for multi-group membership)
+async function ensureUserExtraDivisionTable() {
+  try {
+    await prisma.$executeRawUnsafe(`
+      CREATE TABLE IF NOT EXISTS "UserExtraDivision" (
+        id SERIAL PRIMARY KEY,
+        "userId" INT NOT NULL,
+        "divisionId" INT NOT NULL,
+        CONSTRAINT "UserExtraDivision_userId_fkey" FOREIGN KEY ("userId") REFERENCES "User"("id") ON DELETE CASCADE ON UPDATE CASCADE,
+        CONSTRAINT "UserExtraDivision_divisionId_fkey" FOREIGN KEY ("divisionId") REFERENCES "Division"("id") ON DELETE CASCADE ON UPDATE CASCADE,
+        CONSTRAINT "UserExtraDivision_unique" UNIQUE ("userId", "divisionId")
+      );
+    `);
+  } catch (e) {
+    console.error('Failed to ensure UserExtraDivision table:', e?.message || e);
+  }
+}
+
 /**
  * Порт, на котором запускается сервер.
  * @type {Number}
  */
-const port = 5000;
+const port = process.env.PORT || 5000;
 
 // Request logging middleware
 /**
@@ -167,6 +201,8 @@ app.use(express.json());
 // Normalize procedures in background on startup
 (async () => {
   try { await normalizeVoteProcedures(); } catch {}
+  try { await ensureSystemDivision(); } catch {}
+  try { await ensureUserExtraDivisionTable(); } catch {}
 })();
 
 // PostgreSQL notifications
@@ -295,6 +331,7 @@ app.use('/api', require('./root/agenda-items.cjs')(prisma));
 app.use('/api', require('./root/vote-procedures.cjs')(prisma));
 app.use('/api', require('./root/vote-templates.cjs')(prisma));
 app.use('/api', require('./root/vote.cjs')(prisma, pgClient));
+app.use('/api/televic', require('./root/televic.cjs'));
 
 // Manual end of vote for an agenda item
 // Important: implemented here to avoid touching files in api/root
@@ -512,6 +549,133 @@ io.on('connection', (socket) => {
   socket.on('disconnect', (reason) => {
     console.log('Клиент отключился:', socket.id, 'Причина:', reason);
   });
+});
+
+// =============================
+// Socket.IO: CoCon connector NS
+// =============================
+const connectors = new Map(); // socket.id -> { connectorId, topic, roomId, lastHello, hello }
+const pendingCommands = new Map(); // id -> { resolve, reject, timer }
+
+const coconNS = io.of('/cocon-connector');
+
+coconNS.on('connection', (socket) => {
+  const { connectorId, topic, roomId, token } = socket.handshake?.auth || {};
+  connectors.set(socket.id, {
+    connectorId: connectorId || null,
+    topic: topic || 'default-topic',
+    roomId: roomId || null,
+    lastHello: null,
+    hello: null,
+  });
+  console.log('[cocon] connection', socket.id, { connectorId, topic, roomId });
+
+  socket.on('connector:hello', (data) => {
+    const entry = connectors.get(socket.id);
+    if (entry) {
+      entry.lastHello = new Date().toISOString();
+      entry.hello = data || {};
+      connectors.set(socket.id, entry);
+    }
+    socket.emit('connector:hello:ack', { ts: Date.now(), sessionId: socket.id });
+    console.log('[cocon] hello', socket.id, data && data.connectorId);
+  });
+
+  socket.on('connector:command:ack', (msg) => {
+    console.log('[cocon] ack', socket.id, msg);
+  });
+
+  socket.on('connector:command:result', (msg) => {
+    console.log('[cocon] result', socket.id, msg && msg.id, msg && msg.ok);
+    if (msg && msg.id && pendingCommands.has(msg.id)) {
+      const entry = pendingCommands.get(msg.id);
+      clearTimeout(entry.timer);
+      pendingCommands.delete(msg.id);
+      entry.resolve(msg);
+    }
+  });
+
+  socket.on('connector:event', async (evt) => {
+    try {
+      if (!evt || !evt.type) return;
+      if (evt.type === 'vote-cast') {
+        await require('axios').post(`http://127.0.0.1:${port}/api/vote-by-result`, {
+          userId: evt.userId,
+          voteResultId: evt.voteResultId,
+          choice: evt.choice,
+        });
+      }
+    } catch (e) {
+      console.error('[cocon] connector:event error', e.message);
+    }
+  });
+
+  socket.on('disconnect', (reason) => {
+    console.log('[cocon] disconnect', socket.id, reason);
+    connectors.delete(socket.id);
+  });
+});
+
+// HTTP endpoint to inspect current connector sessions
+app.get('/api/connectors', (req, res) => {
+  const list = [];
+  connectors.forEach((v, k) => list.push({ socketId: k, ...v }));
+  res.json({ count: list.length, items: list });
+});
+
+function findConnectorSocket({ topic, roomId }) {
+  for (const [sid, info] of connectors.entries()) {
+    if ((topic ? info.topic === topic : true) && (roomId ? String(info.roomId) === String(roomId) : true)) {
+      const s = coconNS.sockets.get(sid);
+      if (s) return s;
+    }
+  }
+  for (const [sid] of connectors.entries()) {
+    const s = coconNS.sockets.get(sid);
+    if (s) return s;
+  }
+  return null;
+}
+
+function dispatchCommand(socket, { type, payload, timeoutMs = 10000 }) {
+  return new Promise((resolve, reject) => {
+    const id = randomUUID();
+    const timer = setTimeout(() => {
+      pendingCommands.delete(id);
+      reject(new Error('Command timeout'));
+    }, timeoutMs);
+    pendingCommands.set(id, { resolve, reject, timer });
+    socket.emit('server:command:exec', { id, type, payload, timeoutMs });
+  });
+}
+
+// Bridge endpoints for Televic CoCon
+app.get('/api/coconagenda/GetAllDelegates', async (req, res) => {
+  try {
+    const topic = req.query.topic || undefined;
+    const roomId = req.query.roomId || undefined;
+    const sock = findConnectorSocket({ topic, roomId });
+    if (!sock) return res.status(503).json({ error: 'No connector online' });
+    const result = await dispatchCommand(sock, { type: 'GetAllDelegates', payload: {} });
+    if (result && result.ok) return res.json(result.data || []);
+    return res.status(502).json({ error: result && result.error || 'Connector returned error' });
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+app.get('/api/coconagenda/GetDelegatesOnSeats', async (req, res) => {
+  try {
+    const topic = req.query.topic || undefined;
+    const roomId = req.query.roomId || undefined;
+    const sock = findConnectorSocket({ topic, roomId });
+    if (!sock) return res.status(503).json({ error: 'No connector online' });
+    const result = await dispatchCommand(sock, { type: 'GetDelegatesOnSeats', payload: {} });
+    if (result && result.ok) return res.json(result.data || []);
+    return res.status(502).json({ error: result && result.error || 'Connector returned error' });
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
 });
 
 // Static documentation

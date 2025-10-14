@@ -1,6 +1,10 @@
 import React, { useEffect, useMemo, useState } from 'react';
+import axios from 'axios';
+import { io } from 'socket.io-client';
 import EditModal from '../components/EditModal.jsx';
-import { getUsers, createUser, updateUser, deleteUser, getDivisions } from '../utils/api.js';
+import DisconnectModal from '../components/DisconnectModal.jsx';
+import HeaderDropdown from '../components/HeaderDropdown.jsx';
+import { getUsers, createUser, updateUser, deleteUser, getDivisions, disconnectUser, logout as apiLogout } from '../utils/api.js';
 
 function UsersPage() {
   const [configOpen, setConfigOpen] = useState(false);
@@ -8,6 +12,19 @@ function UsersPage() {
   const [selectedUser, setSelectedUser] = useState(null);
   const [isModalOpen, setModalOpen] = useState(false);
   const [isAddMode, setAddMode] = useState(false);
+  const handleLogout = async (e) => {
+    e?.preventDefault?.();
+    try {
+      const raw = localStorage.getItem('authUser');
+      const auth = raw ? JSON.parse(raw) : null;
+      if (auth?.username || auth?.email) await apiLogout(auth.username, auth.email);
+    } catch {}
+    localStorage.removeItem('authUser');
+    window.location.href = '/hmau-vote/login';
+  };
+
+  const [showDisconnectModal, setShowDisconnectModal] = useState(false);
+  const [userToDisconnect, setUserToDisconnect] = useState(null);
 
   const [users, setUsers] = useState([]);
   const [divisions, setDivisions] = useState([]);
@@ -18,12 +35,26 @@ function UsersPage() {
       setLoading(true);
       setError('');
       try {
-        const [divs, us] = await Promise.all([
+        const [divs, us, televicLinks] = await Promise.all([
           getDivisions(),
           getUsers(),
+          axios.get('/api/televic/links'),
         ]);
-        setDivisions(Array.isArray(divs) ? divs : []);
-        setUsers(Array.isArray(us) ? us : []);
+        const processedDivs = (Array.isArray(divs) ? divs : []).map((d) => {
+          const rawName = d.displayName || d.name || '';
+          const isInvited = Boolean(d.system) || /(^|\s)Приглашенные(\s|$)/i.test(rawName);
+          const display = isInvited ? '👥Приглашенные' : rawName;
+          return { ...d, displayName: display, system: isInvited };
+        });
+        setDivisions(processedDivs);
+
+        // Merge televic data
+        const televicMap = new Map((televicLinks.data || []).map((u) => [u.id, u.televicExternalId]));
+        const mergedUsers = (Array.isArray(us) ? us : []).map((u) => ({
+          ...u,
+          televicExternalId: u.televicExternalId ?? televicMap.get(u.id) ?? null,
+        }));
+        setUsers(mergedUsers);
       } catch (e) {
         setError(e.message || 'Ошибка загрузки данных');
       } finally {
@@ -32,48 +63,114 @@ function UsersPage() {
     };
     load();
   }, []);
+
+  // Socket.IO listener for badge status updates
+  useEffect(() => {
+    const socket = io();
+
+    const onBadgeStatusChanged = (data) => {
+      setUsers((prev) => prev.map((u) =>
+        u.id === data?.userId ? { ...u, isBadgeInserted: data.isBadgeInserted } : u
+      ));
+    };
+
+    socket.on('badge-status-changed', onBadgeStatusChanged);
+
+    return () => {
+      socket.off('badge-status-changed', onBadgeStatusChanged);
+      socket.disconnect();
+    };
+  }, []);
+
+  const reloadUsers = async () => {
+    try {
+      const [us, televicLinks] = await Promise.all([
+        getUsers(),
+        axios.get('/api/televic/links'),
+      ]);
+      const televicMap = new Map((televicLinks.data || []).map((u) => [u.id, u.televicExternalId]));
+      const mergedUsers = (Array.isArray(us) ? us : []).map((u) => ({
+        ...u,
+        televicExternalId: u.televicExternalId ?? televicMap.get(u.id) ?? null,
+      }));
+      setUsers(mergedUsers);
+    } catch (e) {
+      // silent
+    }
+  };
   const divisionOptions = useMemo(
-    () => (divisions || []).map(d => ({ value: d.id, label: d.name })),
+    () => (divisions || []).map(d => ({ value: d.id, label: d.displayName || d.name })),
     [divisions]
   );
-  const userFields = [
-    { name: 'name', label: 'ФИО', type: 'text', required: true },
-    { name: 'email', label: 'E-mail', type: 'text', required: true },
-    { name: 'phone', label: 'Телефон', type: 'text', required: false },
-    {
-      name: 'divisionId',
-      label: 'Подразделение',
-      type: 'select',
+  const userFields = useMemo(() => {
+    const fields = [
+      { name: 'name', label: 'ФИО', type: 'text', required: true },
+      { name: 'username', label: 'Логин', type: 'text', required: false, placeholder: 'Опционально, если указан email' },
+      { name: 'email', label: 'E-mail', type: 'text', required: false, placeholder: 'Опционально, если указан логин' },
+      { name: 'phone', label: 'Телефон', type: 'text', required: false },
+    ];
+
+    // Add password field - required for add mode, optional for edit mode
+    if (isAddMode) {
+      fields.push({ name: 'password', label: 'Пароль', type: 'password', required: true });
+    } else {
+      fields.push({ name: 'password', label: 'Пароль (оставьте пустым, если не меняете)', type: 'password', required: false });
+    }
+
+    fields.push({
+      name: 'divisionIds',
+      label: 'Подразделения (несколько)',
+      type: 'chip-multiselect',
       required: false,
       options: divisionOptions.length ? divisionOptions : [{ value: '', label: '— нет данных —' }],
-    },
-  ];
-  const handleEditClick = (user) => {
+    });
+
+    return fields;
+  }, [divisionOptions, isAddMode]);
+  const handleEditClick = async (user) => {
     setAddMode(false);
-    setSelectedUser({ ...user, divisionId: user.divisionId ?? '' });
+    // Fetch fresh to avoid stale divisionIds
+    try {
+      const fresh = await getUsers();
+      const found = (Array.isArray(fresh) ? fresh : []).find((u) => u.id === user.id);
+      const ids = Array.isArray(found?.divisionIds)
+        ? found.divisionIds
+        : Array.isArray(user?.divisionIds)
+          ? user.divisionIds
+          : (user.divisionId ? [user.divisionId] : []);
+      setSelectedUser({ ...user, divisionIds: ids });
+    } catch {
+      const ids = Array.isArray(user?.divisionIds)
+        ? user.divisionIds
+        : (user.divisionId ? [user.divisionId] : []);
+      setSelectedUser({ ...user, divisionIds: ids });
+    }
     setModalOpen(true);
   };
   const handleAddClick = (e) => {
     e.preventDefault();
     setAddMode(true);
     const firstDivisionId = divisionOptions[0]?.value ?? '';
-    setSelectedUser({ id: null, name: '', email: '', phone: '', divisionId: firstDivisionId, isOnline: false });
+    setSelectedUser({ id: null, name: '', username: '', email: '', phone: '', divisionIds: firstDivisionId ? [firstDivisionId] : [], isOnline: false });
     setModalOpen(true);
   };
-  const handleSubmit = async (formData, password) => {
+  const handleSubmit = async (formData) => {
     try {
       const payload = {
         ...formData,
-        divisionId: formData.divisionId === '' || formData.divisionId == null ? null : Number(formData.divisionId),
+        divisionIds: Array.isArray(formData.divisionIds) ? formData.divisionIds.map((v) => Number(v)).filter(Boolean) : [],
+        divisionId: Array.isArray(formData.divisionIds) && formData.divisionIds.length ? Number(formData.divisionIds[0]) : null,
       };
-      if (password) payload.password = password;
       if (isAddMode) {
-        const created = await createUser(payload);
-        setUsers(prev => [created, ...prev]);
+        await createUser(payload);
       } else if (selectedUser?.id) {
-        const updated = await updateUser(selectedUser.id, payload);
-        setUsers(prev => prev.map(u => (u.id === selectedUser.id ? updated : u)));
+        // Don't send password if it's empty (user didn't change it)
+        if (!payload.password) {
+          delete payload.password;
+        }
+        await updateUser(selectedUser.id, payload);
       }
+      await reloadUsers();
       setModalOpen(false);
     } catch (e) {
       alert(e.message || 'Ошибка сохранения');
@@ -90,6 +187,27 @@ function UsersPage() {
       alert(e.message || 'Ошибка удаления');
     }
   };
+  const handleDisconnectUser = (user, e) => {
+    e?.preventDefault?.();
+    e?.stopPropagation?.();
+    setUserToDisconnect(user);
+    setShowDisconnectModal(true);
+  };
+  const confirmDisconnect = async () => {
+    if (!userToDisconnect) return;
+    try {
+      await disconnectUser(userToDisconnect.id);
+      setUsers(prev => prev.map(u => (u.id === userToDisconnect.id ? { ...u, isOnline: false } : u)));
+      setShowDisconnectModal(false);
+      setUserToDisconnect(null);
+    } catch (e) {
+      alert(e.message || 'Ошибка отключения пользователя');
+    }
+  };
+  const cancelDisconnect = () => {
+    setShowDisconnectModal(false);
+    setUserToDisconnect(null);
+  };
   return (
     <>
       {/* HEADER */}
@@ -99,16 +217,25 @@ function UsersPage() {
             <div className="wrapper">
               <div className="header__logo">
                 <div className="logo__inner">
-                  <a href="/"><img src="/img/logo.png" alt="" /></a>
+                  <a href="/hmau-vote/"><img src="/hmau-vote/img/logo.png" alt="" /></a>
                 </div>
               </div>
               <div className="header__user">
                 <div className="user__inner">
-                  <a href="#!" className="support"><img src="/img/icon_1.png" alt="" />Поддержка</a>
+
                   <ul>
-                    <li className="menu-children">
-                      <a href="#!"><img src="/img/icon_2.png" alt="" />admin@admin.ru</a>
-                    </li>
+                    <HeaderDropdown
+                      trigger={(
+                        <>
+                          <img src="/hmau-vote/img/icon_2.png" alt="" />
+                          {(() => { try { const a = JSON.parse(localStorage.getItem('authUser')||'null'); return a?.name || a?.email || 'admin@admin.ru'; } catch { return 'admin@admin.ru'; } })()}
+                        </>
+                      )}
+                    >
+                      <li>
+                        <button type="button" className="logout-button" onClick={handleLogout}>Выйти</button>
+                      </li>
+                    </HeaderDropdown>
                   </ul>
                 </div>
               </div>
@@ -119,17 +246,19 @@ function UsersPage() {
           <div className="container">
             <div className="wrapper">
               <ul>
-                <li className="current-menu-item"><a href="/users">Пользователи</a></li>
-                <li><a href="/divisions">Подразделения</a></li>
-                <li><a href="/meetings">Заседания</a></li>
-                <li><a href="/console">Пульт заседаний</a></li>
+                <li className="current-menu-item"><a href="/hmau-vote/users">Пользователи</a></li>
+                <li><a href="/hmau-vote/divisions">Подразделения</a></li>
+                <li><a href="/hmau-vote/meetings">Заседания</a></li>
+                <li><a href="/hmau-vote/console">Пульт заседаний</a></li>
                 <li className={`menu-children${configOpen ? ' current-menu-item' : ''}`}>
                   <a href="#!" onClick={(e) => { e.preventDefault(); setConfigOpen(!configOpen); }}>Конфигурация</a>
                   <ul className="sub-menu" style={{ display: configOpen ? 'block' : 'none' }}>
-                    <li><a href="/template">Шаблоны голосования</a></li>
-                    <li><a href="/vote">Процедура подсчёта голосов</a></li>
-                    <li><a href="/screen">Экран трансляции</a></li>
-                    <li><a href="/linkprofile">Связать профиль с ID</a></li>
+                    <li><a href="/hmau-vote/template">Шаблоны голосования</a></li>
+                    <li><a href="/hmau-vote/duration-templates">Шаблоны времени</a></li>
+                    <li><a href="/hmau-vote/vote">Процедура подсчёта голосов</a></li>
+                    <li><a href="/hmau-vote/screen">Экран трансляции</a></li>
+                    <li><a href="/hmau-vote/linkprofile">Связать профиль с ID</a></li>
+                    <li><a href="/hmau-vote/contacts">Контакты</a></li>
                   </ul>
                 </li>
               </ul>
@@ -149,8 +278,8 @@ function UsersPage() {
                 </div>
                 <div className="top__wrapper">
                   <ul className="nav">
-                    <li><a href="#!"><img src="/img/icon_8.png" alt="" /></a></li>
-                    <li><a href="#!"><img src="/img/icon_9.png" alt="" /></a></li>
+                    <li><a href="#!"><img src="/hmau-vote/img/icon_8.png" alt="" /></a></li>
+                    <li><a href="#!"><img src="/hmau-vote/img/icon_9.png" alt="" /></a></li>
                   </ul>
                 </div>
                 {error && (
@@ -162,6 +291,7 @@ function UsersPage() {
                   <thead>
                     <tr>
                       <th>ФИО</th>
+                      <th>Логин</th>
                       <th>E-mail</th>
                       <th>Телефон</th>
                       <th>Подразделение</th>
@@ -172,16 +302,41 @@ function UsersPage() {
                   <tbody>
                     {(loading ? [] : users).map((user) => (
                       <tr key={user.id}>
-                        <td>{user.name}</td>
-                        <td>{user.email}</td>
+                        <td>
+                          {user.name}
+                          {user.televicExternalId && (
+                            <span className="televic-badge-container">
+                              <span className="televic-badge" title={`Связан с Televic делегатом ${user.televicExternalId}`}>
+                                T
+                              </span>
+                              {user.isBadgeInserted && (
+                                <span className="badge-dot" title="Карточка вставлена"></span>
+                              )}
+                            </span>
+                          )}
+                        </td>
+                        <td>{user.username || '-'}</td>
+                        <td>{user.email || '-'}</td>
                         <td>{user.phone}</td>
-                        <td>{user.division ?? (divisions.find(d => d.id === user.divisionId)?.name || '')}</td>
-                        <td className={`state state-${user.isOnline ? 'on' : 'off'}`}>
+                        <td>{(() => {
+                          const d = divisions.find(x => x.id === user.divisionId);
+                          const fallback = user.division || d?.name || '';
+                          if ((d && d.system) || /(^|\s)Приглашенные(\s|$)/i.test(fallback || '')) return '👥Приглашенные';
+                          return d?.displayName || fallback;
+                        })()}</td>
+                        <td
+                          className={`state state-${user.isOnline ? 'on' : 'off'}`}
+                          title={user.isOnline ? 'Нажмите, чтобы отключить' : ''}
+                          style={{ cursor: user.isOnline ? 'pointer' : 'default' }}
+                          onClick={(e) => {
+                            if (user.isOnline) handleDisconnectUser(user, e);
+                          }}
+                        >
                           <span></span>
                         </td>
                         <td className="user__nav">
                           <button type="button" className="user__button">
-                            <img src="/img/icon_10.png" alt="" />
+                            <img src="/hmau-vote/img/icon_10.png" alt="" />
                           </button>
                           <ul className="nav__links">
                             <li>
@@ -189,7 +344,7 @@ function UsersPage() {
                                 type="button"
                                 onClick={(e) => { e.preventDefault(); e.stopPropagation(); handleEditClick(user); }}
                               >
-                                <img src="/img/icon_11.png" alt="" />
+                                <img src="/hmau-vote/img/icon_11.png" alt="" />
                                 Редактировать
                               </button>
                             </li>
@@ -198,7 +353,7 @@ function UsersPage() {
                                 type="button"
                                 onClick={(e) => handleDelete(user.id, e)}
                               >
-                                <img src="/img/icon_14.png" alt="" />
+                                <img src="/hmau-vote/img/icon_14.png" alt="" />
                                 Удалить
                               </button>
                             </li>
@@ -208,16 +363,6 @@ function UsersPage() {
                     ))}
                   </tbody>
                 </table>
-              </div>
-              <div className="pagination">
-                <div className="wp-pagenavi">
-                  <a href="#" className="previouspostslink"></a>
-                  <a href="#">1</a>
-                  <span>2</span>
-                  <a href="#">3</a>
-                  <a href="#">4</a>
-                  <a href="#" className="nextpostslink"></a>
-                </div>
               </div>
             </div>
           </div>
@@ -231,6 +376,14 @@ function UsersPage() {
           onClose={() => setModalOpen(false)}
           onSubmit={handleSubmit}
         />
+        {showDisconnectModal && (
+          <DisconnectModal
+            isOpen={showDisconnectModal}
+            userName={userToDisconnect?.name || ''}
+            onConfirm={confirmDisconnect}
+            onCancel={cancelDisconnect}
+          />
+        )}
       </main>
       {/* FOOTER */}
       <footer>

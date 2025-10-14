@@ -30,13 +30,25 @@ module.exports = (prisma, pgClient) => {
         include: { divisions: true, agendaItems: true },
       });
       console.log('Fetched meetings on frontend:', meetings);
+
+      // Helper function to check if division is system "Приглашенные"
+      const isReservedName = (name) => {
+        try {
+          if (!name || typeof name !== 'string') return false;
+          const n = name.replace(/👥/g, '').trim().toLowerCase();
+          return n === 'приглашенные';
+        } catch {
+          return false;
+        }
+      };
+
       res.json(meetings.map(meeting => ({
         id: meeting.id,
         name: meeting.name,
         startTime: meeting.startTime.toISOString(),
         endTime: meeting.endTime.toISOString(),
         status: meeting.status,
-        divisions: meeting.divisions.map(d => d.name).join(', ') || 'РќРµС‚',
+        divisions: meeting.divisions.map(d => isReservedName(d.name) ? '👥Приглашенные' : d.name).join(', ') || 'РќРµС‚',
         isArchived: meeting.isArchived,
       })));
     } catch (error) {
@@ -73,13 +85,25 @@ module.exports = (prisma, pgClient) => {
         include: { divisions: true, agendaItems: true },
       });
       console.log('Fetched archived meetings:', meetings);
+
+      // Helper function to check if division is system "Приглашенные"
+      const isReservedName = (name) => {
+        try {
+          if (!name || typeof name !== 'string') return false;
+          const n = name.replace(/👥/g, '').trim().toLowerCase();
+          return n === 'приглашенные';
+        } catch {
+          return false;
+        }
+      };
+
       res.json(meetings.map(meeting => ({
         id: meeting.id,
         name: meeting.name,
         startTime: meeting.startTime.toISOString(),
         endTime: meeting.endTime.toISOString(),
         status: meeting.status,
-        divisions: meeting.divisions.map(d => d.name).join(', ') || 'РќРµС‚',
+        divisions: meeting.divisions.map(d => isReservedName(d.name) ? '👥Приглашенные' : d.name).join(', ') || 'РќРµС‚',
         isArchived: meeting.isArchived,
       })));
     } catch (error) {
@@ -227,16 +251,39 @@ module.exports = (prisma, pgClient) => {
       if (!meeting) {
         return res.status(404).json({ error: 'Meeting not found' });
       }
-      res.json({
+
+      // Helper function to check if division is system "Приглашенные"
+      const isReservedName = (name) => {
+        try {
+          if (!name || typeof name !== 'string') return false;
+          const n = name.replace(/👥/g, '').trim().toLowerCase();
+          return n === 'приглашенные';
+        } catch {
+          return false;
+        }
+      };
+
+      // Process divisions with proper display names
+      const processedDivisions = (meeting.divisions || []).map(d => ({
+        id: d.id,
+        name: d.name,
+        displayName: isReservedName(d.name) ? '👥Приглашенные' : d.name,
+      }));
+
+      const response = {
         id: meeting.id,
         name: meeting.name,
         startTime: meeting.startTime.toISOString(),
         endTime: meeting.endTime.toISOString(),
         status: meeting.status,
-        divisions: meeting.divisions.map(d => d.name).join(', ') || 'РќРµС‚',
+        divisions: processedDivisions,
+        divisionsText: processedDivisions.map(d => d.displayName).join(', ') || 'РќРµС‚',
         isArchived: meeting.isArchived,
         agendaItems: meeting.agendaItems.map(item => ({ id: item.id, number: item.number, title: item.title, speakerId: item.speakerId, link: item.link, voting: item.voting, completed: item.completed, activeIssue: item.activeIssue })),
-      });
+      };
+
+      console.log('🔥 GET /api/meetings/:id response:', JSON.stringify(response, null, 2));
+      res.json(response);
     } catch (error) {
       console.error('РћС€РёР±РєР° РїСЂРё РїРѕР»СѓС‡РµРЅРёРё Р·Р°СЃРµРґР°РЅРёСЏ:', error);
       res.status(500).json({ error: error.message });
@@ -552,6 +599,7 @@ router.get('/:id/participants', async (req, res) => {
             id: true,
             name: true,
             isOnline: true,
+            televicExternalId: true,
           },
         },
       },
@@ -769,6 +817,55 @@ router.get('/:id/absent-users', async (req, res) => {
     } catch (error) {
       console.error('РћС€РёР±РєР° РїСЂРё РѕР±РЅРѕРІР»РµРЅРёРё СЃС‚Р°С‚СѓСЃР° Р·Р°СЃРµРґР°РЅРёСЏ:', error);
       res.status(400).json({ error: error.message });
+    }
+  });
+
+  /**
+   * @api {put} /api/meetings/:id/screen-config Сохранение конфигурации экранов
+   * @apiName СохранениеКонфигурацииЭкранов
+   * @apiGroup Заседания
+   * @apiDescription Сохраняет конфигурацию экранов для заседания (registration, agenda, voting, final).
+   * @apiParam {Number} id Идентификатор заседания.
+   * @apiParam {Object} screenConfig JSON объект с конфигурациями экранов.
+   * @apiSuccess {Object} meeting Обновленное заседание.
+   */
+  router.put('/:id/screen-config', async (req, res) => {
+    const { id } = req.params;
+    const { screenConfig } = req.body;
+    try {
+      const meeting = await prisma.meeting.update({
+        where: { id: parseInt(id) },
+        data: { screenConfig },
+      });
+      res.json(meeting);
+    } catch (error) {
+      console.error('Ошибка при сохранении конфигурации экранов:', error);
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  /**
+   * @api {get} /api/meetings/:id/screen-config Получение конфигурации экранов
+   * @apiName ПолучениеКонфигурацииЭкранов
+   * @apiGroup Заседания
+   * @apiDescription Возвращает конфигурацию экранов для заседания.
+   * @apiParam {Number} id Идентификатор заседания.
+   * @apiSuccess {Object} screenConfig JSON объект с конфигурациями экранов.
+   */
+  router.get('/:id/screen-config', async (req, res) => {
+    const { id } = req.params;
+    try {
+      const meeting = await prisma.meeting.findUnique({
+        where: { id: parseInt(id) },
+        select: { screenConfig: true },
+      });
+      if (!meeting) {
+        return res.status(404).json({ error: 'Заседание не найдено' });
+      }
+      res.json(meeting.screenConfig || {});
+    } catch (error) {
+      console.error('Ошибка при получении конфигурации экранов:', error);
+      res.status(500).json({ error: error.message });
     }
   });
 

@@ -1,14 +1,28 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { useParams } from 'react-router-dom';
-import { getMeeting, getAgendaItems, getUsers, getVoteResults } from '../utils/api.js';
+import { useParams, useNavigate } from 'react-router-dom';
+import { io } from 'socket.io-client';
+import HeaderDropdown from '../components/HeaderDropdown.jsx';
+import MeetingResultsPDFButton from '../components/MeetingResultsPDFButton.jsx';
+import { getMeeting, getAgendaItems, getUsers, getVoteResults, logout as apiLogout } from '../utils/api.js';
 
 function ProtocolMeetingPage() {
   const { id } = useParams();
+  const navigate = useNavigate();
   const [configOpen, setConfigOpen] = useState(false);
   const [meeting, setMeeting] = useState(null);
   const [agenda, setAgenda] = useState([]);
   const [users, setUsers] = useState([]);
   const [results, setResults] = useState([]);
+  const handleLogout = async (e) => {
+    e?.preventDefault?.();
+    try {
+      const raw = localStorage.getItem('authUser');
+      const auth = raw ? JSON.parse(raw) : null;
+      if (auth?.email) await apiLogout(auth.email);
+    } catch {}
+    localStorage.removeItem('authUser');
+    window.location.href = '/hmau-vote/login';
+  };
 
   useEffect(() => {
     (async () => {
@@ -28,39 +42,83 @@ function ProtocolMeetingPage() {
     })();
   }, [id]);
 
+  // Listen for meeting status changes and redirect non-admin users to active meeting
+  useEffect(() => {
+    try {
+      const auth = JSON.parse(localStorage.getItem('authUser') || 'null');
+      if (auth?.isAdmin) return; // Admins don't need auto-redirect
+
+      const socket = io();
+
+      socket.on('meeting-status-changed', (data) => {
+        console.log('Meeting status changed:', data);
+        // If ANY meeting started (status changed to IN_PROGRESS), redirect to /user
+        // data contains { id, status } from the server
+        if (data?.status === 'IN_PROGRESS' && data?.id) {
+          console.log('Redirecting to /user because meeting', data.id, 'started');
+          navigate('/hmau-vote/user', { replace: true });
+        }
+      });
+
+      return () => {
+        socket.off('meeting-status-changed');
+        socket.disconnect();
+      };
+    } catch (err) {
+      console.error('Socket setup error:', err);
+    }
+  }, [id, navigate]);
+
   const usersMap = useMemo(() => Object.fromEntries((users || []).map(u => [u.id, u.name])), [users]);
 
-  const resultsMap = useMemo(() => {
+  // Group vote results by agenda item (same as UserPage)
+  const resultsByAgenda = useMemo(() => {
     const map = new Map();
     for (const r of results || []) {
-      const key = r.agendaItemId ?? r.agendaId ?? r.itemId ?? r.id;
-      map.set(key, {
-        yes: Number(r.votesFor) || 0,
-        no: Number(r.votesAgainst) || 0,
-        abstain: Number(r.votesAbstain) || 0,
-        absent: Number(r.votesAbsent) || 0,
-        decision: r.decision || null,
-      });
+      const key = r.agendaItemId ?? r.agendaId ?? r.itemId;
+      if (key == null) continue;
+      const arr = map.get(key) || [];
+      arr.push(r);
+      map.set(key, arr);
+    }
+    // Sort by creation date
+    for (const [k, arr] of map.entries()) {
+      arr.sort((a, b) => new Date(a.createdAt || 0).getTime() - new Date(b.createdAt || 0).getTime());
     }
     return map;
   }, [results]);
 
-  const renderResult = (item) => {
-    const key = item.id ?? item.agendaItemId ?? item.number;
-    const r = resultsMap.get(key);
-    if (!r) return 'Голосование не проводилось';
-    const parts = [];
-    if (r.yes) parts.push(`За: ${r.yes}`);
-    if (r.no) parts.push(`Против: ${r.no}`);
-    if (r.abstain) parts.push(`Воздерж.: ${r.abstain}`);
-    if (r.absent) parts.push(`Не голос.: ${r.absent}`);
-    const base = parts.length ? parts.join(', ') : 'Голосование не проводилось';
-    return base;
-  };
-
-  const printPdf = (e) => {
-    e?.preventDefault?.();
-    window.print();
+  const renderResultsList = (item) => {
+    const list = resultsByAgenda.get(item.id) || [];
+    if (!list.length) return '-';
+    const statusLabel = (s) => {
+      if (!s) return '';
+      if (s === 'PENDING') return 'Ожидает';
+      if (s === 'ENDED') return 'Завершено';
+      if (s === 'APPLIED') return 'Применено';
+      if (s === 'CANCELLED') return 'Отменено';
+      return s;
+    };
+    return (
+      <div className="vote-results-list">
+        {list.map((r) => (
+          <div key={r.id} className={`vote-result-item status-${String(r.voteStatus || r.status || '').toLowerCase()}`}>
+            {r.question ? (<div className="vri-title">{r.question}</div>) : null}
+            <div className="vri-line">За - {r.votesFor || 0} | Против - {r.votesAgainst || 0} | Воздержались - {r.votesAbstain || 0} | Не проголосовали - {r.votesAbsent || 0}</div>
+            {r.decision ? (
+              <div className="vri-decision">
+                Решение: <span style={{
+                  fontWeight: 'bold',
+                  color: r.decision === 'Принято' || r.decision === 'Решение ПРИНЯТО' ? '#4caf50' :
+                         r.decision === 'Не принято' || r.decision === 'Решение НЕ ПРИНЯТО' ? '#d32f2f' : 'inherit'
+                }}>{r.decision}</span>
+              </div>
+            ) : null}
+            {(r.voteStatus || r.status) ? (<div className="vri-status">Статус: {statusLabel(r.voteStatus || r.status)}</div>) : null}
+          </div>
+        ))}
+      </div>
+    );
   };
 
   return (
@@ -71,16 +129,25 @@ function ProtocolMeetingPage() {
             <div className="wrapper">
               <div className="header__logo">
                 <div className="logo__inner">
-                  <a href="/"><img src="/img/logo.png" alt="" /></a>
+                  <a href="/hmau-vote/"><img src="/hmau-vote/img/logo.png" alt="" /></a>
                 </div>
               </div>
               <div className="header__user">
                 <div className="user__inner">
-                  <a href="#!" className="support"><img src="/img/icon_1.png" alt="" />Поддержка</a>
+
                   <ul>
-                    <li className="menu-children">
-                      <a href="#!"><img src="/img/icon_2.png" alt="" />admin@admin.ru</a>
-                    </li>
+                    <HeaderDropdown
+                      trigger={(
+                        <>
+                          <img src="/hmau-vote/img/icon_2.png" alt="" />
+                          {(() => { try { const a = JSON.parse(localStorage.getItem('authUser')||'null'); return a?.name || a?.email || 'admin@admin.ru'; } catch { return 'admin@admin.ru'; } })()}
+                        </>
+                      )}
+                    >
+                      <li>
+                        <button type="button" className="logout-button" onClick={handleLogout}>Выйти</button>
+                      </li>
+                    </HeaderDropdown>
                   </ul>
                 </div>
               </div>
@@ -92,19 +159,37 @@ function ProtocolMeetingPage() {
           <div className="container">
             <div className="wrapper">
               <ul>
-                <li><a href="/users">Пользователи</a></li>
-                <li><a href="/divisions">Подразделения</a></li>
-                <li><a href="/meetings">Заседания</a></li>
-                <li><a href="/console">Пульт заседания</a></li>
-                <li className={`menu-children${configOpen ? ' current-menu-item' : ''}`}>
-                  <a href="#!" onClick={(e) => { e.preventDefault(); setConfigOpen(!configOpen); }}>Конфигурация</a>
-                  <ul className="sub-menu" style={{ display: configOpen ? 'block' : 'none' }}>
-                    <li><a href="/template">Шаблоны голосования</a></li>
-                    <li><a href="/vote">Процедуры принятия решений</a></li>
-                    <li><a href="/screen">Экран трансляции</a></li>
-                    <li><a href="/linkprofile">Привязка профиля к ID</a></li>
-                  </ul>
-                </li>
+                {(() => {
+                  try {
+                    const auth = JSON.parse(localStorage.getItem('authUser') || 'null');
+                    const isAdmin = auth?.isAdmin;
+                    if (!isAdmin) {
+                      // For regular users, show only "Заседания"
+                      return <li><a href="/hmau-vote/meetings">Заседания</a></li>;
+                    }
+                    // For admins, show full menu
+                    return (
+                      <>
+                        <li><a href="/hmau-vote/users">Пользователи</a></li>
+                        <li><a href="/hmau-vote/divisions">Подразделения</a></li>
+                        <li><a href="/hmau-vote/meetings">Заседания</a></li>
+                        <li><a href="/hmau-vote/console">Пульт заседания</a></li>
+                        <li className={`menu-children${configOpen ? ' current-menu-item' : ''}`}>
+                          <a href="#!" onClick={(e) => { e.preventDefault(); setConfigOpen(!configOpen); }}>Конфигурация</a>
+                          <ul className="sub-menu" style={{ display: configOpen ? 'block' : 'none' }}>
+                            <li><a href="/hmau-vote/template">Шаблоны голосования</a></li>
+                            <li><a href="/hmau-vote/duration-templates">Шаблоны времени</a></li>
+                            <li><a href="/hmau-vote/vote">Процедуры принятия решений</a></li>
+                            <li><a href="/hmau-vote/screen">Экран трансляции</a></li>
+                            <li><a href="/hmau-vote/linkprofile">Привязка профиля к ID</a></li>
+                          </ul>
+                        </li>
+                      </>
+                    );
+                  } catch {
+                    return null;
+                  }
+                })()}
               </ul>
             </div>
           </div>
@@ -118,7 +203,7 @@ function ProtocolMeetingPage() {
               <div className="page__top">
                 <div className="top__heading" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
                   <h1>Протокол заседания: <span style={{ fontWeight: 700 }}>{meeting?.name || ''}</span></h1>
-                  <button className="btn btn-add" onClick={printPdf}><span>Скачать PDF</span></button>
+                  <MeetingResultsPDFButton meeting={meeting} agenda={agenda} />
                 </div>
               </div>
 
@@ -138,7 +223,7 @@ function ProtocolMeetingPage() {
                         <td>{a.number ?? (idx + 1)}</td>
                         <td>{a.title}</td>
                         <td>{a.speaker || usersMap[a.speakerId] || ''}</td>
-                        <td>{renderResult(a)}</td>
+                        <td>{renderResultsList(a)}</td>
                       </tr>
                     ))}
                   </tbody>
@@ -164,4 +249,3 @@ function ProtocolMeetingPage() {
 }
 
 export default ProtocolMeetingPage;
-

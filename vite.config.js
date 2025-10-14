@@ -4,6 +4,7 @@ import react from '@vitejs/plugin-react'
 // https://vite.dev/config/
 export default defineConfig({
   plugins: [react()],
+  base: '/hmau-vote/',
   server: {
     proxy: {
       // Forward API requests in dev to the backend on :5000

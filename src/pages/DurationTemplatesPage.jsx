@@ -1,10 +1,18 @@
 import React, { useEffect, useState } from 'react';
 import HeaderDropdown from '../components/HeaderDropdown.jsx';
-import { getArchivedMeetings, deleteMeeting, logout as apiLogout } from '../utils/api.js';
+import { getDurationTemplates, createDurationTemplate, updateDurationTemplate, deleteDurationTemplate, logout as apiLogout } from '../utils/api.js';
+import EditModal from '../components/EditModal.jsx';
 
-function ArchivedMeetingsPage() {
-  const [configOpen, setConfigOpen] = useState(false);
+function DurationTemplatesPage() {
+  const [configOpen, setConfigOpen] = useState(true);
+
   const [rows, setRows] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
+
+  const [selected, setSelected] = useState(null);
+  const [isOpen, setOpen] = useState(false);
+  const [isAdd, setAdd] = useState(false);
   const handleLogout = async (e) => {
     e?.preventDefault?.();
     try {
@@ -18,45 +26,94 @@ function ArchivedMeetingsPage() {
 
   useEffect(() => {
     const load = async () => {
+      setLoading(true);
+      setError('');
       try {
-        const ms = await getArchivedMeetings();
-        const pad = (n) => String(n).padStart(2, '0');
-        const normalized = (Array.isArray(ms) ? ms : []).map(m => {
-          const s = m.startTime ? new Date(m.startTime) : null;
-          const e = m.endTime ? new Date(m.endTime) : null;
-          const sd = s ? `${s.getFullYear()}-${pad(s.getMonth()+1)}-${pad(s.getDate())}` : '';
-          const st = s ? `${pad(s.getHours())}:${pad(s.getMinutes())}` : '';
-          const ed = e ? `${e.getFullYear()}-${pad(e.getMonth()+1)}-${pad(e.getDate())}` : '';
-          const et = e ? `${pad(e.getHours())}:${pad(e.getMinutes())}` : '';
-          return { id: m.id, title: m.name, startDate: sd, startTime: st, endDate: ed, endTime: et, divisions: m.divisions || '', status: m.status || 'COMPLETED' };
-        });
+        const list = await getDurationTemplates();
+        const normalized = (Array.isArray(list) ? list : []).map(t => ({
+          id: t.id,
+          name: t.name,
+          durationInSeconds: t.durationInSeconds
+        }));
         setRows(normalized);
-      } catch {}
+      } catch (e) {
+        setError(e.message || 'Ошибка загрузки шаблонов времени');
+      } finally {
+        setLoading(false);
+      }
     };
     load();
   }, []);
 
-  const renderStatus = (status) => {
-    if (status === 'WAITING') return 'Ждёт запуска';
-    if (status === 'IN_PROGRESS') return 'Идёт';
-    return 'Завершено';
+  const fields = [
+    { name: 'name', label: 'Название', type: 'text', required: true },
+    { name: 'durationInSeconds', label: 'Длительность (сек)', type: 'number', required: true },
+  ];
+
+  const handleAdd = (e) => {
+    e?.preventDefault?.();
+    setAdd(true);
+    setSelected({ id: null, name: '', durationInSeconds: 60 });
+    setOpen(true);
   };
 
-  const handleDelete = async (id, e) => {
+  const handleEdit = (row) => {
+    setAdd(false);
+    setSelected({ id: row.id, name: row.name, durationInSeconds: row.durationInSeconds });
+    setOpen(true);
+  };
+
+  const handleSubmit = async (formData /*, password */) => {
+    try {
+      if (isAdd) {
+        const created = await createDurationTemplate({
+          name: formData.name,
+          durationInSeconds: parseInt(formData.durationInSeconds)
+        });
+        setRows(prev => [{
+          id: created.id,
+          name: created.name,
+          durationInSeconds: created.durationInSeconds
+        }, ...prev]);
+      } else if (selected?.id) {
+        const updated = await updateDurationTemplate(selected.id, {
+          name: formData.name,
+          durationInSeconds: parseInt(formData.durationInSeconds)
+        });
+        setRows(prev => prev.map(r => (r.id === selected.id ? {
+          id: updated.id,
+          name: updated.name,
+          durationInSeconds: updated.durationInSeconds
+        } : r)));
+      }
+      setOpen(false);
+    } catch (e) {
+      alert(e.message || 'Ошибка сохранения шаблона');
+    }
+  };
+
+  const handleDelete = async (row, e) => {
     e?.preventDefault?.();
     e?.stopPropagation?.();
-    if (!window.confirm('Удалить заседание?')) return;
+    if (!window.confirm('Удалить шаблон времени?')) return;
     try {
-      await deleteMeeting(id);
-      setRows(prev => prev.filter(r => r.id !== id));
+      await deleteDurationTemplate(row.id);
+      setRows(prev => prev.filter(r => r.id !== row.id));
     } catch (e) {
       alert(e.message || 'Ошибка удаления');
     }
   };
 
+  const formatDuration = (seconds) => {
+    if (seconds < 60) return `${seconds} сек`;
+    const mins = Math.floor(seconds / 60);
+    const secs = seconds % 60;
+    return secs > 0 ? `${mins} мин ${secs} сек` : `${mins} мин`;
+  };
+
   return (
     <>
-      {/* HEADER (копия стиля, как на других страницах) */}
+      {/* HEADER */}
       <header className="page">
         <div className="header__top">
           <div className="container">
@@ -101,8 +158,8 @@ function ArchivedMeetingsPage() {
                   <a href="#!" onClick={(e) => { e.preventDefault(); setConfigOpen(!configOpen); }}>Конфигурация</a>
                   <ul className="sub-menu" style={{ display: configOpen ? 'block' : 'none' }}>
                     <li><a href="/hmau-vote/template">Шаблоны голосования</a></li>
-                    <li><a href="/hmau-vote/duration-templates">Шаблоны времени</a></li>
-                    <li><a href="/hmau-vote/vote">Процедура подсчёта голосов</a></li>
+                    <li className="current-menu-item"><a href="/hmau-vote/duration-templates">Шаблоны времени</a></li>
+                    <li><a href="/hmau-vote/vote">Процедура подсчета голосов</a></li>
                     <li><a href="/hmau-vote/screen">Экран трансляции</a></li>
                     <li><a href="/hmau-vote/linkprofile">Связать профиль с ID</a></li>
                     <li><a href="/hmau-vote/contacts">Контакты</a></li>
@@ -121,15 +178,16 @@ function ArchivedMeetingsPage() {
             <div className="wrapper">
               <div className="page__top">
                 <div className="top__heading">
-                  <h1>Архив заседаний</h1>
+                  <h1>Шаблоны времени</h1>
+                  <a href="#!" className="btn btn-add" onClick={handleAdd}><span>Добавить</span></a>
                 </div>
                 <div className="top__wrapper">
                   <ul className="nav">
-                    <li><a href="/hmau-vote/meetings"><img src="/hmau-vote/img/icon_20.png" alt="" /></a></li>
                     <li><a href="#!"><img src="/hmau-vote/img/icon_8.png" alt="" /></a></li>
                     <li><a href="#!"><img src="/hmau-vote/img/icon_9.png" alt="" /></a></li>
                   </ul>
                 </div>
+                {error && <div style={{ color: 'red', marginTop: 8 }}>{error}</div>}
               </div>
 
               <div className="page__table">
@@ -137,26 +195,25 @@ function ArchivedMeetingsPage() {
                   <thead>
                     <tr>
                       <th>Название</th>
-                      <th>Начало</th>
-                      <th>Конец</th>
-                      <th>Подразделение</th>
-                      <th>Статус</th>
-                      <th></th>
+                      <th>Длительность</th>
+                      <th>Действия</th>
                     </tr>
                   </thead>
                   <tbody>
-                    {rows.map(m => (
-                      <tr key={m.id}>
-                        <td>{m.title}</td>
-                        <td className="date">{m.startDate} <span>{m.startTime}</span></td>
-                        <td className="date">{m.endDate} <span>{m.endTime}</span></td>
-                        <td>{m.divisions}</td>
-                        <td style={{ whiteSpace: 'nowrap' }}>{renderStatus(m.status)}</td>
-                        <td className="action action-small">
+                    {(loading ? [] : rows).map((row) => (
+                      <tr key={row.id}>
+                        <td>{row.name}</td>
+                        <td>{formatDuration(row.durationInSeconds)}</td>
+                        <td className="action">
                           <ul>
                             <li>
-                              <a href="#!" onClick={(e) => handleDelete(m.id, e)}>
-                                <img src="/hmau-vote/img/icon_14.png" alt="" />
+                              <a href="#!" onClick={(e) => { e.preventDefault(); handleEdit(row); }}>
+                                <img src="/hmau-vote/img/icon_24.png" alt="" />
+                              </a>
+                            </li>
+                            <li>
+                              <a href="#!" onClick={(e) => handleDelete(row, e)}>
+                                <img src="/hmau-vote/img/icon_26.png" alt="" />
                               </a>
                             </li>
                           </ul>
@@ -169,6 +226,15 @@ function ArchivedMeetingsPage() {
             </div>
           </div>
         </section>
+
+        <EditModal
+          open={isOpen}
+          data={selected}
+          fields={fields}
+          title={isAdd ? 'Добавить шаблон' : 'Редактировать шаблон'}
+          onClose={() => setOpen(false)}
+          onSubmit={handleSubmit}
+        />
       </main>
 
       {/* FOOTER */}
@@ -186,4 +252,4 @@ function ArchivedMeetingsPage() {
   );
 }
 
-export default ArchivedMeetingsPage;
+export default DurationTemplatesPage;

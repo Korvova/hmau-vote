@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import ProcedureModal from '../components/ProcedureModal.jsx';
-import { getVoteProcedures, createVoteProcedure, updateVoteProcedure, deleteVoteProcedure } from '../utils/api.js';
+import HeaderDropdown from '../components/HeaderDropdown.jsx';
+import { getVoteProcedures, createVoteProcedure, updateVoteProcedure, deleteVoteProcedure, logout as apiLogout } from '../utils/api.js';
 
 function VotingPage() {
   const [configOpen, setConfigOpen] = useState(true);
@@ -12,6 +13,16 @@ function VotingPage() {
   const [selected, setSelected] = useState(null);
   const [isOpen, setOpen] = useState(false);
   const [isAdd, setAdd] = useState(false);
+  const handleLogout = async (e) => {
+    e?.preventDefault?.();
+    try {
+      const raw = localStorage.getItem('authUser');
+      const auth = raw ? JSON.parse(raw) : null;
+      if (auth?.email) await apiLogout(auth.email);
+    } catch {}
+    localStorage.removeItem('authUser');
+    window.location.href = '/hmau-vote/login';
+  };
 
   useEffect(() => {
     const load = async () => {
@@ -95,16 +106,25 @@ function VotingPage() {
             <div className="wrapper">
               <div className="header__logo">
                 <div className="logo__inner">
-                  <a href="/"><img src="/img/logo.png" alt="" /></a>
+                  <a href="/hmau-vote/"><img src="/hmau-vote/img/logo.png" alt="" /></a>
                 </div>
               </div>
               <div className="header__user">
                 <div className="user__inner">
-                  <a href="#!" className="support"><img src="/img/icon_1.png" alt="" />Поддержка</a>
+
                   <ul>
-                    <li className="menu-children">
-                      <a href="#!"><img src="/img/icon_2.png" alt="" />admin@admin.ru</a>
-                    </li>
+                    <HeaderDropdown
+                      trigger={(
+                        <>
+                          <img src="/hmau-vote/img/icon_2.png" alt="" />
+                          {(() => { try { const a = JSON.parse(localStorage.getItem('authUser')||'null'); return a?.name || a?.email || 'admin@admin.ru'; } catch { return 'admin@admin.ru'; } })()}
+                        </>
+                      )}
+                    >
+                      <li>
+                        <button type="button" className="logout-button" onClick={handleLogout}>Выйти</button>
+                      </li>
+                    </HeaderDropdown>
                   </ul>
                 </div>
               </div>
@@ -116,17 +136,19 @@ function VotingPage() {
           <div className="container">
             <div className="wrapper">
               <ul>
-                <li><a href="/users">Пользователи</a></li>
-                <li><a href="/divisions">Подразделения</a></li>
-                <li><a href="/meetings">Заседания</a></li>
-                <li className="current-menu-item"><a href="/console">Пульт заседания</a></li>
+                <li><a href="/hmau-vote/users">Пользователи</a></li>
+                <li><a href="/hmau-vote/divisions">Подразделения</a></li>
+                <li><a href="/hmau-vote/meetings">Заседания</a></li>
+                <li className="current-menu-item"><a href="/hmau-vote/console">Пульт заседания</a></li>
                 <li className={`menu-children${configOpen ? ' current-menu-item' : ''}`}>
                   <a href="#!" onClick={(e) => { e.preventDefault(); setConfigOpen(!configOpen); }}>Конфигурация</a>
                   <ul className="sub-menu" style={{ display: configOpen ? 'block' : 'none' }}>
-                    <li><a href="/template">Шаблон голосования</a></li>
-                    <li className="current-menu-item"><a href="/vote">Процедура подсчета голосов</a></li>
-                    <li><a href="/screen">Экран трансляции</a></li>
-                    <li><a href="/linkprofile">Связать профиль с ID</a></li>
+                    <li><a href="/hmau-vote/template">Шаблон голосования</a></li>
+                    <li><a href="/hmau-vote/duration-templates">Шаблоны времени</a></li>
+                    <li className="current-menu-item"><a href="/hmau-vote/vote">Процедура подсчета голосов</a></li>
+                    <li><a href="/hmau-vote/screen">Экран трансляции</a></li>
+                    <li><a href="/hmau-vote/linkprofile">Связать профиль с ID</a></li>
+                    <li><a href="/hmau-vote/contacts">Контакты</a></li>
                   </ul>
                 </li>
               </ul>
@@ -147,8 +169,8 @@ function VotingPage() {
                 </div>
                 <div className="top__wrapper">
                   <ul className="nav">
-                    <li><a href="#!"><img src="/img/icon_8.png" alt="" /></a></li>
-                    <li><a href="#!"><img src="/img/icon_9.png" alt="" /></a></li>
+                    <li><a href="#!"><img src="/hmau-vote/img/icon_8.png" alt="" /></a></li>
+                    <li><a href="#!"><img src="/hmau-vote/img/icon_9.png" alt="" /></a></li>
                   </ul>
                 </div>
                 {error && <div style={{ color: 'red', marginTop: 8 }}>{error}</div>}
@@ -174,12 +196,12 @@ function VotingPage() {
                           <ul>
                             <li>
                               <a href="#!" onClick={(e) => { e.preventDefault(); handleEdit(row); }}>
-                                <img src="/img/icon_24.png" alt="" />
+                                <img src="/hmau-vote/img/icon_24.png" alt="" />
                               </a>
                             </li>
                             <li>
                               <a href="#!" onClick={(e) => handleDelete(row.id, e)}>
-                                <img src="/img/icon_26.png" alt="" />
+                                <img src="/hmau-vote/img/icon_26.png" alt="" />
                               </a>
                             </li>
                           </ul>
@@ -188,17 +210,6 @@ function VotingPage() {
                     ))}
                   </tbody>
                 </table>
-              </div>
-
-              <div className="pagination">
-                <div className="wp-pagenavi">
-                  <a href="#" className="previouspostslink"></a>
-                  <a href="#">1</a>
-                  <span>2</span>
-                  <a href="#">3</a>
-                  <a href="#">4</a>
-                  <a href="#" className="nextpostslink"></a>
-                </div>
               </div>
             </div>
           </div>

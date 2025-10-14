@@ -133,8 +133,8 @@ function ProcedureModal({ open, data, onClose, onSubmit, title = 'Редакти
   const input = { width: '100%', padding: '10px 12px', border: '1px solid #dcdcdc', borderRadius: 6 };
 
   return (
-    <div style={overlay} onClick={onClose}>
-      <div style={modal} onClick={(e) => e.stopPropagation()}>
+    <div style={overlay}>
+      <div style={modal}>
         <div className="modal-header">
           <span className="modal-header-spacer" aria-hidden="true" />
           <h2 className="modal-title">{title}</h2>

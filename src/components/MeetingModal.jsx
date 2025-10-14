@@ -1,12 +1,19 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import './ModalHeader.css';
+import ChipMultiSelect from './ChipMultiSelect.jsx';
+import ParticipantsModal from './ParticipantsModal.jsx';
+import { getVoteProcedures } from '../utils/api.js';
 
 function MeetingModal({ open, data, divisions = [], users = [], title = 'Редактировать заседание', onClose, onSubmit }) {
   const [form, setForm] = useState({ title: '', startAt: '', endAt: '' });
   const [divisionIds, setDivisionIds] = useState([]);
-  const [agenda, setAgenda] = useState([]); 
-  const [addDivisionId, setAddDivisionId] = useState('');
+  const [agenda, setAgenda] = useState([]);
   const [password, setPassword] = useState('');
+  const [showParticipants, setShowParticipants] = useState(false);
+  const [participantCount, setParticipantCount] = useState(0);
+  const [voteProcedureId, setVoteProcedureId] = useState(null);
+  const [voteProcedures, setVoteProcedures] = useState([]);
+  const [quorumType, setQuorumType] = useState(null);
 
   useEffect(() => {
     if (!open) return;
@@ -32,24 +39,52 @@ function MeetingModal({ open, data, divisions = [], users = [], title = 'Ред�
     }
     setForm(next);
 
-    let ids = Array.isArray(data?.divisionIds) ? data.divisionIds.slice() : [];
-    if (!ids.length && typeof data?.divisions === 'string' && data.divisions.trim()) {
+    let ids = [];
+    if (Array.isArray(data?.divisionIds)) {
+      // Если передан массив divisionIds - используем его
+      ids = data.divisionIds.slice();
+    } else if (Array.isArray(data?.divisions)) {
+      // Если divisions - массив объектов (из API)
+      ids = data.divisions.map(d => d.id);
+    } else if (typeof data?.divisions === 'string' && data.divisions.trim()) {
+      // Если divisions - строка (старый формат)
       const names = data.divisions.split(',').map(s => s.trim()).filter(Boolean);
       ids = divisions.filter(d => names.includes(d.name)).map(d => d.id);
     }
+    console.log('🔍 MeetingModal setDivisionIds:', ids);
     setDivisionIds(ids);
 
     const ag = Array.isArray(data?.agenda) ? data.agenda.map(a => ({
       title: a.title || '',
-      speakerId: a.speakerId ?? null,
+      speakerName: a.speakerName || '',
       link: a.link || '',
     })) : [];
     setAgenda(ag);
+    setVoteProcedureId(data?.voteProcedureId || null);
+    setQuorumType(data?.quorumType || null);
     setPassword('');
   }, [open, data, divisions]);
 
+  // Загружаем процедуры голосования при открытии модального окна
+  useEffect(() => {
+    if (!open) return;
+    const loadProcedures = async () => {
+      try {
+        const procedures = await getVoteProcedures();
+        setVoteProcedures(Array.isArray(procedures) ? procedures : []);
+      } catch (error) {
+        console.error('Ошибка загрузки процедур голосования:', error);
+        setVoteProcedures([]);
+      }
+    };
+    loadProcedures();
+  }, [open]);
+
   const selectedDivisionNames = useMemo(
-    () => divisionIds.map(id => divisions.find(d => d.id === id)?.name).filter(Boolean),
+    () => {
+      if (!Array.isArray(divisions)) return [];
+      return divisionIds.map(id => divisions.find(d => d.id === id)?.name).filter(Boolean);
+    },
     [divisionIds, divisions]
   );
 
@@ -58,16 +93,51 @@ function MeetingModal({ open, data, divisions = [], users = [], title = 'Ред�
     return (users || []).filter(u => selectedDivisionNames.includes(u.division));
   }, [users, selectedDivisionNames]);
 
-  const handleChange = (patch) => setForm(prev => ({ ...prev, ...patch }));
+  const divisionOptions = useMemo(
+    () => {
+      console.log('🔍 MeetingModal divisions:', divisions, 'isArray:', Array.isArray(divisions));
+      if (!Array.isArray(divisions)) {
+        console.warn('⚠️ divisions is not an array!', divisions);
+        return [];
+      }
+      const options = divisions.map(d => ({ value: d.id, label: d.displayName || d.name }));
+      console.log('🔍 MeetingModal divisionOptions:', options);
+      return options;
+    },
+    [divisions]
+  );
 
-  const handleAddDivision = (idFromEvent) => {
-    const raw = idFromEvent ?? addDivisionId;
-    const id = raw ? Number(raw) : null;
-    if (!id || divisionIds.includes(id)) return;
-    setDivisionIds(prev => [...prev, id]);
-    setAddDivisionId('');
-  };
-  const handleRemoveDivision = (id) => setDivisionIds(prev => prev.filter(did => did !== id));
+  // Подсчитываем участников из выбранных подразделений
+  useEffect(() => {
+    if (!divisionIds.length || !divisions.length) {
+      setParticipantCount(0);
+      return;
+    }
+
+    // Собираем всех уникальных пользователей из выбранных подразделений
+    const selectedDivisions = divisions.filter(d => divisionIds.includes(d.id));
+    const userIds = new Set();
+
+    // Проходим по всем пользователям и проверяем их принадлежность к выбранным подразделениям
+    users.forEach(user => {
+      // Проверяем основное подразделение
+      if (divisionIds.includes(user.divisionId)) {
+        userIds.add(user.id);
+      }
+      // Проверяем дополнительные подразделения (если есть divisionIds массив)
+      if (Array.isArray(user.divisionIds)) {
+        user.divisionIds.forEach(dId => {
+          if (divisionIds.includes(dId)) {
+            userIds.add(user.id);
+          }
+        });
+      }
+    });
+
+    setParticipantCount(userIds.size);
+  }, [divisionIds, divisions, users]);
+
+  const handleChange = (patch) => setForm(prev => ({ ...prev, ...patch }));
 
   const handleAddAgenda = () => setAgenda(prev => [...prev, { title: '', speakerId: null, link: '' }]);
   const handleRemoveAgenda = (idx) => setAgenda(prev => prev.filter((_, i) => i !== idx));
@@ -86,6 +156,28 @@ function MeetingModal({ open, data, divisions = [], users = [], title = 'Ред�
       divisions: selectedDivisionNames.join(', '),
       divisionIds: divisionIds.slice(),
       agenda: agenda.map((a, idx) => ({ number: idx + 1, ...a })),
+      voteProcedureId: voteProcedureId,
+      quorumType: quorumType,
+    };
+    onSubmit?.(payload, password);
+  };
+
+  const handleSaveAndConfigureParticipants = async (e) => {
+    e?.preventDefault?.();
+    const [sd, st] = (form.startAt || '').split('T');
+    const [ed, et] = (form.endAt || '').split('T');
+    const payload = {
+      title: form.title,
+      startDate: sd || '',
+      startTime: st || '',
+      endDate: ed || '',
+      endTime: et || '',
+      divisions: selectedDivisionNames.join(', '),
+      divisionIds: divisionIds.slice(),
+      agenda: agenda.map((a, idx) => ({ number: idx + 1, ...a })),
+      voteProcedureId: voteProcedureId,
+      quorumType: quorumType,
+      openParticipantsAfterSave: true, // Флаг для родителя
     };
     onSubmit?.(payload, password);
   };
@@ -107,8 +199,8 @@ function MeetingModal({ open, data, divisions = [], users = [], title = 'Ред�
   const smallButton = { padding: '0 16px', height: 44, width: 'auto', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', borderRadius: 8 };
 
   return (
-    <div style={overlayStyle} onClick={onClose}>
-      <div style={modalStyle} onClick={(e) => e.stopPropagation()}>
+    <div style={overlayStyle}>
+      <div style={modalStyle}>
         <div className="modal-header">
           <span className="modal-header-spacer" aria-hidden="true" />
           <h2 className="modal-title">{title}</h2>
@@ -120,7 +212,7 @@ function MeetingModal({ open, data, divisions = [], users = [], title = 'Ред�
           />
         </div>
 
-        <form onSubmit={handleSubmit}>
+        <form onSubmit={handleSubmit} autoComplete="off">
           {/* Название */}
           <div style={{ marginBottom: 16 }}>
             <label style={labelStyle}>Название заседания *</label>
@@ -139,37 +231,93 @@ function MeetingModal({ open, data, divisions = [], users = [], title = 'Ред�
             </div>
           </div>
 
-          {/* Добавить подразделение */}
-          <div style={{ marginBottom: 8 }}>
-            <label style={labelStyle}>Добавить подразделение</label>
+          {/* Подразделения */}
+          <div style={{ marginBottom: 16 }}>
+            <label style={labelStyle}>Участвующие подразделения</label>
+            <ChipMultiSelect
+              options={divisionOptions}
+              value={divisionIds}
+              onChange={setDivisionIds}
+              placeholder="Выберите подразделения…"
+            />
+            {divisionIds.length > 0 && (
+              <div style={{ marginTop: 12 }}>
+                <div style={{
+                  fontSize: '13px',
+                  color: '#6b7280',
+                  marginBottom: 8
+                }}>
+                  Участников: {participantCount}
+                </div>
+                {data?.id ? (
+                  <button
+                    type="button"
+                    onClick={() => setShowParticipants(true)}
+                    style={{
+                      padding: '8px 16px',
+                      borderRadius: '6px',
+                      border: '1px solid #2b8af8',
+                      backgroundColor: '#fff',
+                      color: '#2b8af8',
+                      cursor: 'pointer',
+                      fontSize: '14px',
+                      fontWeight: 500,
+                    }}
+                  >
+                    Настроить участников
+                  </button>
+                ) : (
+                  <button
+                    type="button"
+                    onClick={handleSaveAndConfigureParticipants}
+                    style={{
+                      padding: '8px 16px',
+                      borderRadius: '6px',
+                      border: 'none',
+                      backgroundColor: '#2b8af8',
+                      color: '#fff',
+                      cursor: 'pointer',
+                      fontSize: '14px',
+                      fontWeight: 500,
+                    }}
+                  >
+                    Сохранить и настроить участников
+                  </button>
+                )}
+              </div>
+            )}
+          </div>
+
+          {/* Условие голосования */}
+          <div style={{ marginBottom: 16 }}>
+            <label style={labelStyle}>Условие голосования</label>
             <select
-              style={{ ...inputStyle, width: '100%' }}
-              value={addDivisionId}
-              onChange={(e) => { const v = e.target.value; setAddDivisionId(v); if (v) handleAddDivision(v); }}
+              style={inputStyle}
+              value={voteProcedureId || ''}
+              onChange={(e) => setVoteProcedureId(e.target.value ? parseInt(e.target.value) : null)}
             >
-              <option value="">Без подразделения</option>
-              {divisions.filter(d => !divisionIds.includes(d.id)).map(d => (
-                <option key={d.id} value={d.id}>{d.name}</option>
+              <option value="">Не выбрано</option>
+              {voteProcedures.map(proc => (
+                <option key={proc.id} value={proc.id}>
+                  {proc.name}
+                </option>
               ))}
             </select>
           </div>
 
-          {/* Список выбранных подразделений */}
+          {/* Кворум */}
           <div style={{ marginBottom: 16 }}>
-            <label style={labelStyle}>Участвующие подразделения:</label>
-            <div style={{ border: '1px solid #dcdcdc', borderRadius: 6, padding: 8, maxHeight: 160, overflowY: 'auto' }}>
-              {divisionIds.length === 0 && <div style={{ color: '#888' }}>Пока не выбрано</div>}
-              {divisionIds.map(id => {
-                const d = divisions.find(x => x.id === id);
-                return (
-                  <div key={id} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '6px 8px' }}>
-                    <span>{d?.name || id}</span>
-                    <button type="button" onClick={() => handleRemoveDivision(id)} style={{ background: 'none', border: 'none', cursor: 'pointer' }}>×</button>
-                  </div>
-                );
-              })}
-            </div>
-            <div style={{ marginTop: 6, fontSize: 12, color: '#555' }}>Итого: {divisionIds.length} подразделени{divisionIds.length === 1 ? 'е' : (divisionIds.length >= 2 && divisionIds.length <= 4 ? 'я' : 'й')}</div>
+            <label style={labelStyle}>Кворум</label>
+            <select
+              style={inputStyle}
+              value={quorumType || ''}
+              onChange={(e) => setQuorumType(e.target.value || null)}
+            >
+              <option value="">Не выбрано</option>
+              <option value="MORE_THAN_ONE">Больше 1</option>
+              <option value="TWO_THIRDS_OF_TOTAL">2/3 от установленного</option>
+              <option value="HALF_PLUS_ONE">Половина +1</option>
+            </select>
           </div>
 
           {/* Вопросы */}
@@ -204,16 +352,12 @@ function MeetingModal({ open, data, divisions = [], users = [], title = 'Ред�
                 </div>
                 {/* Нижняя строка: Докладчик + Ссылка */}
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', columnGap: 12 }}>
-                  <select
+                  <input
+                    placeholder="ФИО докладчика"
                     style={{ ...inputStyle, width: '100%' }}
-                    value={item.speakerId ?? ''}
-                    onChange={(e) => handleAgendaChange(idx, { speakerId: e.target.value ? Number(e.target.value) : null })}
-                  >
-                    <option value="">Докладчик</option>
-                    {eligibleUsers.map(u => (
-                      <option key={u.id} value={u.id}>{u.name}</option>
-                    ))}
-                  </select>
+                    value={item.speakerName || ''}
+                    onChange={(e) => handleAgendaChange(idx, { speakerName: e.target.value })}
+                  />
                   <input
                     placeholder="Ссылка"
                     style={{ ...inputStyle, width: '100%' }}
@@ -239,6 +383,12 @@ function MeetingModal({ open, data, divisions = [], users = [], title = 'Ред�
           </div>
         </form>
       </div>
+
+      <ParticipantsModal
+        open={showParticipants}
+        meetingId={data?.id}
+        onClose={() => setShowParticipants(false)}
+      />
     </div>
   );
 }

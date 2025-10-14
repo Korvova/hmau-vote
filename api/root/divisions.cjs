@@ -3,6 +3,16 @@ const router = express.Router();
 const { PrismaClient } = require('@prisma/client');
 const prisma = new PrismaClient();
 
+function isReservedName(name) {
+  try {
+    if (!name || typeof name !== 'string') return false;
+    const n = name.replace(/👥/g, '').trim().toLowerCase();
+    return n === 'приглашенные';
+  } catch {
+    return false;
+  }
+}
+
 /**
  * @api {get} /api/divisions Получение списка всех подразделений
  * @apiName ПолучениеПодразделений
@@ -22,13 +32,32 @@ const prisma = new PrismaClient();
  */
 router.get('/', async (req, res) => {
   try {
+    // Ensure exactly one system division exists (canonical name without emoji)
+    try {
+      const all = await prisma.division.findMany({ select: { id: true, name: true } });
+      const matches = (all || []).filter((d) => isReservedName(d.name));
+      if (!matches.length) {
+        await prisma.division.create({ data: { name: 'Приглашенные' } });
+      } else if (matches.length > 1) {
+        // Keep the first, rename extras to distinct names to avoid confusion
+        for (let i = 1; i < matches.length; i++) {
+          const m = matches[i];
+          await prisma.division.update({ where: { id: m.id }, data: { name: `Приглашенные (дубликат ${m.id})` } });
+        }
+      } else if (matches[0] && matches[0].name !== 'Приглашенные') {
+        await prisma.division.update({ where: { id: matches[0].id }, data: { name: 'Приглашенные' } });
+      }
+    } catch {}
+
     const divisions = await prisma.division.findMany({
       include: { users: true },
     });
     res.json(divisions.map(division => ({
       id: division.id,
       name: division.name,
+      displayName: isReservedName(division.name) ? '👥Приглашенные' : division.name,
       userCount: division.users.length,
+      system: isReservedName(division.name),
     })));
   } catch (error) {
     console.error('Ошибка при получении списка подразделений:', error);
@@ -58,9 +87,21 @@ router.get('/', async (req, res) => {
 router.post('/', async (req, res) => {
   const { name } = req.body;
   try {
-    const division = await prisma.division.create({
-      data: { name },
-    });
+    if (isReservedName(name)) {
+      // Return existing system division or create canonical one
+      const existingAll = await prisma.division.findMany({ select: { id: true, name: true } });
+      const sys = existingAll.find((d) => isReservedName(d.name));
+      if (sys) {
+        if (sys.name !== 'Приглашенные') {
+          try { await prisma.division.update({ where: { id: sys.id }, data: { name: 'Приглашенные' } }); } catch {}
+        }
+        const found = await prisma.division.findUnique({ where: { id: sys.id } });
+        return res.json(found);
+      }
+      const created = await prisma.division.create({ data: { name: 'Приглашенные' } });
+      return res.json(created);
+    }
+    const division = await prisma.division.create({ data: { name } });
     res.json(division);
   } catch (error) {
     console.error('Ошибка при создании подразделения:', error);
@@ -92,6 +133,10 @@ router.put('/:id', async (req, res) => {
   const { id } = req.params;
   const { name } = req.body;
   try {
+    const existing = await prisma.division.findUnique({ where: { id: parseInt(id) } });
+    if (existing && isReservedName(existing.name)) {
+      return res.status(400).json({ error: 'Нельзя переименовать системное подразделение' });
+    }
     const division = await prisma.division.update({
       where: { id: parseInt(id) },
       data: { name },
@@ -121,6 +166,10 @@ router.put('/:id', async (req, res) => {
 router.delete('/:id', async (req, res) => {
   const { id } = req.params;
   try {
+    const existing = await prisma.division.findUnique({ where: { id: parseInt(id) } });
+    if (existing && isReservedName(existing.name)) {
+      return res.status(400).json({ error: 'Нельзя удалить системное подразделение' });
+    }
     await prisma.division.delete({ where: { id: parseInt(id) } });
     res.json({ success: true });
   } catch (error) {

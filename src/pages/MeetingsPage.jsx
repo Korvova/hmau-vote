@@ -1,16 +1,42 @@
 ﻿import React, { useEffect, useState } from 'react';
 import MeetingModal from '../components/MeetingModal.jsx';
-import { getDivisions, getUsers, getMeetings, createMeeting, updateMeeting, deleteMeeting, archiveMeeting } from '../utils/api.js';
+import ParticipantsModal from '../components/ParticipantsModal.jsx';
+import HeaderDropdown from '../components/HeaderDropdown.jsx';
+import { getDivisions, getUsers, getMeetings, getMeeting, createMeeting, updateMeeting, deleteMeeting, archiveMeeting, logout as apiLogout } from '../utils/api.js';
 
 function MeetingsPage() {
   const [configOpen, setConfigOpen] = useState(false);
-    const [rows, setRows] = useState([]);
+  const [rows, setRows] = useState([]);
   const [divisions, setDivisions] = useState([]);
   const [users, setUsers] = useState([]);
+
+  // Check if user is admin
+  const getAuth = () => {
+    try {
+      const raw = localStorage.getItem('authUser');
+      return raw ? JSON.parse(raw) : null;
+    } catch {
+      return null;
+    }
+  };
+  const auth = getAuth();
+  const isAdmin = auth?.isAdmin;
 
   const [selected, setSelected] = useState(null);
   const [isOpen, setOpen] = useState(false);
   const [isAdd, setAdd] = useState(false);
+  const [showParticipants, setShowParticipants] = useState(false);
+  const [participantsMeetingId, setParticipantsMeetingId] = useState(null);
+  const handleLogout = async (e) => {
+    e?.preventDefault?.();
+    try {
+      const raw = localStorage.getItem('authUser');
+      const auth = raw ? JSON.parse(raw) : null;
+      if (auth?.email) await apiLogout(auth.email);
+    } catch {}
+    localStorage.removeItem('authUser');
+    window.location.href = '/hmau-vote/login';
+  };
 
   useEffect(() => {
     const load = async () => {
@@ -55,15 +81,53 @@ function MeetingsPage() {
       endDate: '',
       endTime: '',
       divisions: '',
+      divisionIds: [],
+      agenda: [],
       status: 'WAITING',
     });
     setOpen(true);
   };
 
-  const handleEdit = (row) => {
+  const handleEdit = async (row) => {
     setAdd(false);
-    setSelected({ ...row });
-    setOpen(true);
+    try {
+      // Загружаем полные данные заседания включая divisionIds и agenda
+      const fullData = await getMeeting(row.id);
+      console.log('🔍 handleEdit fullData:', fullData);
+      console.log('🔍 fullData.divisions type:', typeof fullData.divisions, 'isArray:', Array.isArray(fullData.divisions));
+      console.log('🔍 fullData.divisions:', fullData.divisions);
+
+      const pad = (n) => String(n).padStart(2, '0');
+      const s = fullData.startTime ? new Date(fullData.startTime) : null;
+      const e = fullData.endTime ? new Date(fullData.endTime) : null;
+      const sd = s ? `${s.getFullYear()}-${pad(s.getMonth()+1)}-${pad(s.getDate())}` : '';
+      const st = s ? `${pad(s.getHours())}:${pad(s.getMinutes())}` : '';
+      const ed = e ? `${e.getFullYear()}-${pad(e.getMonth()+1)}-${pad(e.getDate())}` : '';
+      const et = e ? `${pad(e.getHours())}:${pad(e.getMinutes())}` : '';
+
+      const divisionIds = Array.isArray(fullData.divisions)
+        ? fullData.divisions.map(d => d.id)
+        : [];
+
+      console.log('🔍 Extracted divisionIds:', divisionIds);
+
+      setSelected({
+        id: fullData.id,
+        title: fullData.name,
+        startDate: sd,
+        startTime: st,
+        endDate: ed,
+        endTime: et,
+        divisionIds: divisionIds,
+        agenda: fullData.agendaItems || [],
+        status: fullData.status || 'WAITING',
+        voteProcedureId: fullData.voteProcedureId || null,
+      });
+      setOpen(true);
+    } catch (e) {
+      alert(e.message || 'Ошибка загрузки данных заседания');
+      console.error('❌ handleEdit error:', e);
+    }
   };
 
   const handleSubmit = async (formData /*, password */) => {
@@ -74,9 +138,18 @@ function MeetingsPage() {
         startTime: toIso(formData.startDate, formData.startTime),
         endTime: toIso(formData.endDate, formData.endTime),
         divisionIds: formData.divisionIds || [],
-        agendaItems: (formData.agenda || []).map(a => ({ number: a.number, title: a.title, speakerId: a.speakerId ?? null, link: a.link ?? null })),
+        agendaItems: (formData.agenda || []).map(a => ({ number: a.number, title: a.title, speakerId: a.speakerId ?? null, speakerName: a.speakerName ?? null, link: a.link ?? null })),
+        voteProcedureId: formData.voteProcedureId ?? null,
       };
-      if (isAdd) await createMeeting(payload); else if (selected) await updateMeeting(selected.id, payload);
+
+      let createdId = null;
+      if (isAdd) {
+        const created = await createMeeting(payload);
+        createdId = created.id;
+      } else if (selected) {
+        await updateMeeting(selected.id, payload);
+      }
+
       const ms = await getMeetings();
       const pad = (n) => ("0" + n).slice(-2);
       const formatDate = (d) => d ? [d.getFullYear(), pad(d.getMonth()+1), pad(d.getDate())].join("-") : "";
@@ -91,7 +164,17 @@ function MeetingsPage() {
         return { id: m.id, title: m.name, startDate: sd, startTime: st, endDate: ed, endTime: et, divisions: m.divisions || "", status: m.status || "WAITING" };
       });
       setRows(normalized);
-      setOpen(false);
+
+      // Если нужно открыть ParticipantsModal после сохранения
+      if (formData.openParticipantsAfterSave && createdId) {
+        // Закрываем MeetingModal
+        setOpen(false);
+        // Открываем ParticipantsModal
+        setParticipantsMeetingId(createdId);
+        setShowParticipants(true);
+      } else {
+        setOpen(false);
+      }
     } catch (e) {
       alert(e.message || "Ошибка сохранения заседания");
     }
@@ -124,16 +207,25 @@ function MeetingsPage() {
             <div className="wrapper">
               <div className="header__logo">
                 <div className="logo__inner">
-                  <a href="/"><img src="/img/logo.png" alt="" /></a>
+                  <a href="/hmau-vote/"><img src="/hmau-vote/img/logo.png" alt="" /></a>
                 </div>
               </div>
               <div className="header__user">
                 <div className="user__inner">
-                  <a href="#!" className="support"><img src="/img/icon_1.png" alt="" />Поддержка</a>
+
                   <ul>
-                    <li className="menu-children">
-                      <a href="#!"><img src="/img/icon_2.png" alt="" />admin@admin.ru</a>
-                    </li>
+                    <HeaderDropdown
+                      trigger={(
+                        <>
+                          <img src="/hmau-vote/img/icon_2.png" alt="" />
+                          {(() => { try { const a = JSON.parse(localStorage.getItem('authUser')||'null'); return a?.name || a?.email || 'admin@admin.ru'; } catch { return 'admin@admin.ru'; } })()}
+                        </>
+                      )}
+                    >
+                      <li>
+                        <button type="button" className="logout-button" onClick={handleLogout}>Выйти</button>
+                      </li>
+                    </HeaderDropdown>
                   </ul>
                 </div>
               </div>
@@ -145,19 +237,37 @@ function MeetingsPage() {
           <div className="container">
             <div className="wrapper">
               <ul>
-                <li><a href="/users">Пользователи</a></li>
-                <li><a href="/divisions">Подразделения</a></li>
-                <li className="current-menu-item"><a href="/meetings">Заседания</a></li>
-                <li><a href="/console">Пульт заседания</a></li>
-                <li className={`menu-children${configOpen ? ' current-menu-item' : ''}`}>
-                  <a href="#!" onClick={(e) => { e.preventDefault(); setConfigOpen(!configOpen); }}>Конфигурация</a>
-                  <ul className="sub-menu" style={{ display: configOpen ? 'block' : 'none' }}>
-                    <li><a href="/template">Шаблоны голосования</a></li>
-                    <li><a href="/vote">Процедура подсчёта голосов</a></li>
-                    <li><a href="/screen">Экран трансляции</a></li>
-                    <li><a href="/linkprofile">Связать профиль с ID</a></li>
-                  </ul>
-                </li>
+                {(() => {
+                  try {
+                    const auth = JSON.parse(localStorage.getItem('authUser') || 'null');
+                    const isAdmin = auth?.isAdmin;
+                    if (!isAdmin) {
+                      return <li className="current-menu-item"><a href="/hmau-vote/meetings">Заседания</a></li>;
+                    }
+                    // For admins, show full menu
+                    return (
+                      <>
+                        <li><a href="/hmau-vote/users">Пользователи</a></li>
+                        <li><a href="/hmau-vote/divisions">Подразделения</a></li>
+                        <li className="current-menu-item"><a href="/hmau-vote/meetings">Заседания</a></li>
+                        <li><a href="/hmau-vote/console">Пульт заседания</a></li>
+                        <li className={`menu-children${configOpen ? ' current-menu-item' : ''}`}>
+                          <a href="#!" onClick={(e) => { e.preventDefault(); setConfigOpen(!configOpen); }}>Конфигурация</a>
+                          <ul className="sub-menu" style={{ display: configOpen ? 'block' : 'none' }}>
+                            <li><a href="/hmau-vote/template">Шаблоны голосования</a></li>
+                            <li><a href="/hmau-vote/duration-templates">Шаблоны времени</a></li>
+                            <li><a href="/hmau-vote/vote">Процедура подсчёта голосов</a></li>
+                            <li><a href="/hmau-vote/screen">Экран трансляции</a></li>
+                            <li><a href="/hmau-vote/linkprofile">Связать профиль с ID</a></li>
+                    <li><a href="/hmau-vote/contacts">Контакты</a></li>
+                          </ul>
+                        </li>
+                      </>
+                    );
+                  } catch {
+                    return null;
+                  }
+                })()}
               </ul>
             </div>
           </div>
@@ -172,15 +282,17 @@ function MeetingsPage() {
               <div className="page__top">
                 <div className="top__heading">
                   <h1>Заседания</h1>
-                  <a href="#!" className="btn btn-add" onClick={handleAdd}><span>Добавить</span></a>
+                  {isAdmin && <a href="#!" className="btn btn-add" onClick={handleAdd}><span>Добавить</span></a>}
                 </div>
-                <div className="top__wrapper">
-                  <ul className="nav">
-                    <li><a href="/meetings/archive"><img src="/img/icon_20.png" alt="" /></a></li>
-                    <li><a href="#!"><img src="/img/icon_8.png" alt="" /></a></li>
-                    <li><a href="#!"><img src="/img/icon_9.png" alt="" /></a></li>
-                  </ul>
-                </div>
+                {isAdmin && (
+                  <div className="top__wrapper">
+                    <ul className="nav">
+                      <li><a href="/hmau-vote/meetings/archive"><img src="/hmau-vote/img/icon_20.png" alt="" /></a></li>
+                      <li><a href="#!"><img src="/hmau-vote/img/icon_8.png" alt="" /></a></li>
+                      <li><a href="#!"><img src="/hmau-vote/img/icon_9.png" alt="" /></a></li>
+                    </ul>
+                  </div>
+                )}
               </div>
 
               <div className="page__table">
@@ -204,37 +316,32 @@ function MeetingsPage() {
                         <td>{m.divisions}</td>
                         <td style={{ whiteSpace: 'nowrap' }}>{renderStatus(m.status)}</td>
                         <td className="user__nav">
-                          <button className="user__button"><img src="/img/icon_10.png" alt="" /></button>
+                          <button className="user__button"><img src="/hmau-vote/img/icon_10.png" alt="" /></button>
                           <ul className="nav__links">
+                            {isAdmin && (
+                              <li>
+                                <button onClick={() => handleEdit(m)}>
+                                  <img src="/hmau-vote/img/icon_11.png" alt="" />Редактировать
+                                </button>
+                              </li>
+                            )}
                             <li>
-                              <button onClick={() => handleEdit(m)}>
-                                <img src="/img/icon_11.png" alt="" />Редактировать
+                              <button onClick={() => { window.location.href = `/hmau-vote/report/meeting/${m.id}`; }}>
+                                <img src="/hmau-vote/img/icon_21.png" alt="" />Результат
                               </button>
                             </li>
-                            <li>
-                              <button onClick={() => { window.location.href = `/report/meeting/${m.id}`; }}>
-                                <img src="/img/icon_21.png" alt="" />Результат
-                              </button>
-                            </li>
-                            <li><button onClick={(e) => handleArchive(m.id, e)}><img src="/img/icon_13.png" alt="" />В архив</button></li>
-                            <li><button onClick={(e) => handleDelete(m.id, e)}><img src="/img/icon_14.png" alt="" />Удалить</button></li>
+                            {isAdmin && (
+                              <>
+                                <li><button onClick={(e) => handleArchive(m.id, e)}><img src="/hmau-vote/img/icon_13.png" alt="" />В архив</button></li>
+                                <li><button onClick={(e) => handleDelete(m.id, e)}><img src="/hmau-vote/img/icon_14.png" alt="" />Удалить</button></li>
+                              </>
+                            )}
                           </ul>
                         </td>
                       </tr>
                     ))}
                   </tbody>
                 </table>
-              </div>
-
-              <div className="pagination">
-                <div className="wp-pagenavi">
-                  <a href="#" className="previouspostslink"></a>
-                  <a href="#">1</a>
-                  <span>2</span>
-                  <a href="#">3</a>
-                  <a href="#">4</a>
-                  <a href="#" className="nextpostslink"></a>
-                </div>
               </div>
             </div>
           </div>
@@ -247,6 +354,15 @@ function MeetingsPage() {
           users={users}
           onClose={() => setOpen(false)}
           onSubmit={handleSubmit}
+        />
+
+        <ParticipantsModal
+          open={showParticipants}
+          meetingId={participantsMeetingId}
+          onClose={() => {
+            setShowParticipants(false);
+            setParticipantsMeetingId(null);
+          }}
         />
       </main>
 

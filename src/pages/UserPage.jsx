@@ -10,8 +10,12 @@ import {
   getActiveVoteResult,
   submitVote,
   submitVoteByResult,
+  getVoteWeight,
+  getVoteResults,
 } from '../utils/api.js';
 import HeaderDropdown from '../components/HeaderDropdown.jsx';
+import UserQueueButtons from '../components/UserQueueButtons.jsx';
+import MeetingResultsPDFButton from '../components/MeetingResultsPDFButton.jsx';
 function useAuth() {
   try { const raw = localStorage.getItem('authUser'); return raw ? JSON.parse(raw) : null; } catch { return null; }
 }
@@ -28,6 +32,7 @@ function UserPage() {
   const [meeting, setMeeting] = useState(null);
   const [agenda, setAgenda] = useState([]);
   const [users, setUsers] = useState([]);
+  const [participants, setParticipants] = useState([]); // Participants with location and proxy info
   const [nextMeetingDate, setNextMeetingDate] = useState(null);
   const [activeVote, setActiveVote] = useState(null);
   const [isVoteModalOpen, setVoteModalOpen] = useState(false);
@@ -38,6 +43,9 @@ function UserPage() {
   const [changeSeconds, setChangeSeconds] = useState(null);
   const [voteLocked, setVoteLocked] = useState(false);
   const [voteError, setVoteError] = useState('');
+  const [voteWeight, setVoteWeight] = useState(null);
+  const [receivedProxiesFrom, setReceivedProxiesFrom] = useState([]);
+  const [voteResults, setVoteResults] = useState([]);
   const changeTimerRef = useRef(null);
   const changeCountdownRef = useRef(null);
   const meetingIdRef = useRef(null);
@@ -66,28 +74,36 @@ function UserPage() {
     setChangeSeconds(null);
   }, []);
   const sendVoteRequest = useCallback(async (choice) => {
-    if (!auth?.email) throw new Error('Не удалось определить пользователя');
+    if (!auth?.id) throw new Error('Не удалось определить пользователя');
     const current = activeVoteRef.current || activeVote;
     if (!current) throw new Error('Нет активного голосования');
     if (current.id) {
-      return submitVoteByResult({ userId: auth.email, voteResultId: current.id, choice });
+      return submitVoteByResult({ userId: auth.id, voteResultId: current.id, choice });
     }
     if (current.agendaItemId) {
-      return submitVote({ userId: auth.email, agendaItemId: current.agendaItemId, choice });
+      return submitVote({ userId: auth.id, agendaItemId: current.agendaItemId, choice });
     }
     throw new Error('Недостаточно данных для голосования');
-  }, [auth?.email, activeVote]);
-  const openVoteModal = useCallback((data) => {
+  }, [auth?.id, activeVote]);
+  const openVoteModal = useCallback(async (data) => {
     if (!data) return;
-    clearChangeTimers();
+
+    // Проверяем не истек ли таймер голосования
     const createdAt = data.createdAt ? new Date(data.createdAt) : new Date();
     const duration = Number(data.duration) || 0;
+    const deadline = duration > 0 ? createdAt.getTime() + duration * 1000 : null;
+
+    if (deadline && Date.now() >= deadline) {
+      console.log('⏰ Vote timer expired, not opening modal');
+      return;
+    }
+
+    clearChangeTimers();
     const normalized = {
       ...data,
       createdAt: createdAt.toISOString(),
       duration,
     };
-    const deadline = duration > 0 ? createdAt.getTime() + duration * 1000 : null;
     setActiveVote(normalized);
     setVoteDeadline(deadline);
     setRemainingSeconds(() => {
@@ -99,6 +115,23 @@ function UserPage() {
     setVoteLocked(false);
     setSelectedChoice(null);
     setVoteError('');
+
+    // Загружаем вес голоса
+    if (meetingIdRef.current && auth?.id) {
+      try {
+        const weightData = await getVoteWeight(meetingIdRef.current, auth.id);
+        setVoteWeight(weightData.voteWeight);
+        setReceivedProxiesFrom(weightData.receivedFrom || []);
+      } catch (err) {
+        console.error('Ошибка загрузки веса голоса:', err);
+        setVoteWeight(1);
+        setReceivedProxiesFrom([]);
+      }
+    } else {
+      setVoteWeight(1);
+      setReceivedProxiesFrom([]);
+    }
+
     setAgenda((prev) => {
       if (!Array.isArray(prev)) return prev;
       return prev.map((item) => {
@@ -109,7 +142,7 @@ function UserPage() {
         return { ...item, activeIssue: false };
       });
     });
-  }, [clearChangeTimers]);
+  }, [clearChangeTimers, auth?.id]);
   const finalizeChoice = useCallback(async (choice) => {
     if (!choice || !activeVoteRef.current) return;
     try {
@@ -169,23 +202,20 @@ function UserPage() {
   }, [clearChangeTimers]);
   const handleSelectChoice = useCallback(async (choice) => {
     if (!choice || voteLocked) return;
+    console.log('🔵 handleSelectChoice called with:', choice);
     setVoteError('');
     setSelectedChoice(choice);
-    const deadline = Date.now() + 5000;
-    setChangeDeadline(deadline);
-    setChangeSeconds(5);
-    if (changeTimerRef.current) {
-      clearTimeout(changeTimerRef.current);
-    }
-    changeTimerRef.current = setTimeout(() => {
-      finalizeChoice(choice);
-    }, 5000);
+    console.log('🔵 selectedChoice set to:', choice);
+
+    // Отправляем голос сразу, можно менять до конца таймера голосования
     try {
       await sendVoteRequest(choice);
+      console.log('✅ Vote request successful');
     } catch (err) {
+      console.error('❌ Vote request failed:', err);
       setVoteError(err?.message || 'Не удалось отправить голос');
     }
-  }, [finalizeChoice, sendVoteRequest, voteLocked]);
+  }, [sendVoteRequest, voteLocked]);
   const formatTime = useCallback((totalSeconds) => {
     if (typeof totalSeconds !== 'number' || Number.isNaN(totalSeconds) || totalSeconds < 0) return '00:00';
     const minutes = Math.floor(totalSeconds / 60);
@@ -296,17 +326,29 @@ function UserPage() {
           .filter((value) => typeof value === 'string' && value.trim())
           .map((value) => value.trim().toLowerCase());
         const hasUserInMeeting = (meetingItem) => {
-          if (!meetingItem || typeof meetingItem.divisions !== 'string') return false;
-          const raw = meetingItem.divisions.trim();
-          if (!raw || raw.toLowerCase() === 'нет') return false;
+          if (!meetingItem) return false;
           if (!candidateTokens.length) return false;
-          const divisionTokens = raw
-            .split(',')
-            .map((part) => part.trim().toLowerCase())
-            .filter(Boolean);
-          if (divisionTokens.some((token) => candidateTokens.includes(token))) return true;
-          const lowered = raw.toLowerCase();
-          return candidateTokens.some((token) => lowered.includes(token));
+
+          // Handle divisions as array of objects (new format)
+          if (Array.isArray(meetingItem.divisions)) {
+            const divisionNames = meetingItem.divisions.map(d => (d.name || '').trim().toLowerCase()).filter(Boolean);
+            return candidateTokens.some(token => divisionNames.some(name => name.includes(token) || token.includes(name)));
+          }
+
+          // Handle divisions as string (old format)
+          if (typeof meetingItem.divisions === 'string') {
+            const raw = meetingItem.divisions.trim();
+            if (!raw || raw.toLowerCase() === 'нет') return false;
+            const divisionTokens = raw
+              .split(',')
+              .map((part) => part.trim().toLowerCase())
+              .filter(Boolean);
+            if (divisionTokens.some((token) => candidateTokens.includes(token))) return true;
+            const lowered = raw.toLowerCase();
+            return candidateTokens.some((token) => lowered.includes(token));
+          }
+
+          return false;
         };
 
         const now = Date.now();
@@ -323,18 +365,46 @@ function UserPage() {
         }
 
         const activeMeeting = allMeetings.find((entry) => entry?.status === 'IN_PROGRESS') || null;
+
+        // Check if there's a completed meeting that user participated in
+        const completedMeeting = allMeetings.find((entry) => entry?.status === 'COMPLETED' && hasUserInMeeting(entry)) || null;
+
+        if (completedMeeting && !activeMeeting) {
+          // Redirect to protocol page for completed meeting
+          if (isMounted) {
+            console.log('📋 Meeting completed, redirecting to protocol page');
+            navigate(`/report/meeting/${completedMeeting.id}`, { replace: true });
+          }
+          return;
+        }
+
         if (activeMeeting) {
-          const [full, ag] = await Promise.all([
+          const [full, ag, results] = await Promise.all([
             getMeeting(activeMeeting.id).catch(() => null),
             getAgendaItems(activeMeeting.id).catch(() => []),
+            getVoteResults(activeMeeting.id).catch(() => []),
           ]);
           if (!isMounted) return;
           const agendaItems = Array.isArray(ag) && ag.length ? ag : (full?.agendaItems || []);
           setMeeting(full || activeMeeting);
           setAgenda(normalizeAgendaItems(agendaItems));
+          // Show all vote results (PENDING, ENDED, APPLIED, CANCELLED) just like admin
+          console.log('📊 Loaded vote results:', results);
+          setVoteResults(Array.isArray(results) ? results : []);
+
+          // Load participants with location and proxy info
+          try {
+            const participantsRes = await fetch(`/api/meetings/${activeMeeting.id}/participants`);
+            const participantsData = await participantsRes.json();
+            setParticipants(Array.isArray(participantsData?.participants) ? participantsData.participants : []);
+          } catch (err) {
+            console.error('Failed to load participants:', err);
+          }
         } else if (isMounted) {
           setMeeting(null);
           setAgenda([]);
+          setVoteResults([]);
+          setParticipants([]);
         }
       } catch {
         if (!isMounted) return;
@@ -360,12 +430,14 @@ function UserPage() {
     (async () => {
       try {
         const pending = await getActiveVoteResult(meeting.id).catch(() => null);
-        if (pending) {
+        // Открываем модалку только если она еще не открыта
+        if (pending && !isVoteModalOpen) {
+          console.log('📢 Opening vote modal from pending result');
           openVoteModal(pending);
         }
       } catch {}
     })();
-  }, [meeting?.id, openVoteModal]);
+  }, [meeting?.id, openVoteModal, isVoteModalOpen]);
   useEffect(() => {
     if (!meeting?.id) return undefined;
     const socket = io();
@@ -375,6 +447,14 @@ function UserPage() {
       if (meetingId && data?.meetingId && String(data.meetingId) !== meetingId) return;
       if (meetingId && !data?.meetingId && activeVoteRef.current?.meetingId && String(activeVoteRef.current.meetingId) !== meetingId) return;
       if (data?.voteStatus && data.voteStatus !== 'PENDING') return;
+
+      // Не переоткрываем модалку если она уже открыта для того же голосования
+      if (isVoteModalOpen && activeVoteRef.current?.id === data?.id) {
+        console.log('⏭️ Skipping openVoteModal - already open for same vote');
+        return;
+      }
+
+      console.log('📢 Opening vote modal from socket event');
       openVoteModal(data);
     };
 
@@ -384,37 +464,185 @@ function UserPage() {
       onVoteEnded(data);
     };
 
-    const handleCleared = (data) => {
+    const handleCleared = async (data) => {
       const meetingId = meetingIdRef.current;
       if (meetingId && data?.meetingId && String(data.meetingId) !== meetingId) return;
       onVoteCleared(data);
+      // Reload vote results when a vote is applied
+      if (meeting?.id) {
+        try {
+          const results = await getVoteResults(meeting.id).catch(() => []);
+          console.log('📊 Reloaded vote results after apply:', results);
+          setVoteResults(Array.isArray(results) ? results : []);
+        } catch {}
+      }
+    };
+
+    const handleAgendaItemUpdated = (data) => {
+      const meetingId = meetingIdRef.current;
+      if (meetingId && data?.meetingId && String(data.meetingId) !== meetingId) return;
+
+      // Update agenda to reflect activeIssue change
+      setAgenda((prev) =>
+        Array.isArray(prev)
+          ? prev.map((item) =>
+              item.id === data.agendaItemId
+                ? { ...item, activeIssue: data.activeIssue, completed: data.completed }
+                : { ...item, activeIssue: false }
+            )
+          : prev
+      );
+    };
+
+    const handleMeetingStatusChanged = (data) => {
+      // When meeting is completed, redirect to report page
+      if (data?.status === 'COMPLETED' && data?.id === meeting?.id) {
+        navigate(`/hmau-vote/report/meeting/${data.id}`, { replace: true });
+      }
+    };
+
+    const handleAgendaItemAdded = (data) => {
+      // Add new agenda item to the list if it belongs to current meeting
+      if (data?.meetingId === meeting?.id && data?.agendaItem) {
+        setAgenda(prev => {
+          // Check if item already exists (avoid duplicates)
+          const exists = prev.some(item => item.id === data.agendaItem.id);
+          if (exists) return prev;
+          // Add new item and sort by number
+          return [...prev, data.agendaItem].sort((a, b) => a.number - b.number);
+        });
+      }
     };
 
     socket.on('new-vote-result', handleNewVote);
     socket.on('vote-ended', handleEnded);
     socket.on('vote-applied', handleCleared);
     socket.on('vote-cancelled', handleCleared);
+    socket.on('agenda-item-updated', handleAgendaItemUpdated);
+    socket.on('meeting-status-changed', handleMeetingStatusChanged);
+    socket.on('agenda-item-added', handleAgendaItemAdded);
 
     return () => {
       socket.off('new-vote-result', handleNewVote);
       socket.off('vote-ended', handleEnded);
       socket.off('vote-applied', handleCleared);
       socket.off('vote-cancelled', handleCleared);
+      socket.off('agenda-item-updated', handleAgendaItemUpdated);
+      socket.off('meeting-status-changed', handleMeetingStatusChanged);
+      socket.off('agenda-item-added', handleAgendaItemAdded);
       socket.disconnect();
     };
-  }, [meeting?.id, onVoteCleared, onVoteEnded, openVoteModal]);
+  }, [meeting?.id, onVoteCleared, onVoteEnded, openVoteModal, isVoteModalOpen, navigate]);
 
   const meetingUsers = useMemo(() => {
-    if (!meeting?.divisions || !users?.length) return [];
-    const divisionNames = new Set((meeting.divisions || '').split(',').map(s => s.trim()).filter(Boolean));
-    return users.filter(u => divisionNames.size ? divisionNames.has(String(u.divisionName || u.division || '')) || true : true);
-  }, [meeting, users]);
+    // Use participants array if available (has location and proxy info)
+    if (participants.length > 0) {
+      return participants;
+    }
+
+    // Fallback to old logic
+    if (!meeting?.divisions) return [];
+
+    // Handle divisions as array of objects (new format)
+    if (Array.isArray(meeting.divisions)) {
+      // If divisions have users included, extract them
+      const usersFromDivisions = meeting.divisions.flatMap(d => Array.isArray(d.users) ? d.users : []);
+      if (usersFromDivisions.length > 0) {
+        return usersFromDivisions;
+      }
+
+      // Otherwise filter global users by divisionId
+      if (users?.length) {
+        const divisionIds = new Set(meeting.divisions.map(d => d.id));
+        return users.filter(u => divisionIds.has(u.divisionId));
+      }
+    }
+
+    // Handle divisions as string (old format)
+    if (typeof meeting.divisions === 'string' && users?.length) {
+      const divisionNames = new Set((meeting.divisions || '').split(',').map(s => s.trim()).filter(Boolean));
+      return users.filter(u => divisionNames.size ? divisionNames.has(String(u.divisionName || u.division || '')) || true : true);
+    }
+
+    return [];
+  }, [participants, meeting, users]);
+
+  // Group vote results by agendaItemId
+  const resultsByAgenda = useMemo(() => {
+    const map = new Map();
+    for (const r of voteResults) {
+      const key = r.agendaItemId;
+      if (key == null) continue;
+      const arr = map.get(key) || [];
+      arr.push(r);
+      map.set(key, arr);
+    }
+    for (const [k, arr] of map.entries()) {
+      arr.sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime());
+    }
+    return map;
+  }, [voteResults]);
+
+  const renderResultsList = (item) => {
+    const list = resultsByAgenda.get(item.id) || [];
+    if (!list.length) return '-';
+    const statusLabel = (s) => {
+      if (!s) return '';
+      if (s === 'PENDING') return 'Ожидает';
+      if (s === 'ENDED') return 'Завершено';
+      if (s === 'APPLIED') return 'Применено';
+      if (s === 'CANCELLED') return 'Отменено';
+      return s;
+    };
+    return (
+      <div className="vote-results-list">
+        {list.map((r) => (
+          <div key={r.id} className={`vote-result-item status-${String(r.voteStatus || r.status || '').toLowerCase()}`}>
+            {r.question ? (<div className="vri-title">{r.question}</div>) : null}
+            <div className="vri-line">За - {r.votesFor} | Против - {r.votesAgainst} | Воздержались - {r.votesAbstain} | Не проголосовали - {r.votesAbsent}</div>
+            {r.decision ? (
+              <div className="vri-decision">
+                Решение: <span style={{
+                  fontWeight: 'bold',
+                  color: r.decision === 'Принято' ? '#4caf50' : r.decision === 'Не принято' ? '#d32f2f' : 'inherit'
+                }}>{r.decision}</span>
+              </div>
+            ) : null}
+            {(r.voteStatus || r.status) ? (<div className="vri-status">Статус: {statusLabel(r.voteStatus || r.status)}</div>) : null}
+          </div>
+        ))}
+      </div>
+    );
+  };
+
   const handleLogout = async (e) => {
     e?.preventDefault?.();
-    try { if (auth?.email) await apiLogout(auth.email); } catch {}
+    try { if (auth?.username || auth?.email) await apiLogout(auth.username, auth.email); } catch {}
     localStorage.removeItem('authUser');
     navigate('/login', { replace: true });
   };
+
+  // Also listen for forced disconnects and logout
+  useEffect(() => {
+    const socket = io();
+    const onStatus = (data) => {
+      try {
+        const sameId = Number(auth?.id) === Number(data?.userId);
+        const sameEmail = auth?.email && data?.email && String(auth.email).toLowerCase() === String(data.email).toLowerCase();
+        if (!auth?.isAdmin && (sameId || sameEmail) && data?.isOnline === false) {
+          try { localStorage.removeItem('authUser'); } catch {}
+          navigate('/login', { replace: true });
+        }
+        // Update participants online status
+        setParticipants((prev) => prev.map((u) => (u.id === data?.userId ? { ...u, isOnline: !!data.isOnline } : u)));
+      } catch {}
+    };
+    socket.on('user-status-changed', onStatus);
+    return () => {
+      socket.off('user-status-changed', onStatus);
+      socket.disconnect();
+    };
+  }, [auth?.id, auth?.email, auth?.isAdmin, navigate]);
   const voteTitle = activeVote?.templateTitle || activeVote?.question || 'Голосование';
   const voteQuestion = activeVote?.question && activeVote.question !== voteTitle ? activeVote.question : null;
   return (
@@ -425,15 +653,15 @@ function UserPage() {
             <div className="wrapper">
               <div className="header__logo">
                 <div className="logo__inner">
-                  <a href="/"><img src="/img/logo.png" alt="" /></a>
+                  <img src="/hmau-vote/img/logo.png" alt="" style={{ cursor: 'default' }} />
                 </div>
               </div>
               <div className="header__user">
                 <div className="user__inner">
-                  <a href="#!" className="support"><img src="/img/icon_1.png" alt="" />Поддержка</a>
+
                   <ul>
                     <HeaderDropdown
-                      trigger={(<><img src="/img/icon_2.png" alt="" />{auth?.email || 'user'}</>)}
+                      trigger={(<><img src="/hmau-vote/img/icon_2.png" alt="" />{auth?.name || auth?.email || 'user'}</>)}
                     >
                       <li>
                         <button type="button" className="logout-button" onClick={handleLogout}>Выйти</button>
@@ -466,7 +694,7 @@ function UserPage() {
                             <th>Номер</th>
                             <th>Вопрос</th>
                             <th>Докладчик</th>
-                            <th>Ссылка</th>
+                            <th>Итоги голосования</th>
                           </tr>
                         </thead>
                         <tbody>
@@ -475,32 +703,60 @@ function UserPage() {
                               <td>{a.number ?? idx + 1}</td>
                               <td>{a.title}</td>
                               <td>{a.speaker || a.speakerId || '-'}</td>
-                              <td>{a.link || '-'}</td>
+                              <td>{renderResultsList(a)}</td>
                             </tr>
                           ))}
                         </tbody>
                       </table>
                     </div>
+
+                    {/* PDF Results Button - only shown when meeting is completed */}
+                    <div style={{ marginTop: '20px', display: 'flex', justifyContent: 'flex-start' }}>
+                      <MeetingResultsPDFButton meeting={meeting} agenda={agenda} />
+                    </div>
                   </div>
                   <div>
                     <h2 style={{ margin: '0 0 12px' }}>Список участников</h2>
-                    <div className="page__table">
-                      <table>
-                        <thead>
-                          <tr>
-                            <th>ФИО</th>
-                            <th>Статус</th>
-                          </tr>
-                        </thead>
-                        <tbody>
-                          {(meetingUsers || []).map(u => (
-                            <tr key={u.id}>
-                              <td>{u.name}</td>
-                              <td className={`state state-${u.isOnline ? 'on' : 'off'}`}><span /></td>
+                    <div style={{ marginBottom: '12px', fontSize: '14px', color: '#666' }}>
+                      Всего участников: {meetingUsers.length} | В сети: {meetingUsers.filter(u => u.isOnline).length}
+                    </div>
+                    <div className="participants-table-wrapper">
+                      <div className="page__table">
+                        <table>
+                          <thead>
+                            <tr>
+                              <th>ФИО</th>
+                              <th>Статус</th>
                             </tr>
-                          ))}
-                        </tbody>
-                      </table>
+                          </thead>
+                          <tbody>
+                            {(meetingUsers || []).map(u => (
+                              <tr key={u.id}>
+                                <td>
+                                  <div>
+                                    {u.name} {u.location ? `(${u.location === 'HALL' ? 'Зал' : 'Сайт'})` : ''}
+                                  </div>
+                                  {u.proxy && (
+                                    <div style={{ fontSize: '12px', color: '#666', marginTop: '2px' }}>
+                                      (по доверенности: {u.proxy.toUserName})
+                                    </div>
+                                  )}
+                                  {u.receivedProxies && u.receivedProxies.length > 0 && (
+                                    <div style={{ fontSize: '12px', color: '#666', marginTop: '2px' }}>
+                                      (по доверенности от: {u.receivedProxies.map(p => p.fromUserName).join(', ')})
+                                    </div>
+                                  )}
+                                </td>
+                                <td className={`state state-${u.isOnline ? 'on' : 'off'}`}><span /></td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
+                    </div>
+                    {/* Queue Buttons */}
+                    <div style={{ marginTop: '2rem' }}>
+                      <UserQueueButtons meetingId={meeting?.id} userId={auth?.id} />
                     </div>
                   </div>
                 </div>
@@ -533,12 +789,31 @@ function UserPage() {
             <div className="vote-modal__timer">
               Осталось времени: <span>{formatTime(remainingSeconds ?? (activeVote?.duration || 0))}</span>
             </div>
+            {voteWeight && voteWeight > 1 ? (
+              <div style={{
+                backgroundColor: '#fef3c7',
+                border: '1px solid #f59e0b',
+                borderRadius: '8px',
+                padding: '12px',
+                marginBottom: '16px',
+                textAlign: 'center'
+              }}>
+                <div style={{ fontWeight: 'bold', color: '#92400e', marginBottom: '4px' }}>
+                  Вес вашего голоса: {voteWeight}
+                </div>
+                <div style={{ fontSize: '13px', color: '#78350f' }}>
+                  Вы голосуете за: себя + {receivedProxiesFrom.map(p => p.name).join(', ')}
+                </div>
+              </div>
+            ) : null}
             <div className="vote-modal__options">
+              {console.log('🎨 RENDER: selectedChoice=', selectedChoice, 'voteLocked=', voteLocked)}
               <button
                 type="button"
                 className={`vote-choice-button vote-choice-button--for${selectedChoice === 'FOR' ? ' selected' : ''}${voteLocked ? ' locked' : ''}`}
                 onClick={() => handleSelectChoice('FOR')}
                 disabled={voteLocked}
+                data-selected={selectedChoice === 'FOR'}
               >
                 За
               </button>
@@ -565,8 +840,7 @@ function UserPage() {
                   <span>Ваш выбор «{CHOICE_LABELS[selectedChoice]}» зафиксирован.</span>
                 ) : (
                   <span>
-                    Вы выбрали «{CHOICE_LABELS[selectedChoice]}». Изменить решение можно ещё{' '}
-                    {changeSeconds ?? 0} сек.
+                    Вы выбрали «{CHOICE_LABELS[selectedChoice]}». Вы можете изменить выбор до окончания голосования.
                   </span>
                 )
               ) : (

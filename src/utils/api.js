@@ -1,6 +1,7 @@
 function resolveUrl(path) {
   try {
     if (path.startsWith('/')) {
+      // 1) Explicit base from env (Vite). Expected to be an origin, like "http://localhost:5000".
       try {
         const base = typeof import.meta !== 'undefined' && import.meta.env && import.meta.env.VITE_API_BASE;
         if (typeof base === 'string' && base.trim()) {
@@ -27,7 +28,9 @@ export async function apiRequest(path, options = {}) {
   const data = text ? (() => { try { return JSON.parse(text); } catch { return text; } })() : null;
   if (!res.ok) {
     const message = data?.error || data?.message || res.statusText || 'Request failed';
-    throw new Error(message);
+    const error = new Error(message);
+    error.data = data; // Сохраняем данные ответа в ошибке
+    throw error;
   }
   return data;
 }
@@ -43,6 +46,7 @@ export const getUsers = () => apiRequest('/api/users');
 export const createUser = (payload) => apiRequest('/api/users', { method: 'POST', body: JSON.stringify(payload) });
 export const updateUser = (id, payload) => apiRequest(`/api/users/${id}`, { method: 'PUT', body: JSON.stringify(payload) });
 export const deleteUser = (id) => apiRequest(`/api/users/${id}`, { method: 'DELETE' });
+export const disconnectUser = (id) => apiRequest(`/api/users/${id}/disconnect`, { method: 'POST' });
 
 // Meetings
 export const getMeetings = () => apiRequest('/api/meetings');
@@ -55,6 +59,11 @@ export const createMeeting = (payload) => apiRequest('/api/meetings', { method: 
 export const updateMeeting = (id, payload) => apiRequest(`/api/meetings/${id}`, { method: 'PUT', body: JSON.stringify(payload) });
 export const deleteMeeting = (id) => apiRequest(`/api/meetings/${id}`, { method: 'DELETE' });
 export const archiveMeeting = (id) => apiRequest(`/api/meetings/${id}/archive`, { method: 'POST' });
+export const getMeetingParticipants = (id) => apiRequest(`/api/meetings/${id}/participants`);
+export const saveMeetingParticipants = (id, participants) => apiRequest(`/api/meetings/${id}/participants/save`, { method: 'POST', body: JSON.stringify({ participants }) });
+export const getVoteWeight = (meetingId, userId) => apiRequest(`/api/meetings/${meetingId}/vote-weight/${userId}`);
+export const saveMeetingScreenConfig = (id, screenConfig) => apiRequest(`/api/meetings/${id}/screen-config`, { method: 'PUT', body: JSON.stringify({ screenConfig }) });
+export const getMeetingScreenConfig = (id) => apiRequest(`/api/meetings/${id}/screen-config`);
 
 // Vote results
 export const getVoteResults = (meetingId) => apiRequest(`/api/vote-results?meetingId=${encodeURIComponent(meetingId)}`);
@@ -91,6 +100,13 @@ export const getVoteProcedure = (id) => apiRequest(`/api/vote-procedures/${id}`)
 export const createVoteProcedure = (payload) => apiRequest('/api/vote-procedures', { method: 'POST', body: JSON.stringify(payload) });
 export const updateVoteProcedure = (id, payload) => apiRequest(`/api/vote-procedures/${id}`, { method: 'PUT', body: JSON.stringify(payload) });
 export const deleteVoteProcedure = (id) => apiRequest(`/api/vote-procedures/${id}`, { method: 'DELETE' });
+
+// Duration templates
+export const getDurationTemplates = () => apiRequest('/api/duration-templates');
+export const getDurationTemplate = (id) => apiRequest(`/api/duration-templates/${id}`);
+export const createDurationTemplate = (payload) => apiRequest('/api/duration-templates', { method: 'POST', body: JSON.stringify(payload) });
+export const updateDurationTemplate = (id, payload) => apiRequest(`/api/duration-templates/${id}`, { method: 'PUT', body: JSON.stringify(payload) });
+export const deleteDurationTemplate = (id) => apiRequest(`/api/duration-templates/${id}`, { method: 'DELETE' });
 // Start vote
 export const startVote = (payload) =>
   apiRequest('/api/start-vote', { method: 'POST', body: JSON.stringify(payload) });
@@ -98,7 +114,7 @@ export const startVote = (payload) =>
 export const endVote = (agendaItemId) =>
   apiRequest(`/api/vote-results/${agendaItemId}/end`, { method: 'POST' });
 // Auth
-export const login = (email, password) =>
-  apiRequest('/api/login', { method: 'POST', body: JSON.stringify({ email, password }) });
-export const logout = (email) =>
-  apiRequest('/api/logout', { method: 'POST', body: JSON.stringify({ email }) });
+export const login = (username, password) =>
+  apiRequest('/api/login', { method: 'POST', body: JSON.stringify({ username, password }) });
+export const logout = (username, email) =>
+  apiRequest('/api/logout', { method: 'POST', body: JSON.stringify({ username, email }) });

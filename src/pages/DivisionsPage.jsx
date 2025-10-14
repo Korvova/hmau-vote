@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import EditModal from '../components/EditModal.jsx';
-import { getDivisions, createDivision, updateDivision, deleteDivision } from '../utils/api.js';
+import HeaderDropdown from '../components/HeaderDropdown.jsx';
+import { getDivisions, createDivision, updateDivision, deleteDivision, logout as apiLogout } from '../utils/api.js';
 
 function DivisionsPage() {
   const [configOpen, setConfigOpen] = useState(false);
@@ -12,14 +13,43 @@ function DivisionsPage() {
   const [selected, setSelected] = useState(null);
   const [isOpen, setOpen] = useState(false);
   const [isAdd, setAdd] = useState(false);
+  const handleLogout = async (e) => {
+    e?.preventDefault?.();
+    try {
+      const raw = localStorage.getItem('authUser');
+      const auth = raw ? JSON.parse(raw) : null;
+      if (auth?.email) await apiLogout(auth.email);
+    } catch {}
+    localStorage.removeItem('authUser');
+    window.location.href = '/hmau-vote/login';
+  };
 
   useEffect(() => {
     const load = async () => {
       setLoading(true);
       setError('');
       try {
-        const list = await getDivisions();
-        const normalized = (list || []).map(d => ({ id: d.id, name: d.name, usersCount: d.userCount || 0, admin: '' }));
+        let list = await getDivisions();
+        let normalized = (list || []).map((d) => {
+          const rawName = d.displayName || d.name || '';
+          const isInvited = Boolean(d.system) || /(^|\s)Приглашенные(\s|$)/i.test(rawName);
+          const display = isInvited ? '👥Приглашенные' : rawName;
+          return { id: d.id, name: display, usersCount: d.userCount || 0, system: isInvited };
+        });
+        // Fallback: if system group missing entirely, create and refetch
+        const hasInvited = normalized.some(d => d.system);
+        if (!hasInvited) {
+          try { await createDivision({ name: 'Приглашенные' }); } catch {}
+          list = await getDivisions();
+          normalized = (list || []).map((d) => {
+            const rawName = d.displayName || d.name || '';
+            const isInvited = Boolean(d.system) || /(^|\s)Приглашенные(\s|$)/i.test(rawName);
+            const display = isInvited ? '👥Приглашенные' : rawName;
+            return { id: d.id, name: display, usersCount: d.userCount || 0, system: isInvited };
+          });
+        }
+        // System first, then by name
+        normalized.sort((a, b) => (a.system === b.system ? String(a.name || '').localeCompare(String(b.name || ''), 'ru') : (a.system ? -1 : 1)));
         setRows(normalized);
       } catch (e) {
         setError(e.message || 'Ошибка загрузки подразделений');
@@ -81,16 +111,25 @@ function DivisionsPage() {
             <div className="wrapper">
               <div className="header__logo">
                 <div className="logo__inner">
-                  <a href="/"><img src="/img/logo.png" alt="" /></a>
+                  <a href="/hmau-vote/"><img src="/hmau-vote/img/logo.png" alt="" /></a>
                 </div>
               </div>
               <div className="header__user">
                 <div className="user__inner">
-                  <a href="#!" className="support"><img src="/img/icon_1.png" alt="" />Поддержка</a>
+
                   <ul>
-                    <li className="menu-children">
-                      <a href="#!"><img src="/img/icon_2.png" alt="" />admin@admin.ru</a>
-                    </li>
+                    <HeaderDropdown
+                      trigger={(
+                        <>
+                          <img src="/hmau-vote/img/icon_2.png" alt="" />
+                          {(() => { try { const a = JSON.parse(localStorage.getItem('authUser')||'null'); return a?.name || a?.email || 'admin@admin.ru'; } catch { return 'admin@admin.ru'; } })()}
+                        </>
+                      )}
+                    >
+                      <li>
+                        <button type="button" className="logout-button" onClick={handleLogout}>Выйти</button>
+                      </li>
+                    </HeaderDropdown>
                   </ul>
                 </div>
               </div>
@@ -102,17 +141,19 @@ function DivisionsPage() {
           <div className="container">
             <div className="wrapper">
               <ul>
-                <li><a href="/users">Пользователи</a></li>
-                <li className="current-menu-item"><a href="/divisions">Подразделения</a></li>
-                <li><a href="/meetings">Заседания</a></li>
-                <li><a href="/console">Пульт заседаний</a></li>
+                <li><a href="/hmau-vote/users">Пользователи</a></li>
+                <li className="current-menu-item"><a href="/hmau-vote/divisions">Подразделения</a></li>
+                <li><a href="/hmau-vote/meetings">Заседания</a></li>
+                <li><a href="/hmau-vote/console">Пульт заседаний</a></li>
                 <li className={`menu-children${configOpen ? ' current-menu-item' : ''}`}>
                   <a href="#!" onClick={(e) => { e.preventDefault(); setConfigOpen(!configOpen); }}>Конфигурация</a>
                   <ul className="sub-menu" style={{ display: configOpen ? 'block' : 'none' }}>
-                    <li><a href="/template">Шаблоны голосования</a></li>
-                    <li><a href="/vote">Процедура подсчёта голосов</a></li>
-                    <li><a href="/screen">Экран трансляции</a></li>
-                    <li><a href="/linkprofile">Связать профиль с ID</a></li>
+                    <li><a href="/hmau-vote/template">Шаблоны голосования</a></li>
+                    <li><a href="/hmau-vote/duration-templates">Шаблоны времени</a></li>
+                    <li><a href="/hmau-vote/vote">Процедура подсчёта голосов</a></li>
+                    <li><a href="/hmau-vote/screen">Экран трансляции</a></li>
+                    <li><a href="/hmau-vote/linkprofile">Связать профиль с ID</a></li>
+                    <li><a href="/hmau-vote/contacts">Контакты</a></li>
                   </ul>
                 </li>
               </ul>
@@ -133,8 +174,8 @@ function DivisionsPage() {
                 </div>
                 <div className="top__wrapper">
                   <ul className="nav">
-                    <li><a href="#!"><img src="/img/icon_8.png" alt="" /></a></li>
-                    <li><a href="#!"><img src="/img/icon_9.png" alt="" /></a></li>
+                    <li><a href="#!"><img src="/hmau-vote/img/icon_8.png" alt="" /></a></li>
+                    <li><a href="#!"><img src="/hmau-vote/img/icon_9.png" alt="" /></a></li>
                   </ul>
                 </div>
 
@@ -155,32 +196,30 @@ function DivisionsPage() {
                         <td>{row.name}</td>
                         <td>{row.usersCount}</td>
                         <td className="user__nav">
-                          <button className="user__button"><img src="/img/icon_10.png" alt="" /></button>
-                          <ul className="nav__links">
-                            <li>
-                              <button onClick={() => handleEdit(row)}>
-                                <img src="/img/icon_11.png" alt="" />Редактировать
-                              </button>
-                            </li>
-                            <li><button onClick={() => handleDelete(row)}><img src="/img/icon_14.png" alt="" />Удалить</button></li>
-                          </ul>
+                          {row.system ? (
+                            <span style={{ color: '#777', fontSize: 12 }}>Системная</span>
+                          ) : (
+                            <>
+                              <button className="user__button" title="Действия"><img src="/hmau-vote/img/icon_10.png" alt="" /></button>
+                              <ul className="nav__links">
+                                <li>
+                                  <button onClick={() => handleEdit(row)}>
+                                    <img src="/hmau-vote/img/icon_11.png" alt="" />Редактировать
+                                  </button>
+                                </li>
+                                <li>
+                                  <button onClick={() => handleDelete(row)}>
+                                    <img src="/hmau-vote/img/icon_14.png" alt="" />Удалить
+                                  </button>
+                                </li>
+                              </ul>
+                            </>
+                          )}
                         </td>
                       </tr>
                     ))}
                   </tbody>
                 </table>
-              </div>
-
-              {/* Pagination */}
-              <div className="pagination">
-                <div className="wp-pagenavi">
-                  <a href="#" className="previouspostslink"></a>
-                  <a href="#">1</a>
-                  <span>2</span>
-                  <a href="#">3</a>
-                  <a href="#">4</a>
-                  <a href="#" className="nextpostslink"></a>
-                </div>
               </div>
             </div>
           </div>
@@ -212,4 +251,3 @@ function DivisionsPage() {
 }
 
 export default DivisionsPage;
-

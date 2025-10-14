@@ -1,9 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import './ModalHeader.css';
+import ChipMultiSelect from './ChipMultiSelect.jsx';
 
 function EditModal({ open, data, fields, onClose, onSubmit, title = 'Редактировать' }) {
   const [formState, setFormState] = useState({});
-  const [password, setPassword] = useState('');
 
   useEffect(() => {
     if (data && fields) {
@@ -34,7 +34,7 @@ function EditModal({ open, data, fields, onClose, onSubmit, title = 'Редак�
 
   const handleSubmit = (e) => {
     e.preventDefault();
-    onSubmit(formState, password);
+    onSubmit(formState);
   };
 
   if (!open) return null;
@@ -62,8 +62,8 @@ function EditModal({ open, data, fields, onClose, onSubmit, title = 'Редак�
   };
 
   return (
-    <div style={overlayStyle} onClick={onClose}>
-      <div style={modalStyle} onClick={(e) => e.stopPropagation()}>
+    <div style={overlayStyle}>
+      <div style={modalStyle}>
         <div className="modal-header">
           <span className="modal-header-spacer" aria-hidden="true" />
           <h2 className="modal-title">{title}</h2>
@@ -93,6 +93,31 @@ function EditModal({ open, data, fields, onClose, onSubmit, title = 'Редак�
                   >
                     {group[0].options?.map((opt) => (
                       <option key={opt.value ?? opt} value={opt.value ?? opt}>
+                        {opt.label ?? opt}
+                      </option>
+                    ))}
+                  </select>
+                ) : group[0].type === 'chip-multiselect' ? (
+                  <ChipMultiSelect
+                    options={group[0].options || []}
+                    value={Array.isArray(formState[group[0].name]) ? formState[group[0].name] : []}
+                    onChange={(vals) => handleChange(group[0].name, vals)}
+                    placeholder={group[0].placeholder || 'Выберите…'}
+                  />
+                ) : group[0].type === 'multiselect' ? (
+                  <select
+                    multiple
+                    name={group[0].name}
+                    required={group[0].required}
+                    value={Array.isArray(formState[group[0].name]) ? formState[group[0].name] : []}
+                    onChange={(e) => {
+                      const values = Array.from(e.target.selectedOptions).map(o => o.value);
+                      handleChange(group[0].name, values);
+                    }}
+                    style={{ width: '100%', padding: '8px', borderRadius: '6px', border: '1px solid #dcdcdc', height: 140 }}
+                  >
+                    {group[0].options?.map((opt) => (
+                      <option key={opt.value ?? opt} value={String(opt.value ?? opt)}>
                         {opt.label ?? opt}
                       </option>
                     ))}
@@ -130,6 +155,31 @@ function EditModal({ open, data, fields, onClose, onSubmit, title = 'Редак�
                           </option>
                         ))}
                       </select>
+                    ) : field.type === 'chip-multiselect' ? (
+                      <ChipMultiSelect
+                        options={field.options || []}
+                        value={Array.isArray(formState[field.name]) ? formState[field.name] : []}
+                        onChange={(vals) => handleChange(field.name, vals)}
+                        placeholder={field.placeholder || 'Выберите…'}
+                      />
+                    ) : field.type === 'multiselect' ? (
+                      <select
+                        multiple
+                        name={field.name}
+                        required={field.required}
+                        value={Array.isArray(formState[field.name]) ? formState[field.name] : []}
+                        onChange={(e) => {
+                          const values = Array.from(e.target.selectedOptions).map(o => o.value);
+                          handleChange(field.name, values);
+                        }}
+                        style={{ width: '100%', padding: '8px', borderRadius: '6px', border: '1px solid #dcdcdc', height: 140 }}
+                      >
+                        {field.options?.map((opt) => (
+                          <option key={opt.value ?? opt} value={String(opt.value ?? opt)}>
+                            {opt.label ?? opt}
+                          </option>
+                        ))}
+                      </select>
                     ) : (
                       <input
                         type={field.type || 'text'}
@@ -146,16 +196,8 @@ function EditModal({ open, data, fields, onClose, onSubmit, title = 'Редак�
             )
           ))}
 
-          {/* Блок ввода пароля и кнопка подтверждения */}
-          <div style={{ display: 'flex', gap: '20px', marginTop: '24px', alignItems: 'center' }}>
-            <input
-              type="password"
-              placeholder="Пароль"
-              required
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              style={{ flex: 1, padding: '12px', borderRadius: '6px', border: '1px solid #dcdcdc' }}
-            />
+          {/* Кнопка подтверждения */}
+          <div style={{ display: 'flex', gap: '20px', marginTop: '24px', justifyContent: 'flex-end' }}>
             <button
               type="submit"
               className="btn btn-big"

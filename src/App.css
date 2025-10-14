@@ -86,29 +86,40 @@ button:hover {
 
 html, body, #root {
   height: 100%;
+  margin: 0;
+  padding: 0;
 }
 body {
   margin: 0;
+  overflow-x: hidden;
 }
 #root {
   min-height: 100vh;
   display: flex;
   flex-direction: column;
+  position: relative;
 }
 header.page { flex: 0 0 auto; }
 main { flex: 1 0 auto; }
 footer { flex: 0 0 auto; margin-top: auto; }
 
 .modal {
-  position: fixed;
-  top: 0;
-  left: 0;
-  width: 100%;
-  height: 100%;
-  background: rgba(0, 0, 0, 0.5);
-  display: flex;
-  align-items: center;
-  justify-content: center;
+  position: fixed !important;
+  top: 0 !important;
+  left: 0 !important;
+  right: 0 !important;
+  bottom: 0 !important;
+  width: 100% !important;
+  height: 100% !important;
+  max-width: none !important;
+  background: rgba(0, 0, 0, 0.85) !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  z-index: 9999 !important;
+  overflow-y: auto !important;
+  padding: 0 !important;
+  border-radius: 0 !important;
 }
 
 .modal-content {
@@ -171,17 +182,18 @@ footer { flex: 0 0 auto; margin-top: auto; }
   min-width: 140px;
   padding: 0.9rem 1rem;
   border-radius: 10px;
-  border: 1px solid #d0d7e2;
+  border: 2px solid #d0d7e2;
   background: #f7f9fc;
   color: #1f2a44;
   font-weight: 600;
+  font-size: 1.1rem;
   cursor: pointer;
-  transition: all 0.2s ease;
+  transition: all 0.3s ease;
 }
 
-.vote-choice-button:hover:not(.locked) {
+.vote-choice-button:hover:not(.locked):not(.selected) {
   transform: translateY(-1px);
-  box-shadow: 0 6px 18px rgba(26, 115, 232, 0.15);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
 }
 
 .vote-choice-button.selected {
@@ -189,15 +201,24 @@ footer { flex: 0 0 auto; margin-top: auto; }
 }
 
 .vote-choice-button--for {
-  border-color: rgba(26, 115, 232, 0.4);
-  background: rgba(26, 115, 232, 0.08);
-  color: #1a73e8;
+  border-color: rgba(76, 175, 80, 0.4);
+  background: rgba(76, 175, 80, 0.12);
+  color: #4caf50;
 }
 
 .vote-choice-button--for.selected {
-  background: #1a73e8;
-  border-color: #1a73e8;
-  box-shadow: 0 8px 20px rgba(26, 115, 232, 0.35);
+  background: #4caf50 !important;
+  border-color: #388e3c !important;
+  border-width: 5px !important;
+  color: #ffffff !important;
+  box-shadow:
+    0 0 0 8px rgba(76, 175, 80, 0.25),
+    0 0 20px rgba(76, 175, 80, 0.6),
+    0 8px 30px rgba(76, 175, 80, 0.6),
+    inset 0 2px 4px rgba(255, 255, 255, 0.3) !important;
+  transform: scale(1.1) !important;
+  font-weight: 700 !important;
+  font-size: 1.15rem !important;
 }
 
 .vote-choice-button--against {
@@ -207,9 +228,18 @@ footer { flex: 0 0 auto; margin-top: auto; }
 }
 
 .vote-choice-button--against.selected {
-  background: #d93025;
-  border-color: #d93025;
-  box-shadow: 0 8px 20px rgba(217, 48, 37, 0.35);
+  background: #d93025 !important;
+  border-color: #a52714 !important;
+  border-width: 5px !important;
+  color: #ffffff !important;
+  box-shadow:
+    0 0 0 8px rgba(217, 48, 37, 0.25),
+    0 0 20px rgba(217, 48, 37, 0.6),
+    0 8px 30px rgba(217, 48, 37, 0.6),
+    inset 0 2px 4px rgba(255, 255, 255, 0.3) !important;
+  transform: scale(1.1) !important;
+  font-weight: 700 !important;
+  font-size: 1.15rem !important;
 }
 
 .vote-choice-button--abstain {
@@ -219,9 +249,18 @@ footer { flex: 0 0 auto; margin-top: auto; }
 }
 
 .vote-choice-button--abstain.selected {
-  background: #5f6368;
-  border-color: #5f6368;
-  box-shadow: 0 8px 20px rgba(95, 99, 104, 0.3);
+  background: #5f6368 !important;
+  border-color: #3c4043 !important;
+  border-width: 5px !important;
+  color: #ffffff !important;
+  box-shadow:
+    0 0 0 8px rgba(95, 99, 104, 0.25),
+    0 0 20px rgba(95, 99, 104, 0.5),
+    0 8px 30px rgba(95, 99, 104, 0.5),
+    inset 0 2px 4px rgba(255, 255, 255, 0.3) !important;
+  transform: scale(1.1) !important;
+  font-weight: 700 !important;
+  font-size: 1.15rem !important;
 }
 
 .vote-choice-button.locked {
@@ -234,6 +273,11 @@ footer { flex: 0 0 auto; margin-top: auto; }
 .vote-modal__hint {
   font-size: 0.95rem;
   color: #42526e;
+  min-height: 48px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 8px 0;
 }
 
 .vote-modal__error {
@@ -243,12 +287,28 @@ footer { flex: 0 0 auto; margin-top: auto; }
 }
 
 .page__table tr.agenda-active td {
-  background: #e8f1ff;
+  background: #d4f4dd !important;
   font-weight: 600;
 }
 
+/* Compact list of vote results in control page */
+.vote-results-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.vote-result-item .vri-title {
+  font-weight: 600;
+}
+.vote-result-item .vri-line,
+.vote-result-item .vri-decision,
+.vote-result-item .vri-status {
+  font-size: 12px;
+}
+.vote-result-item .vri-status { color: #7a7a7a; }
+
 .page__table tr.agenda-active td:first-child {
-  border-left: 3px solid #1a73e8;
+  border-left: 4px solid #4caf50 !important;
 }
 
 .admin-panel {
@@ -1106,4 +1166,222 @@ footer { flex: 0 0 auto; margin-top: auto; }
 
 .actions-column button:last-child:hover {
   background-color: #b71c1c;
+}
+
+/* Televic Integration Styles */
+.page__televic {
+  margin: 30px 0;
+  padding: 20px;
+  background: #f9f9f9;
+  border-radius: 8px;
+}
+
+.page__televic h2 {
+  margin-top: 0;
+  margin-bottom: 20px;
+  color: #333;
+}
+
+.page__televic h3 {
+  margin-top: 0;
+  margin-bottom: 15px;
+  color: #555;
+  font-size: 16px;
+}
+
+.televic__controls {
+  display: flex;
+  align-items: center;
+  gap: 15px;
+  flex-wrap: wrap;
+  margin-bottom: 20px;
+}
+
+.televic__field {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.televic__field label {
+  font-weight: 500;
+  color: #555;
+}
+
+.televic__field input {
+  padding: 8px 12px;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+}
+
+.badge {
+  display: inline-block;
+  padding: 4px 12px;
+  border-radius: 12px;
+  font-size: 12px;
+  background: #e3f2fd;
+  color: #1976d2;
+  font-weight: 500;
+}
+
+.televic__panels {
+  display: flex;
+  gap: 30px;
+  margin-top: 20px;
+}
+
+.televic__panel {
+  flex: 1;
+  background: white;
+  padding: 20px;
+  border-radius: 8px;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
+
+.televic__list {
+  max-height: 300px;
+  overflow-y: auto;
+  border: 1px solid #e0e0e0;
+  border-radius: 6px;
+  padding: 10px;
+  background: #fafafa;
+}
+
+.televic__list ul {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+
+.televic__list li {
+  padding: 8px 0;
+  border-bottom: 1px solid #f0f0f0;
+}
+
+.televic__list li:last-child {
+  border-bottom: none;
+}
+
+.btn-small {
+  padding: 4px 12px !important;
+  font-size: 12px !important;
+  min-width: auto !important;
+}
+
+.btn-danger {
+  background-color: #dc3545 !important;
+  color: white !important;
+}
+
+.btn-danger:hover {
+  background-color: #c82333 !important;
+}
+
+.btn-primary {
+  background-color: #007bff !important;
+  color: white !important;
+}
+
+.btn-primary:hover {
+  background-color: #0056b3 !important;
+}
+
+.btn-primary:disabled {
+  background-color: #6c757d !important;
+  cursor: not-allowed;
+  opacity: 0.65;
+}
+
+/* Televic Badge on Users Page */
+.televic-badge-container {
+  display: inline-block;
+  position: relative;
+  margin-left: 8px;
+  vertical-align: middle;
+}
+
+.televic-badge {
+  display: inline-block;
+  padding: 2px 6px;
+  background-color: #2196F3;
+  color: white;
+  font-size: 11px;
+  font-weight: bold;
+  border-radius: 3px;
+  cursor: help;
+  vertical-align: middle;
+}
+
+.televic-badge:hover {
+  background-color: #1976D2;
+}
+
+.badge-dot {
+  position: absolute;
+  top: -2px;
+  right: -6px;
+  width: 8px;
+  height: 8px;
+  background-color: #2196F3;
+  border-radius: 50%;
+  border: 2px solid white;
+  box-shadow: 0 0 4px rgba(0,0,0,0.3);
+  z-index: 1;
+}
+
+/* Fix for white icons - only invert on light background (LinkProfile page) */
+.action-small img[src*="icon_30.png"],
+.action-small img[src*="icon_31.png"],
+.action-small img[src*="icon_32.png"],
+.action-small img[src*="icon_38.png"] {
+  filter: invert(1) brightness(0.5);
+}
+
+/* Keep white icons on blue buttons (Console page) - no invert */
+button.btn-primary img[src*="icon_30.png"],
+button.btn-primary img[src*="icon_31.png"],
+button.btn-primary img[src*="icon_32.png"],
+button.btn-primary img[src*="icon_38.png"],
+.btn-start img[src*="icon_30.png"],
+.btn-start img[src*="icon_31.png"],
+.btn-start img[src*="icon_32.png"],
+.btn-start img[src*="icon_38.png"] {
+  filter: none !important;
+}
+
+/* Alternative: add background to buttons with these icons on light background */
+.action-small a:has(img[src*="icon_30.png"]),
+.action-small a:has(img[src*="icon_31.png"]),
+.action-small a:has(img[src*="icon_32.png"]),
+.action-small a:has(img[src*="icon_38.png"]) {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 4px;
+}
+
+/* Keep white icons visible on colored buttons (Console page) */
+button.btn-play img[src*="icon_30.png"],
+button.btn-stop img[src*="icon_31.png"],
+button.btn-play img[src*="icon_32.png"],
+button.btn-play img[src*="icon_38.png"],
+.btn-play img[src*="icon_30.png"],
+.btn-stop img[src*="icon_31.png"],
+.btn-play img[src*="icon_32.png"],
+.btn-play img[src*="icon_38.png"] {
+  filter: none !important;
+}
+
+/* Suppress default add icon for completed button */
+.no-add-icon span:after {
+  content: none !important;
+  display: none !important;
+}
+
+/* Контейнер для списка участников с ограниченной высотой и скроллом */
+.participants-table-wrapper {
+  max-height: 400px; /* Высота примерно для 10 участников */
+  overflow-y: auto;
+  border: 1px solid #e0e0e0;
+  border-radius: 4px;
 }

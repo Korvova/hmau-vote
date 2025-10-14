@@ -1,13 +1,15 @@
 import React, { useEffect, useState } from 'react';
 import './ModalHeader.css';
-import { getVoteTemplates, getVoteProcedures, startVote } from '../utils/api.js';
+import { getVoteTemplates, getVoteProcedures, getDurationTemplates, startVote } from '../utils/api.js';
 
-function StartVoteModal({ open, agendaItemId, onClose, onStarted }) {
+function StartVoteModal({ open, agendaItemId, defaultProcedureId, onClose, onStarted }) {
   const [templates, setTemplates] = useState([]);
   const [procedures, setProcedures] = useState([]);
+  const [durationTemplates, setDurationTemplates] = useState([]);
   const [templateId, setTemplateId] = useState('');
   const [question, setQuestion] = useState('');
   const [duration, setDuration] = useState('');
+  const [durationTemplateId, setDurationTemplateId] = useState('');
   const [procedureId, setProcedureId] = useState('');
   const [voteType, setVoteType] = useState('OPEN');
   const [loading, setLoading] = useState(false);
@@ -16,14 +18,23 @@ function StartVoteModal({ open, agendaItemId, onClose, onStarted }) {
     if (!open) return;
     (async () => {
       try {
-        const [tmpl, proc] = await Promise.all([getVoteTemplates(), getVoteProcedures()]);
+        const [tmpl, proc, durTmpl] = await Promise.all([
+          getVoteTemplates(),
+          getVoteProcedures(),
+          getDurationTemplates()
+        ]);
         setTemplates(Array.isArray(tmpl) ? tmpl : []);
         setProcedures(Array.isArray(proc) ? proc : []);
+        setDurationTemplates(Array.isArray(durTmpl) ? durTmpl : []);
+        // Set default procedure from meeting if provided
+        if (defaultProcedureId) {
+          setProcedureId(String(defaultProcedureId));
+        }
       } catch (e) {
         alert(e.message || 'Ошибка загрузки данных');
       }
     })();
-  }, [open]);
+  }, [open, defaultProcedureId]);
 
   useEffect(() => {
     if (templateId) {
@@ -33,6 +44,13 @@ function StartVoteModal({ open, agendaItemId, onClose, onStarted }) {
       setQuestion('');
     }
   }, [templateId, templates]);
+
+  useEffect(() => {
+    if (durationTemplateId) {
+      const selected = durationTemplates.find((t) => String(t.id) === String(durationTemplateId));
+      setDuration(selected ? String(selected.durationInSeconds) : '');
+    }
+  }, [durationTemplateId, durationTemplates]);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -95,10 +113,18 @@ function StartVoteModal({ open, agendaItemId, onClose, onStarted }) {
       disabled: !!templateId,
     },
     {
+      name: 'durationTemplateId',
+      label: 'Шаблон времени',
+      type: 'select',
+      options: [{ value: '', label: 'Не выбран' }, ...durationTemplates.map((t) => ({ value: t.id, label: t.name }))],
+      required: false,
+    },
+    {
       name: 'duration',
       label: 'Время (сек)',
       type: 'number',
       required: true,
+      disabled: !!durationTemplateId,
     },
     {
       name: 'procedureId',
@@ -106,6 +132,7 @@ function StartVoteModal({ open, agendaItemId, onClose, onStarted }) {
       type: 'select',
       options: [{ value: '', label: 'Выберите процедуру' }, ...procedures.map((p) => ({ value: p.id, label: p.name }))],
       required: true,
+      disabled: false,
     },
     {
       name: 'voteType',
@@ -133,14 +160,15 @@ function StartVoteModal({ open, agendaItemId, onClose, onStarted }) {
   const handleChange = (fieldName, value) => {
     if (fieldName === 'templateId') setTemplateId(value);
     if (fieldName === 'question') setQuestion(value);
+    if (fieldName === 'durationTemplateId') setDurationTemplateId(value);
     if (fieldName === 'duration') setDuration(value);
     if (fieldName === 'procedureId') setProcedureId(value);
     if (fieldName === 'voteType') setVoteType(value);
   };
 
   return (
-    <div style={overlayStyle} onClick={() => onClose(false)}>
-      <div style={modalStyle} onClick={(e) => e.stopPropagation()}>
+    <div style={overlayStyle}>
+      <div style={modalStyle}>
         <div className="modal-header">
           <span className="modal-header-spacer" aria-hidden="true" />
           <h2 className="modal-title">Запуск голосования</h2>
@@ -163,6 +191,7 @@ function StartVoteModal({ open, agendaItemId, onClose, onStarted }) {
                   <select
                     name={group[0].name}
                     required={group[0].required}
+                    disabled={group[0].disabled}
                     value={
                       group[0].name === 'templateId'
                         ? templateId
@@ -171,7 +200,14 @@ function StartVoteModal({ open, agendaItemId, onClose, onStarted }) {
                         : voteType
                     }
                     onChange={(e) => handleChange(group[0].name, e.target.value)}
-                    style={{ width: '100%', padding: '12px', borderRadius: '6px', border: '1px solid #dcdcdc' }}
+                    style={{
+                      width: '100%',
+                      padding: '12px',
+                      borderRadius: '6px',
+                      border: '1px solid #dcdcdc',
+                      backgroundColor: group[0].disabled ? '#f3f4f6' : '#fff',
+                      cursor: group[0].disabled ? 'not-allowed' : 'pointer'
+                    }}
                   >
                     {group[0].options.map((opt) => (
                       <option key={opt.value} value={opt.value}>
@@ -185,7 +221,10 @@ function StartVoteModal({ open, agendaItemId, onClose, onStarted }) {
                     name={group[0].name}
                     required={group[0].required}
                     disabled={group[0].disabled}
-                    value={group[0].name === 'question' ? question : duration}
+                    value={
+                      group[0].name === 'question' ? question :
+                      group[0].name === 'duration' ? duration : ''
+                    }
                     onChange={(e) => handleChange(group[0].name, e.target.value)}
                     style={{ width: '100%', padding: '12px', borderRadius: '6px', border: '1px solid #dcdcdc' }}
                   />
@@ -203,15 +242,22 @@ function StartVoteModal({ open, agendaItemId, onClose, onStarted }) {
                       <select
                         name={field.name}
                         required={field.required}
+                        disabled={field.disabled}
                         value={
-                          field.name === 'templateId'
-                            ? templateId
-                            : field.name === 'procedureId'
-                            ? procedureId
-                            : voteType
+                          field.name === 'templateId' ? templateId :
+                          field.name === 'durationTemplateId' ? durationTemplateId :
+                          field.name === 'procedureId' ? procedureId :
+                          voteType
                         }
                         onChange={(e) => handleChange(field.name, e.target.value)}
-                        style={{ width: '100%', padding: '12px', borderRadius: '6px', border: '1px solid #dcdcdc' }}
+                        style={{
+                          width: '100%',
+                          padding: '12px',
+                          borderRadius: '6px',
+                          border: '1px solid #dcdcdc',
+                          backgroundColor: field.disabled ? '#f3f4f6' : '#fff',
+                          cursor: field.disabled ? 'not-allowed' : 'pointer'
+                        }}
                       >
                         {field.options.map((opt) => (
                           <option key={opt.value} value={opt.value}>
@@ -225,7 +271,10 @@ function StartVoteModal({ open, agendaItemId, onClose, onStarted }) {
                         name={field.name}
                         required={field.required}
                         disabled={field.disabled}
-                        value={field.name === 'question' ? question : duration}
+                        value={
+                          field.name === 'question' ? question :
+                          field.name === 'duration' ? duration : ''
+                        }
                         onChange={(e) => handleChange(field.name, e.target.value)}
                         style={{ width: '100%', padding: '12px', borderRadius: '6px', border: '1px solid #dcdcdc' }}
                       />
