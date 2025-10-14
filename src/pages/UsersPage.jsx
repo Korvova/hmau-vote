@@ -1,5 +1,4 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import axios from 'axios';
 import { io } from 'socket.io-client';
 import EditModal from '../components/EditModal.jsx';
 import DisconnectModal from '../components/DisconnectModal.jsx';
@@ -35,10 +34,9 @@ function UsersPage() {
       setLoading(true);
       setError('');
       try {
-        const [divs, us, televicLinks] = await Promise.all([
+        const [divs, us] = await Promise.all([
           getDivisions(),
           getUsers(),
-          axios.get('/api/televic/links'),
         ]);
         const processedDivs = (Array.isArray(divs) ? divs : []).map((d) => {
           const rawName = d.displayName || d.name || '';
@@ -47,14 +45,7 @@ function UsersPage() {
           return { ...d, displayName: display, system: isInvited };
         });
         setDivisions(processedDivs);
-
-        // Merge televic data
-        const televicMap = new Map((televicLinks.data || []).map((u) => [u.id, u.televicExternalId]));
-        const mergedUsers = (Array.isArray(us) ? us : []).map((u) => ({
-          ...u,
-          televicExternalId: u.televicExternalId ?? televicMap.get(u.id) ?? null,
-        }));
-        setUsers(mergedUsers);
+        setUsers(Array.isArray(us) ? us : []);
       } catch (e) {
         setError(e.message || 'Ошибка загрузки данных');
       } finally {
@@ -84,16 +75,8 @@ function UsersPage() {
 
   const reloadUsers = async () => {
     try {
-      const [us, televicLinks] = await Promise.all([
-        getUsers(),
-        axios.get('/api/televic/links'),
-      ]);
-      const televicMap = new Map((televicLinks.data || []).map((u) => [u.id, u.televicExternalId]));
-      const mergedUsers = (Array.isArray(us) ? us : []).map((u) => ({
-        ...u,
-        televicExternalId: u.televicExternalId ?? televicMap.get(u.id) ?? null,
-      }));
-      setUsers(mergedUsers);
+      const us = await getUsers();
+      setUsers(Array.isArray(us) ? us : []);
     } catch (e) {
       // silent
     }
