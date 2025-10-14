@@ -1355,5 +1355,31 @@ router.get('/:id/absent-users', async (req, res) => {
     }
   });
 
+  // PUT /api/meetings/:id/show-vote - Toggle showVoteOnBroadcast flag
+  router.put('/:id/show-vote', async (req, res) => {
+    const { id } = req.params;
+    const { show } = req.body;
+
+    try {
+      const meeting = await prisma.meeting.update({
+        where: { id: parseInt(id) },
+        data: { showVoteOnBroadcast: Boolean(show) }
+      });
+
+      // Notify all clients about the update
+      if (io) {
+        io.emit('meeting-show-vote-updated', {
+          meetingId: parseInt(id),
+          showVoteOnBroadcast: meeting.showVoteOnBroadcast
+        });
+      }
+
+      res.json({ ok: true, showVoteOnBroadcast: meeting.showVoteOnBroadcast });
+    } catch (error) {
+      console.error('Error updating showVoteOnBroadcast:', error);
+      res.status(500).json({ error: error.message });
+    }
+  });
+
   return router;
 };

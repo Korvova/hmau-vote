@@ -57,6 +57,7 @@ model Meeting {
   screenConfig Json?        // Конфигурации экранов (registration, agenda, voting, final)
   televicMeetingId Int?     // ID заседания в Televic CoCon (для зеркалирования)
   createInTelevic Boolean   @default(false) // Флаг для создания заседания в Televic при запуске
+  showVoteOnBroadcast Boolean @default(false) // Флаг для отображения результата голосования на экране трансляции
 }
 
 model AgendaItem {
