@@ -66,6 +66,7 @@ model AgendaItem {
   title       String
   speakerId   Int?
   speaker     User?       @relation(fields: [speakerId], references: [id])
+  speakerName String?     // Имя докладчика (текстовое поле, если нет привязки к User)
   meetingId   Int
   meeting     Meeting     @relation(fields: [meetingId], references: [id])
   link        String?

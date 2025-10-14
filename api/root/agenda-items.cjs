@@ -81,7 +81,7 @@ router.get('/meetings/:id/agenda-items', async (req, res) => {
  */
 router.post('/meetings/:id/agenda-items', async (req, res) => {
   const { id } = req.params;
-  const { number, title, speakerId, link } = req.body;
+  const { number, title, speakerId, link, speakerName } = req.body;
   console.log(`Adding agenda item:`, req.body);
   try {
     const agendaItem = await req.prisma.agendaItem.create({
@@ -90,11 +90,75 @@ router.post('/meetings/:id/agenda-items', async (req, res) => {
         number,
         title,
         speakerId: speakerId ? parseInt(speakerId) : null,
+        speakerName: speakerName || null,
         link,
         voting: false,
         completed: false,
       },
     });
+
+    // Если заседание создано в CoCon - добавить вопрос и туда
+    const meeting = await req.prisma.meeting.findUnique({
+      where: { id: parseInt(id) },
+      select: { televicMeetingId: true }
+    });
+
+    if (meeting?.televicMeetingId && router.io) {
+      try {
+        console.log(`[Agenda] Adding question to CoCon: number=${agendaItem.number}, title="${agendaItem.title}"`);
+
+        // Find connector socket
+        const coconNS = router.io.of('/cocon-connector');
+        let socket = null;
+        for (const [sid, sock] of coconNS.sockets) {
+          socket = sock;
+          break;
+        }
+
+        if (socket) {
+          const commandId = require('crypto').randomUUID();
+
+          // Wait for result with timeout
+          const result = await new Promise((resolve, reject) => {
+            const timeout = setTimeout(() => {
+              socket.off('connector:command:result', handler);
+              reject(new Error('Timeout waiting for CoCon response'));
+            }, 10000);
+
+            const handler = (msg) => {
+              if (msg && msg.id === commandId) {
+                clearTimeout(timeout);
+                socket.off('connector:command:result', handler);
+                resolve(msg);
+              }
+            };
+
+            socket.on('connector:command:result', handler);
+            socket.emit('server:command:exec', {
+              id: commandId,
+              type: 'AddQuestionInAgenda',
+              payload: {
+                Number: agendaItem.number,
+                Name: agendaItem.title,
+                Description: agendaItem.speakerName || ''
+              }
+            });
+          });
+
+          if (result.ok) {
+            console.log(`[Agenda] Question added to CoCon successfully, id=${result.data?.id}`);
+          } else {
+            console.error(`[Agenda] Failed to add question to CoCon:`, result.error);
+          }
+        } else {
+          console.log(`[Agenda] No CoCon connector online - skipping`);
+        }
+      } catch (e) {
+        console.error('[Agenda] Failed to add question to CoCon:', e.message);
+        // Не останавливаем выполнение - продолжаем работу даже если коннектор недоступен
+      }
+    }
+
     res.json(agendaItem);
   } catch (error) {
     console.error('Error adding agenda item:', error);
