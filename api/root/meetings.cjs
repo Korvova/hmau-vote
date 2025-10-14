@@ -1204,6 +1204,51 @@ router.get('/:id/absent-users', async (req, res) => {
               console.log('[Televic] Finished adding delegates');
             }
 
+            // Add agenda items to CoCon
+            try {
+              console.log('[Televic] Fetching agenda items from database...');
+              const agendaItems = await prisma.agendaItem.findMany({
+                where: { meetingId: parseInt(id) },
+                orderBy: { number: 'asc' },
+                include: {
+                  speaker: {
+                    select: { name: true }
+                  }
+                }
+              });
+
+              if (agendaItems.length > 0) {
+                console.log(`[Televic] Found ${agendaItems.length} agenda items, adding to CoCon...`);
+
+                for (const item of agendaItems) {
+                  try {
+                    const agendaParams = {
+                      Title: item.title || `Вопрос ${item.number}`,
+                      Des: item.speaker?.name || '',  // Description = speaker name
+                      Sequence: String(item.number),  // Sequence number (1, 2, 3, etc.)
+                      Type: 'Discussion'  // Default type
+                    };
+
+                    console.log(`[Televic] Adding agenda item ${item.number}: "${agendaParams.Title}"...`);
+                    const addResult = await sendCommand('/Meeting_Agenda/AddAgendaItem', agendaParams);
+
+                    if (addResult.ok) {
+                      console.log(`[Televic] Successfully added agenda item ${item.number}`);
+                    } else {
+                      console.error(`[Televic] Failed to add agenda item ${item.number}:`, addResult.error);
+                    }
+                  } catch (e) {
+                    console.error(`[Televic] Error adding agenda item ${item.number}:`, e.message);
+                  }
+                }
+                console.log('[Televic] Finished adding agenda items');
+              } else {
+                console.log('[Televic] No agenda items found in database');
+              }
+            } catch (e) {
+              console.error('[Televic] Failed to fetch/add agenda items:', e.message);
+            }
+
             // Force meeting state to Running (in case it was created in New state)
             console.log('[Televic] Setting meeting state to Running...');
             try {
