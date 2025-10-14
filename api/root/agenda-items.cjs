@@ -116,40 +116,16 @@ router.post('/meetings/:id/agenda-items', async (req, res) => {
         }
 
         if (socket) {
-          const commandId = require('crypto').randomUUID();
-
-          // Wait for result with timeout
-          const result = await new Promise((resolve, reject) => {
-            const timeout = setTimeout(() => {
-              socket.off('connector:command:result', handler);
-              reject(new Error('Timeout waiting for CoCon response'));
-            }, 10000);
-
-            const handler = (msg) => {
-              if (msg && msg.id === commandId) {
-                clearTimeout(timeout);
-                socket.off('connector:command:result', handler);
-                resolve(msg);
-              }
-            };
-
-            socket.on('connector:command:result', handler);
-            socket.emit('server:command:exec', {
-              id: commandId,
-              type: 'AddQuestionInAgenda',
-              payload: {
-                Number: agendaItem.number,
-                Name: agendaItem.title,
-                Description: agendaItem.speakerName || ''
-              }
-            });
+          socket.emit('server:command:exec', {
+            id: require('crypto').randomUUID(),
+            type: 'AddQuestionInAgenda',
+            payload: {
+              Number: agendaItem.number,
+              Name: agendaItem.title,
+              Description: agendaItem.speakerName || ''
+            }
           });
-
-          if (result.ok) {
-            console.log(`[Agenda] Question added to CoCon successfully, id=${result.data?.id}`);
-          } else {
-            console.error(`[Agenda] Failed to add question to CoCon:`, result.error);
-          }
+          console.log(`[Agenda] Command sent to CoCon connector`);
         } else {
           console.log(`[Agenda] No CoCon connector online - skipping`);
         }
