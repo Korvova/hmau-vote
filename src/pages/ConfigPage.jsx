@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { getMeetings, logout as apiLogout } from '../utils/api.js';
 import HeaderDropdown from '../components/HeaderDropdown.jsx';
+import '../components/ModalHeader.css';
 
 function ConfigPage() {
   const [configOpen, setConfigOpen] = useState(false);
@@ -40,6 +41,8 @@ function ConfigPage() {
             endTime: et,
             divisions: m.divisions || '',
             status: m.status || 'WAITING',
+            televicMeetingId: m.televicMeetingId,
+            createInTelevic: m.createInTelevic || false,
           };
         });
         setRows(normalized);
@@ -152,7 +155,10 @@ function ConfigPage() {
                   <tbody>
                     {(rows || []).map((m) => (
                       <tr key={m.id}>
-                        <td>{m.name}</td>
+                        <td>
+                          {m.name}
+                          {m.createInTelevic && <span className="televic-badge-table" title="Будет создано в Televic CoCon">T</span>}
+                        </td>
                         <td className="date">{m.startDate} <span>{m.startTime}</span></td>
                         <td className="date">{m.endDate} <span>{m.endTime}</span></td>
                         <td>{m.divisions}</td>

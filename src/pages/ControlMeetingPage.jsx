@@ -420,14 +420,39 @@ function ControlMeetingPage() {
   }, [meetingTimerLeft]);
 
   const startMeeting = async () => {
+    console.log('[ControlMeetingPage] startMeeting clicked, meeting status:', meeting?.status);
+    console.log('[ControlMeetingPage] meeting object:', meeting);
+
     if (meeting?.status === 'IN_PROGRESS') {
+      console.log('[ControlMeetingPage] Meeting is IN_PROGRESS, will stop it');
       try {
+        // Stop meeting in database
+        console.log('[ControlMeetingPage] Stopping meeting in database...');
         await apiRequest(`/api/meetings/${id}/status`, { method: 'POST', body: JSON.stringify({ status: 'COMPLETED' }) });
+        console.log('[ControlMeetingPage] Meeting stopped in database');
+
+        // Stop meeting in Televic CoCon if it was created there
+        console.log('[ControlMeetingPage] Checking if meeting has televicMeetingId:', meeting?.televicMeetingId);
+        if (meeting?.televicMeetingId) {
+          console.log('[ControlMeetingPage] Meeting has televicMeetingId, will stop in CoCon');
+          try {
+            console.log('[ControlMeetingPage] Calling /api/televic/meeting/stop with meetingId:', id);
+            await axios.post('/api/televic/meeting/stop', { meetingId: id });
+            console.log('[Televic] Meeting stopped in CoCon successfully!');
+          } catch (televicError) {
+            console.error('[Televic] Failed to stop meeting in CoCon:', televicError);
+            // Don't fail the whole operation if Televic stop fails
+          }
+        } else {
+          console.log('[ControlMeetingPage] Meeting does NOT have televicMeetingId, skipping CoCon stop');
+        }
+
         setMeeting((prev) => (prev ? { ...prev, status: 'COMPLETED' } : prev));
         const rs = await getVoteResults(id).catch(() => []);
         setResults(Array.isArray(rs) ? rs : []);
         alert('Заседание завершено');
       } catch (e) {
+        console.error('[ControlMeetingPage] Error stopping meeting:', e);
         alert(e.message || 'Не удалось завершить заседание');
       }
     } else {

@@ -32,23 +32,6 @@ function isReservedName(name) {
  */
 router.get('/', async (req, res) => {
   try {
-    // Ensure exactly one system division exists (canonical name without emoji)
-    try {
-      const all = await prisma.division.findMany({ select: { id: true, name: true } });
-      const matches = (all || []).filter((d) => isReservedName(d.name));
-      if (!matches.length) {
-        await prisma.division.create({ data: { name: 'Приглашенные' } });
-      } else if (matches.length > 1) {
-        // Keep the first, rename extras to distinct names to avoid confusion
-        for (let i = 1; i < matches.length; i++) {
-          const m = matches[i];
-          await prisma.division.update({ where: { id: m.id }, data: { name: `Приглашенные (дубликат ${m.id})` } });
-        }
-      } else if (matches[0] && matches[0].name !== 'Приглашенные') {
-        await prisma.division.update({ where: { id: matches[0].id }, data: { name: 'Приглашенные' } });
-      }
-    } catch {}
-
     const divisions = await prisma.division.findMany({
       include: { users: true },
     });

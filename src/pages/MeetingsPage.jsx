@@ -2,6 +2,7 @@
 import MeetingModal from '../components/MeetingModal.jsx';
 import ParticipantsModal from '../components/ParticipantsModal.jsx';
 import HeaderDropdown from '../components/HeaderDropdown.jsx';
+import '../components/ModalHeader.css';
 import { getDivisions, getUsers, getMeetings, getMeeting, createMeeting, updateMeeting, deleteMeeting, archiveMeeting, logout as apiLogout } from '../utils/api.js';
 
 function MeetingsPage() {
@@ -56,7 +57,7 @@ function MeetingsPage() {
           const st = s ? `${pad(s.getHours())}:${pad(s.getMinutes())}` : '';
           const ed = e ? `${e.getFullYear()}-${pad(e.getMonth()+1)}-${pad(e.getDate())}` : '';
           const et = e ? `${pad(e.getHours())}:${pad(e.getMinutes())}` : '';
-          return { id: m.id, title: m.name, startDate: sd, startTime: st, endDate: ed, endTime: et, divisions: m.divisions || '', status: m.status || 'WAITING' };
+          return { id: m.id, title: m.name, startDate: sd, startTime: st, endDate: ed, endTime: et, divisions: m.divisions || '', status: m.status || 'WAITING', televicMeetingId: m.televicMeetingId, createInTelevic: m.createInTelevic || false };
         });
         setRows(normalized);
       } catch {}
@@ -140,6 +141,7 @@ function MeetingsPage() {
         divisionIds: formData.divisionIds || [],
         agendaItems: (formData.agenda || []).map(a => ({ number: a.number, title: a.title, speakerId: a.speakerId ?? null, speakerName: a.speakerName ?? null, link: a.link ?? null })),
         voteProcedureId: formData.voteProcedureId ?? null,
+        createInTelevic: formData.createInTelevic ?? false,
       };
 
       let createdId = null;
@@ -161,7 +163,7 @@ function MeetingsPage() {
         const st = formatTime(s);
         const ed = formatDate(e);
         const et = formatTime(e);
-        return { id: m.id, title: m.name, startDate: sd, startTime: st, endDate: ed, endTime: et, divisions: m.divisions || "", status: m.status || "WAITING" };
+        return { id: m.id, title: m.name, startDate: sd, startTime: st, endDate: ed, endTime: et, divisions: m.divisions || "", status: m.status || "WAITING", televicMeetingId: m.televicMeetingId, createInTelevic: m.createInTelevic || false };
       });
       setRows(normalized);
 
@@ -310,7 +312,10 @@ function MeetingsPage() {
                   <tbody>
                     {rows.map((m) => (
                       <tr key={m.id}>
-                        <td>{m.title}</td>
+                        <td>
+                          {m.title}
+                          {m.createInTelevic && <span className="televic-badge-table" title="Будет создано в Televic CoCon">T</span>}
+                        </td>
                         <td className="date">{m.startDate} <span>{m.startTime}</span></td>
                         <td className="date">{m.endDate} <span>{m.endTime}</span></td>
                         <td>{m.divisions}</td>

@@ -322,7 +322,7 @@ app.use('/api/test', require(path.join(__dirname, 'root/test.cjs')));
 app.use('/api', require('./root/auth.cjs'));
 app.use('/api/users', require('./root/users.cjs')(prisma));
 app.use('/api/divisions', require('./root/divisions.cjs'));
-app.use('/api/meetings', require('./root/meetings.cjs')(prisma, pgClient));
+app.use('/api/meetings', require('./root/meetings.cjs')(prisma, pgClient, io));
 app.use('/api/device-links', require('./root/device-links.cjs'));
 app.use('/api-docs', require('./root/swagger.cjs'));
 app.use('/api/users/excel', require('./root/excel.cjs'));
@@ -331,7 +331,7 @@ app.use('/api', require('./root/agenda-items.cjs')(prisma));
 app.use('/api', require('./root/vote-procedures.cjs')(prisma));
 app.use('/api', require('./root/vote-templates.cjs')(prisma));
 app.use('/api', require('./root/vote.cjs')(prisma, pgClient));
-app.use('/api/televic', require('./root/televic.cjs'));
+app.use('/api/televic', require('./root/televic.cjs')(prisma, pgClient, io));
 
 // Manual end of vote for an agenda item
 // Important: implemented here to avoid touching files in api/root
@@ -603,6 +603,37 @@ coconNS.on('connection', (socket) => {
           userId: evt.userId,
           voteResultId: evt.voteResultId,
           choice: evt.choice,
+        });
+      } else if (evt.type === 'BadgeEvent') {
+        // Handle BadgeEvent from connector
+        const { delegateId, badgeInserted } = evt.data || {};
+
+        if (delegateId === undefined) return;
+
+        console.log(`[BadgeEvent] Delegate ${delegateId}: badge ${badgeInserted ? 'inserted' : 'removed'}`);
+
+        // Find user by televicExternalId
+        const user = await prisma.user.findUnique({
+          where: { televicExternalId: String(delegateId) }
+        });
+
+        if (!user) {
+          console.log(`[BadgeEvent] No user found with televicExternalId=${delegateId}`);
+          return;
+        }
+
+        // Update user badge status in database
+        await prisma.user.update({
+          where: { id: user.id },
+          data: { isBadgeInserted: badgeInserted }
+        });
+
+        console.log(`[BadgeEvent] User ${user.name} (id=${user.id}): badge ${badgeInserted ? 'inserted' : 'removed'}`);
+
+        // Emit to all connected clients
+        io.emit('badge-status-changed', {
+          userId: user.id,
+          isBadgeInserted: badgeInserted
         });
       }
     } catch (e) {

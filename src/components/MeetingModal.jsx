@@ -14,6 +14,7 @@ function MeetingModal({ open, data, divisions = [], users = [], title = 'Ред�
   const [voteProcedureId, setVoteProcedureId] = useState(null);
   const [voteProcedures, setVoteProcedures] = useState([]);
   const [quorumType, setQuorumType] = useState(null);
+  const [createInTelevic, setCreateInTelevic] = useState(false);
 
   useEffect(() => {
     if (!open) return;
@@ -147,6 +148,31 @@ function MeetingModal({ open, data, divisions = [], users = [], title = 'Ред�
     e?.preventDefault?.();
     const [sd, st] = (form.startAt || '').split('T');
     const [ed, et] = (form.endAt || '').split('T');
+
+    // Проверка 1: Время начала должно быть в будущем при создании заседания с Televic
+    if (createInTelevic && form.startAt) {
+      const startDateTime = new Date(form.startAt);
+      const now = new Date();
+
+      if (startDateTime <= now) {
+        alert('⚠️ Внимание!\n\nПри создании заседания с Televic время начала должно быть в будущем.\n\nТекущее время: ' + now.toLocaleString('ru-RU') + '\nВыбранное время: ' + startDateTime.toLocaleString('ru-RU'));
+        return;
+      }
+    }
+
+    // Проверка 2: Предупреждение о завершении активных заседаний в Televic
+    if (createInTelevic && !data?.id) {
+      const confirmed = confirm(
+        '⚠️ ВНИМАНИЕ!\n\n' +
+        'При создании заседания с Televic все активные заседания в CoCon будут автоматически завершены.\n\n' +
+        'Продолжить?'
+      );
+
+      if (!confirmed) {
+        return;
+      }
+    }
+
     const payload = {
       title: form.title,
       startDate: sd || '',
@@ -158,6 +184,7 @@ function MeetingModal({ open, data, divisions = [], users = [], title = 'Ред�
       agenda: agenda.map((a, idx) => ({ number: idx + 1, ...a })),
       voteProcedureId: voteProcedureId,
       quorumType: quorumType,
+      createInTelevic: createInTelevic,
     };
     onSubmit?.(payload, password);
   };
@@ -166,6 +193,31 @@ function MeetingModal({ open, data, divisions = [], users = [], title = 'Ред�
     e?.preventDefault?.();
     const [sd, st] = (form.startAt || '').split('T');
     const [ed, et] = (form.endAt || '').split('T');
+
+    // Проверка 1: Время начала должно быть в будущем при создании заседания с Televic
+    if (createInTelevic && form.startAt) {
+      const startDateTime = new Date(form.startAt);
+      const now = new Date();
+
+      if (startDateTime <= now) {
+        alert('⚠️ Внимание!\n\nПри создании заседания с Televic время начала должно быть в будущем.\n\nТекущее время: ' + now.toLocaleString('ru-RU') + '\nВыбранное время: ' + startDateTime.toLocaleString('ru-RU'));
+        return;
+      }
+    }
+
+    // Проверка 2: Предупреждение о завершении активных заседаний в Televic
+    if (createInTelevic && !data?.id) {
+      const confirmed = confirm(
+        '⚠️ ВНИМАНИЕ!\n\n' +
+        'При создании заседания с Televic все активные заседания в CoCon будут автоматически завершены.\n\n' +
+        'Продолжить?'
+      );
+
+      if (!confirmed) {
+        return;
+      }
+    }
+
     const payload = {
       title: form.title,
       startDate: sd || '',
@@ -177,6 +229,7 @@ function MeetingModal({ open, data, divisions = [], users = [], title = 'Ред�
       agenda: agenda.map((a, idx) => ({ number: idx + 1, ...a })),
       voteProcedureId: voteProcedureId,
       quorumType: quorumType,
+      createInTelevic: createInTelevic,
       openParticipantsAfterSave: true, // Флаг для родителя
     };
     onSubmit?.(payload, password);
@@ -318,6 +371,25 @@ function MeetingModal({ open, data, divisions = [], users = [], title = 'Ред�
               <option value="TWO_THIRDS_OF_TOTAL">2/3 от установленного</option>
               <option value="HALF_PLUS_ONE">Половина +1</option>
             </select>
+          </div>
+
+          {/* Создать в Televic */}
+          <div style={{ marginBottom: 16 }}>
+            <label style={{ display: 'flex', alignItems: 'center', cursor: 'pointer', fontSize: 14 }}>
+              <input
+                type="checkbox"
+                checked={createInTelevic}
+                onChange={(e) => setCreateInTelevic(e.target.checked)}
+                style={{ marginRight: 8, width: 18, height: 18, cursor: 'pointer' }}
+              />
+              <span style={{ fontWeight: 500 }}>Сайт + Televic</span>
+              <span className="televic-badge" title="Создать зеркальное заседание в Televic CoCon" style={{ marginLeft: 8 }}>T</span>
+            </label>
+            {createInTelevic && (
+              <div style={{ marginTop: 8, fontSize: 13, color: '#6b7280', paddingLeft: 26 }}>
+                Заседание будет создано в Televic CoCon с режимом "Free seating + badge"
+              </div>
+            )}
           </div>
 
           {/* Вопросы */}

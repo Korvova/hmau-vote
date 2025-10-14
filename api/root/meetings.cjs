@@ -1,7 +1,8 @@
 ﻿const express = require('express');
+const axios = require('axios');
 const router = express.Router();
 
-module.exports = (prisma, pgClient) => {
+module.exports = (prisma, pgClient, io) => {
   /**
    * @api {get} /api/meetings РџРѕР»СѓС‡РµРЅРёРµ СЃРїРёСЃРєР° РІСЃРµС… РЅРµР°СЂС…РёРІРёСЂРѕРІР°РЅРЅС‹С… Р·Р°СЃРµРґР°РЅРёР№
    * @apiName РџРѕР»СѓС‡РµРЅРёРµРќРµР°СЂС…РёРІРёСЂРѕРІР°РЅРЅС‹С…Р—Р°СЃРµРґР°РЅРёР№
@@ -50,6 +51,8 @@ module.exports = (prisma, pgClient) => {
         status: meeting.status,
         divisions: meeting.divisions.map(d => isReservedName(d.name) ? '👥Приглашенные' : d.name).join(', ') || 'РќРµС‚',
         isArchived: meeting.isArchived,
+        televicMeetingId: meeting.televicMeetingId || null,
+        createInTelevic: meeting.createInTelevic || false, // Show T badge based on this flag
       })));
     } catch (error) {
       console.error('РћС€РёР±РєР° РїСЂРё РїРѕР»СѓС‡РµРЅРёРё СЃРїРёСЃРєР° Р·Р°СЃРµРґР°РЅРёР№:', error);
@@ -105,6 +108,8 @@ module.exports = (prisma, pgClient) => {
         status: meeting.status,
         divisions: meeting.divisions.map(d => isReservedName(d.name) ? '👥Приглашенные' : d.name).join(', ') || 'РќРµС‚',
         isArchived: meeting.isArchived,
+        televicMeetingId: meeting.televicMeetingId || null,
+        createInTelevic: meeting.createInTelevic || false, // Show T badge based on this flag
       })));
     } catch (error) {
       console.error('РћС€РёР±РєР° РїСЂРё РїРѕР»СѓС‡РµРЅРёРё СЃРїРёСЃРєР° Р°СЂС…РёРІРёСЂРѕРІР°РЅРЅС‹С… Р·Р°СЃРµРґР°РЅРёР№:', error);
@@ -246,7 +251,14 @@ module.exports = (prisma, pgClient) => {
     try {
       const meeting = await prisma.meeting.findUnique({
         where: { id: parseInt(id) },
-        include: { divisions: true, agendaItems: true },
+        include: {
+          divisions: {
+            include: {
+              users: true
+            }
+          },
+          agendaItems: true
+        },
       });
       if (!meeting) {
         return res.status(404).json({ error: 'Meeting not found' });
@@ -263,11 +275,12 @@ module.exports = (prisma, pgClient) => {
         }
       };
 
-      // Process divisions with proper display names
+      // Process divisions with proper display names and include users
       const processedDivisions = (meeting.divisions || []).map(d => ({
         id: d.id,
         name: d.name,
         displayName: isReservedName(d.name) ? '👥Приглашенные' : d.name,
+        users: d.users || []
       }));
 
       const response = {
@@ -279,6 +292,7 @@ module.exports = (prisma, pgClient) => {
         divisions: processedDivisions,
         divisionsText: processedDivisions.map(d => d.displayName).join(', ') || 'РќРµС‚',
         isArchived: meeting.isArchived,
+        televicMeetingId: meeting.televicMeetingId || null,
         agendaItems: meeting.agendaItems.map(item => ({ id: item.id, number: item.number, title: item.title, speakerId: item.speakerId, link: item.link, voting: item.voting, completed: item.completed, activeIssue: item.activeIssue })),
       };
 
@@ -320,9 +334,26 @@ module.exports = (prisma, pgClient) => {
    *     curl -X POST -H "Content-Type: application/json" -d '{"name":"РќРѕРІРѕРµ Р·Р°СЃРµРґР°РЅРёРµ","startTime":"2025-06-03T10:00:00Z","endTime":"2025-06-03T12:00:00Z","divisionIds":[1,2],"agendaItems":[{"number":1,"title":"Р’РѕРїСЂРѕСЃ 1","speakerId":26,"link":"https://example.com"}]}' http://217.114.10.226:5000/api/meetings
    */
   router.post('/', async (req, res) => {
-    const { name, startTime, endTime, divisionIds, agendaItems } = req.body;
+    const { name, startTime, endTime, divisionIds, agendaItems, createInTelevic } = req.body;
     console.log('Received meeting data:', req.body);
     try {
+      // Check if Televic connector is online when createInTelevic is requested
+      if (createInTelevic && io) {
+        const coconNS = io.of('/cocon-connector');
+        let hasConnector = false;
+        for (const [sid, sock] of coconNS.sockets) {
+          hasConnector = true;
+          break;
+        }
+
+        if (!hasConnector) {
+          console.log('[Televic] Connector not online, rejecting meeting creation');
+          return res.status(400).json({
+            error: 'Не подключен коннектор!'
+          });
+        }
+      }
+
       const meeting = await prisma.meeting.create({
         data: {
           name,
@@ -330,6 +361,7 @@ module.exports = (prisma, pgClient) => {
           endTime: new Date(endTime),
           status: 'WAITING',
           isArchived: false,
+          createInTelevic: createInTelevic || false, // Save flag for later
           divisions: {
             connect: divisionIds && Array.isArray(divisionIds) ? divisionIds.map(id => ({ id: parseInt(id) })) : [],
           },
@@ -345,6 +377,195 @@ module.exports = (prisma, pgClient) => {
           },
         },
       });
+
+      // NOTE: Televic meeting creation moved to "Start Meeting" button
+      // The meeting will be created in Televic when user clicks "Start" on /console page
+      // This allows creating meeting templates without immediately starting them in CoCon
+
+      /* COMMENTED OUT - Will be moved to start meeting endpoint
+      if (createInTelevic && io) {
+        // Don't await - do it in background
+        (async () => {
+          try {
+            // Get linked delegates from selected divisions
+            const linkedUsers = await prisma.user.findMany({
+              where: {
+                divisionId: { in: divisionIds && Array.isArray(divisionIds) ? divisionIds.map(id => parseInt(id)) : [] },
+                televicExternalId: { not: null }
+              },
+              select: { televicExternalId: true }
+            });
+            const delegateIds = linkedUsers.map(u => u.televicExternalId).filter(Boolean);
+
+            console.log('[Televic] Creating mirror meeting for:', meeting.id, 'delegates:', delegateIds);
+
+            // Find connector socket
+            const coconNS = io.of('/cocon-connector');
+            let socket = null;
+            for (const [sid, sock] of coconNS.sockets) {
+              socket = sock;
+              break;
+            }
+
+            if (!socket) {
+              console.log('[Televic] No connector online, skipping meeting creation');
+              return;
+            }
+
+            // Helper to send command
+            const sendCommand = async (url, query = {}) => {
+              const commandId = require('crypto').randomUUID();
+              return new Promise((resolve, reject) => {
+                const timeout = setTimeout(() => {
+                  socket.off('connector:command:result', handler);
+                  reject(new Error(`Timeout: ${url}`));
+                }, 15000);
+
+                const handler = (msg) => {
+                  if (msg && msg.id === commandId) {
+                    clearTimeout(timeout);
+                    socket.off('connector:command:result', handler);
+                    resolve(msg);
+                  }
+                };
+
+                socket.on('connector:command:result', handler);
+                socket.emit('server:command:exec', {
+                  id: commandId,
+                  type: 'ConnectorHttp',
+                  payload: { method: 'GET', url, query }
+                });
+              });
+            };
+
+            // Step 1: End all active meetings (Running, Paused, New)
+            console.log('[Televic] Getting all meetings to check for active ones...');
+            const getAllResult = await sendCommand('/Meeting_Agenda/GetAllMeetings');
+
+            if (getAllResult.ok && getAllResult.data) {
+              const allMeetingsData = getAllResult.data.data;
+              const parsed = typeof allMeetingsData === 'string' ? JSON.parse(allMeetingsData) : allMeetingsData;
+              const activeMeetings = parsed?.GetAllMeetings?.Meetings?.filter(m =>
+                m.State === 'Running' || m.State === 'Paused' || m.State === 'New'
+              ) || [];
+
+              console.log('[Televic] Active meetings to end:', activeMeetings.map(m => `ID ${m.Id} "${m.Title}" (${m.State})`));
+
+              // End each active meeting using SetMeetingState API
+              for (const activeMeeting of activeMeetings) {
+                console.log(`[Televic] Ending meeting ID ${activeMeeting.Id}...`);
+                const endResult = await sendCommand('/Meeting_Agenda/SetMeetingState', {
+                  State: 'Ended',
+                  MeetingId: activeMeeting.Id
+                });
+
+                console.log(`[Televic] SetMeetingState result for ID ${activeMeeting.Id}:`, JSON.stringify(endResult));
+
+                if (endResult.ok) {
+                  console.log(`[Televic] Successfully ended meeting ID ${activeMeeting.Id}`);
+                } else {
+                  console.error(`[Televic] Failed to end meeting ID ${activeMeeting.Id}:`, endResult.error);
+                }
+              }
+            }
+
+            // Step 2: Create new meeting in Televic
+            // Format dates: 2017/6/5 00:00:00
+            const formatDate = (d) => {
+              if (!d) return null;
+              const dt = new Date(d);
+              const pad = (n) => String(n).padStart(2, '0');
+              return `${dt.getFullYear()}/${dt.getMonth()+1}/${dt.getDate()} ${pad(dt.getHours())}:${pad(dt.getMinutes())}:${pad(dt.getSeconds())}`;
+            };
+
+            // Ensure From time is at least 60 seconds in the future from NOW
+            let fromDateTime = startTime ? new Date(startTime) : new Date();
+            const now = new Date();
+            const minFutureTime = new Date(now.getTime() + 60000); // +1 minute minimum
+
+            if (fromDateTime <= minFutureTime) {
+              console.log('[Televic] Warning: Start time is too close or in the past, adjusting to now + 1 minute');
+              console.log('[Televic] Original time:', fromDateTime.toISOString());
+              console.log('[Televic] Current time:', now.toISOString());
+              fromDateTime = minFutureTime;
+            }
+
+            // Ensure To time is after From time
+            let toDateTime = endTime ? new Date(endTime) : new Date(fromDateTime.getTime() + 3600000);
+            if (toDateTime <= fromDateTime) {
+              console.log('[Televic] Warning: End time is before start time, adjusting to start + 1 hour');
+              toDateTime = new Date(fromDateTime.getTime() + 3600000); // +1 hour
+            }
+
+            const fromTime = formatDate(fromDateTime);
+            const toTime = formatDate(toDateTime);
+
+            console.log('[Televic] Meeting times - From:', fromTime, 'To:', toTime);
+
+            const createResult = await sendCommand('/Meeting_Agenda/StartEmptyMeeting', {
+              Title: name,
+              From: fromTime,
+              To: toTime,
+              LoginMethod: 2, // Free seating, must authenticate
+              AuthenticationMode: 0, // Internal
+              AuthenticationType: 1  // Badge only
+            });
+
+            console.log('[Televic] Raw result:', JSON.stringify(createResult));
+
+            if (!createResult.ok || !createResult.data) {
+              console.error('[Televic] Failed to create meeting:', createResult.error || 'Unknown error');
+              return;
+            }
+
+            const meetingData = createResult.data.data;
+            console.log('[Televic] Meeting data type:', typeof meetingData);
+            console.log('[Televic] Meeting data:', meetingData);
+            const parsed = typeof meetingData === 'string' ? JSON.parse(meetingData) : meetingData;
+            console.log('[Televic] Parsed data:', JSON.stringify(parsed));
+            const televicMeetingId = parsed?.StartEmptyMeeting?.MeetingId || null;
+
+            if (!televicMeetingId) {
+              console.error('[Televic] No MeetingId returned');
+              return;
+            }
+
+            console.log('[Televic] Created meeting ID:', televicMeetingId);
+
+            // Add delegates
+            if (delegateIds.length > 0) {
+              for (const delegateId of delegateIds) {
+                try {
+                  await sendCommand('/Meeting_Agenda/AddDelegatesToMeeting', {
+                    MeetingId: televicMeetingId,
+                    DelegateIds: String(delegateId)
+                  });
+                } catch (e) {
+                  console.error(`[Televic] Failed to add delegate ${delegateId}:`, e.message);
+                }
+              }
+            }
+
+            // Update database
+            await prisma.meeting.update({
+              where: { id: Number(meeting.id) },
+              data: { televicMeetingId: Number(televicMeetingId) }
+            });
+
+            console.log('[Televic] Mirror meeting created successfully');
+
+            // Notify all clients about the update
+            io.emit('meeting:updated', {
+              meetingId: Number(meeting.id),
+              televicMeetingId: Number(televicMeetingId)
+            });
+          } catch (televicError) {
+            console.error('[Televic] Failed to create mirror meeting:', televicError.message);
+          }
+        })();
+      }
+      */
+
       res.json(meeting);
     } catch (error) {
       console.error('РћС€РёР±РєР° РїСЂРё СЃРѕР·РґР°РЅРёРё Р·Р°СЃРµРґР°РЅРёСЏ:', error);
@@ -800,6 +1021,226 @@ router.get('/:id/absent-users', async (req, res) => {
     const { id } = req.params;
     const { status } = req.body;
     try {
+      // First, fetch meeting to check if we need to create in Televic
+      const existingMeeting = await prisma.meeting.findUnique({
+        where: { id: parseInt(id) },
+        include: {
+          divisions: true
+        }
+      });
+
+      if (!existingMeeting) {
+        return res.status(404).json({ error: 'Заседание не найдено' });
+      }
+
+      // If status is changing to IN_PROGRESS and createInTelevic is true, create in Televic first
+      if (status === 'IN_PROGRESS' && existingMeeting.createInTelevic && !existingMeeting.televicMeetingId && io) {
+        console.log('[Televic] Starting meeting, need to create in Televic first...');
+
+        // Don't await - do it in background, but send response after
+        (async () => {
+          try {
+            // Get linked delegates from meeting divisions
+            const divisionIds = existingMeeting.divisions.map(d => d.id);
+            const linkedUsers = await prisma.user.findMany({
+              where: {
+                divisionId: { in: divisionIds },
+                televicExternalId: { not: null }
+              },
+              select: { televicExternalId: true }
+            });
+            const delegateIds = linkedUsers.map(u => u.televicExternalId).filter(Boolean);
+
+            console.log('[Televic] Creating mirror meeting for:', existingMeeting.id, 'delegates:', delegateIds);
+
+            // Find connector socket
+            const coconNS = io.of('/cocon-connector');
+            let socket = null;
+            for (const [sid, sock] of coconNS.sockets) {
+              socket = sock;
+              break;
+            }
+
+            if (!socket) {
+              console.log('[Televic] No connector online, skipping meeting creation');
+              return;
+            }
+
+            // Helper to send command
+            const sendCommand = async (url, query = {}) => {
+              const commandId = require('crypto').randomUUID();
+              return new Promise((resolve, reject) => {
+                const timeout = setTimeout(() => {
+                  socket.off('connector:command:result', handler);
+                  reject(new Error(`Timeout: ${url}`));
+                }, 15000);
+
+                const handler = (msg) => {
+                  if (msg && msg.id === commandId) {
+                    clearTimeout(timeout);
+                    socket.off('connector:command:result', handler);
+                    resolve(msg);
+                  }
+                };
+
+                socket.on('connector:command:result', handler);
+                socket.emit('server:command:exec', {
+                  id: commandId,
+                  type: 'ConnectorHttp',
+                  payload: { method: 'GET', url, query }
+                });
+              });
+            };
+
+            // Step 1: End all active meetings (Running, Paused, New)
+            console.log('[Televic] Getting all meetings to check for active ones...');
+            const getAllResult = await sendCommand('/Meeting_Agenda/GetAllMeetings');
+
+            if (getAllResult.ok && getAllResult.data) {
+              const allMeetingsData = getAllResult.data.data;
+              const parsed = typeof allMeetingsData === 'string' ? JSON.parse(allMeetingsData) : allMeetingsData;
+              const activeMeetings = parsed?.GetAllMeetings?.Meetings?.filter(m =>
+                m.State === 'Running' || m.State === 'Paused' || m.State === 'New'
+              ) || [];
+
+              console.log('[Televic] Active meetings to end:', activeMeetings.map(m => `ID ${m.Id} "${m.Title}" (${m.State})`));
+
+              // End each active meeting using SetMeetingState API
+              for (const activeMeeting of activeMeetings) {
+                console.log(`[Televic] Ending meeting ID ${activeMeeting.Id}...`);
+                const endResult = await sendCommand('/Meeting_Agenda/SetMeetingState', {
+                  State: 'Ended',
+                  MeetingId: activeMeeting.Id
+                });
+
+                console.log(`[Televic] SetMeetingState result for ID ${activeMeeting.Id}:`, JSON.stringify(endResult));
+
+                if (endResult.ok) {
+                  console.log(`[Televic] Successfully ended meeting ID ${activeMeeting.Id}`);
+                } else {
+                  console.error(`[Televic] Failed to end meeting ID ${activeMeeting.Id}:`, endResult.error);
+                }
+              }
+            }
+
+            // Step 2: Create new meeting in Televic
+            // Format dates: 2017/6/5 00:00:00
+            const formatDate = (d) => {
+              if (!d) return null;
+              const dt = new Date(d);
+              const pad = (n) => String(n).padStart(2, '0');
+              return `${dt.getFullYear()}/${dt.getMonth()+1}/${dt.getDate()} ${pad(dt.getHours())}:${pad(dt.getMinutes())}:${pad(dt.getSeconds())}`;
+            };
+
+            // Ensure From time is at least 60 seconds in the future from NOW
+            let fromDateTime = existingMeeting.startTime ? new Date(existingMeeting.startTime) : new Date();
+            const now = new Date();
+            const minFutureTime = new Date(now.getTime() + 60000); // +1 minute minimum
+
+            if (fromDateTime <= minFutureTime) {
+              console.log('[Televic] Warning: Start time is too close or in the past, adjusting to now + 1 minute');
+              console.log('[Televic] Original time:', fromDateTime.toISOString());
+              console.log('[Televic] Current time:', now.toISOString());
+              fromDateTime = minFutureTime;
+            }
+
+            // Ensure To time is after From time
+            let toDateTime = existingMeeting.endTime ? new Date(existingMeeting.endTime) : new Date(fromDateTime.getTime() + 3600000);
+            if (toDateTime <= fromDateTime) {
+              console.log('[Televic] Warning: End time is before start time, adjusting to start + 1 hour');
+              toDateTime = new Date(fromDateTime.getTime() + 3600000); // +1 hour
+            }
+
+            const fromTime = formatDate(fromDateTime);
+            const toTime = formatDate(toDateTime);
+
+            console.log('[Televic] Meeting times - From:', fromTime, 'To:', toTime);
+
+            const createResult = await sendCommand('/Meeting_Agenda/StartEmptyMeeting', {
+              Title: existingMeeting.name,
+              From: fromTime,
+              To: toTime,
+              LoginMethod: 2, // Free seating, must authenticate
+              AuthenticationMode: 0, // Internal
+              AuthenticationType: 1  // Badge only
+            });
+
+            console.log('[Televic] Raw result:', JSON.stringify(createResult));
+
+            if (!createResult.ok || !createResult.data) {
+              console.error('[Televic] Failed to create meeting:', createResult.error || 'Unknown error');
+              return;
+            }
+
+            const meetingData = createResult.data.data;
+            console.log('[Televic] Meeting data type:', typeof meetingData);
+            console.log('[Televic] Meeting data:', meetingData);
+            const parsed = typeof meetingData === 'string' ? JSON.parse(meetingData) : meetingData;
+            console.log('[Televic] Parsed data:', JSON.stringify(parsed));
+            const televicMeetingId = parsed?.StartEmptyMeeting?.MeetingId || null;
+
+            if (!televicMeetingId) {
+              console.error('[Televic] No MeetingId returned');
+              return;
+            }
+
+            console.log('[Televic] Created meeting ID:', televicMeetingId);
+
+            // Add delegates
+            if (delegateIds.length > 0) {
+              console.log(`[Televic] Adding ${delegateIds.length} delegates to meeting...`);
+              for (const delegateId of delegateIds) {
+                try {
+                  console.log(`[Televic] Adding delegate ${delegateId}...`);
+                  await sendCommand('/Meeting_Agenda/AddDelegatesToMeeting', {
+                    MeetingId: televicMeetingId,
+                    DelegateIds: String(delegateId)
+                  });
+                  console.log(`[Televic] Successfully added delegate ${delegateId}`);
+                } catch (e) {
+                  console.error(`[Televic] Failed to add delegate ${delegateId}:`, e.message);
+                }
+              }
+              console.log('[Televic] Finished adding delegates');
+            }
+
+            // Force meeting state to Running (in case it was created in New state)
+            console.log('[Televic] Setting meeting state to Running...');
+            try {
+              const setStateResult = await sendCommand('/Meeting_Agenda/SetMeetingState', {
+                State: 'Running',
+                MeetingId: televicMeetingId
+              });
+              console.log('[Televic] SetMeetingState to Running result:', JSON.stringify(setStateResult));
+              if (setStateResult.ok) {
+                console.log('[Televic] Successfully set meeting to Running state');
+              } else {
+                console.error('[Televic] Failed to set meeting to Running:', setStateResult.error);
+              }
+            } catch (e) {
+              console.error('[Televic] Error setting meeting to Running:', e.message);
+            }
+
+            // Update database with televicMeetingId
+            await prisma.meeting.update({
+              where: { id: parseInt(id) },
+              data: { televicMeetingId: Number(televicMeetingId) }
+            });
+
+            console.log('[Televic] Mirror meeting created successfully');
+
+            // Notify all clients about the update
+            io.emit('meeting:updated', {
+              meetingId: parseInt(id),
+              televicMeetingId: Number(televicMeetingId)
+            });
+          } catch (televicError) {
+            console.error('[Televic] Failed to create mirror meeting:', televicError.message);
+          }
+        })();
+      }
+
+      // Update meeting status
       const meeting = await prisma.meeting.update({
         where: { id: parseInt(id) },
         data: {

@@ -5,6 +5,16 @@ import react from '@vitejs/plugin-react'
 export default defineConfig({
   plugins: [react()],
   base: '/hmau-vote/',
+  build: {
+    rollupOptions: {
+      output: {
+        // Add timestamp to filename to bust cache on every build
+        entryFileNames: `assets/[name]-[hash]-${Date.now()}.js`,
+        chunkFileNames: `assets/[name]-[hash]-${Date.now()}.js`,
+        assetFileNames: `assets/[name]-[hash]-${Date.now()}.[ext]`
+      }
+    }
+  },
   server: {
     proxy: {
       // Forward API requests in dev to the backend on :5000
