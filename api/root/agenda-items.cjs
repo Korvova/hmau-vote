@@ -164,6 +164,39 @@ router.put('/meetings/:id/agenda-items/:itemId', async (req, res) => {
       }),
     ]);
 
+    // Если устанавливается активный вопрос - отправить команду в CoCon через коннектор
+    if (activeIssue === true && router.io) {
+      try {
+        const updatedItem = result[1];
+        console.log(`[Agenda] Setting active question in CoCon: number=${updatedItem.number}`);
+
+        // Find connector socket
+        const coconNS = router.io.of('/cocon-connector');
+        let socket = null;
+        for (const [sid, sock] of coconNS.sockets) {
+          socket = sock;
+          break;
+        }
+
+        if (socket) {
+          socket.emit('server:command:exec', {
+            id: require('crypto').randomUUID(),
+            type: 'SetCurrentQuestionInAgenda',
+            payload: {
+              number: updatedItem.number,
+              id: updatedItem.number
+            }
+          });
+          console.log(`[Agenda] Command sent to CoCon connector`);
+        } else {
+          console.log(`[Agenda] No CoCon connector online - skipping`);
+        }
+      } catch (e) {
+        console.error('[Agenda] Failed to send SetCurrentQuestionInAgenda command:', e.message);
+        // Не останавливаем выполнение - продолжаем работу даже если коннектор недоступен
+      }
+    }
+
     res.json(result[1]);
   } catch (error) {
     console.error('Error updating agenda item:', error);
@@ -208,7 +241,8 @@ router.delete('/meetings/:id/agenda-items/:itemId', async (req, res) => {
   }
 });
 
-module.exports = (prisma) => {
+module.exports = (prisma, pgClient, io) => {
   router.prisma = prisma;
+  router.io = io;
   return router;
 };

@@ -327,7 +327,7 @@ app.use('/api/device-links', require('./root/device-links.cjs'));
 app.use('/api-docs', require('./root/swagger.cjs'));
 app.use('/api/users/excel', require('./root/excel.cjs'));
 app.use('/api/meetings/excel', require('./root/meetings-excel.cjs'));
-app.use('/api', require('./root/agenda-items.cjs')(prisma));
+app.use('/api', require('./root/agenda-items.cjs')(prisma, pgClient, io));
 app.use('/api', require('./root/vote-procedures.cjs')(prisma));
 app.use('/api', require('./root/vote-templates.cjs')(prisma));
 app.use('/api', require('./root/vote.cjs')(prisma, pgClient));
