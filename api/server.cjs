@@ -645,6 +645,167 @@ coconNS.on('connection', (socket) => {
     }
   });
 
+  // Handle logs from connector
+  socket.on('connector:log', (data) => {
+    const { timestamp, message } = data || {};
+    console.log(`[CONNECTOR] ${timestamp} ${message}`);
+  });
+
+  // Handle voting results from CoCon pults
+  socket.on('connector:voting:results', async (data) => {
+    try {
+      console.log('[VotingResults] Received voting results from connector:', JSON.stringify(data, null, 2));
+
+      const { votes, aggregated, agendaSequence, timestamp } = data || {};
+
+      const hasIndividualVotes = votes && Array.isArray(votes) && votes.length > 0;
+      const hasAggregatedResults = aggregated && aggregated.totalVotes > 0;
+
+      if (!hasIndividualVotes && !hasAggregatedResults) {
+        console.log('[VotingResults] No votes to process (neither individual nor aggregated)');
+        return;
+      }
+
+      if (hasIndividualVotes) {
+        console.log(`[VotingResults] Processing ${votes.length} individual votes for agenda sequence ${agendaSequence}`);
+      }
+      if (hasAggregatedResults) {
+        console.log(`[VotingResults] Processing aggregated results: FOR=${aggregated.votesFor}, AGAINST=${aggregated.votesAgainst}, ABSTAIN=${aggregated.votesAbstain}`);
+      }
+
+      // Find latest vote result in active CoCon-enabled meeting
+      // Don't filter by voteStatus - results may arrive after voting was applied/ended
+      // Just find the most recent VoteResult in any meeting with televicMeetingId
+      const activeVoteResult = await prisma.voteResult.findFirst({
+        where: {
+          meeting: {
+            televicMeetingId: { not: null },
+            status: { in: ['WAITING', 'IN_PROGRESS'] } // Only active meetings
+          }
+        },
+        orderBy: { createdAt: 'desc' }, // Most recent vote result
+        include: {
+          agendaItem: true,
+          meeting: true
+        }
+      });
+
+      if (!activeVoteResult) {
+        console.log('[VotingResults] No vote result found in active CoCon-enabled meeting');
+        return;
+      }
+
+      console.log(`[VotingResults] Found active vote result: id=${activeVoteResult.id}, agendaItemId=${activeVoteResult.agendaItemId}`);
+
+      // Process votes: either individual or aggregated
+      let successCount = 0;
+      let errorCount = 0;
+      let votesFor, votesAgainst, votesAbstain;
+
+      if (hasIndividualVotes) {
+        // Process individual votes
+        for (const vote of votes) {
+        try {
+          const { delegateId, choice, seatNumber } = vote;
+
+          // Find user by televicExternalId
+          const user = await prisma.user.findUnique({
+            where: { televicExternalId: String(delegateId) }
+          });
+
+          if (!user) {
+            console.log(`[VotingResults] No user found for delegateId=${delegateId}`);
+            errorCount++;
+            continue;
+          }
+
+          // Map choice to VoteChoice enum
+          let voteChoice;
+          if (choice === 'FOR') voteChoice = 'FOR';
+          else if (choice === 'AGAINST') voteChoice = 'AGAINST';
+          else if (choice === 'ABSTAIN') voteChoice = 'ABSTAIN';
+          else {
+            console.log(`[VotingResults] Unknown choice: ${choice}`);
+            errorCount++;
+            continue;
+          }
+
+          // Check if vote already exists
+          const existingVote = await prisma.vote.findFirst({
+            where: {
+              userId: user.id,
+              agendaItemId: activeVoteResult.agendaItemId,
+              voteResultId: activeVoteResult.id
+            }
+          });
+
+          if (existingVote) {
+            // Update existing vote
+            await prisma.vote.update({
+              where: { id: existingVote.id },
+              data: { choice: voteChoice }
+            });
+            console.log(`[VotingResults] Updated vote: user=${user.name} (${user.id}), choice=${voteChoice}`);
+          } else {
+            // Create new vote
+            await prisma.vote.create({
+              data: {
+                userId: user.id,
+                agendaItemId: activeVoteResult.agendaItemId,
+                voteResultId: activeVoteResult.id,
+                choice: voteChoice
+              }
+            });
+            console.log(`[VotingResults] Created vote: user=${user.name} (${user.id}), choice=${voteChoice}`);
+          }
+
+          successCount++;
+        } catch (voteError) {
+          console.error(`[VotingResults] Error processing vote:`, voteError.message);
+          errorCount++;
+        }
+        }
+
+        // Calculate counters from individual votes
+        const allVotes = await prisma.vote.findMany({
+          where: { voteResultId: activeVoteResult.id }
+        });
+
+        votesFor = allVotes.filter(v => v.choice === 'FOR').length;
+        votesAgainst = allVotes.filter(v => v.choice === 'AGAINST').length;
+        votesAbstain = allVotes.filter(v => v.choice === 'ABSTAIN').length;
+
+        console.log(`[VotingResults] ✅ Processed ${successCount} individual votes, ${errorCount} errors`);
+      } else if (hasAggregatedResults) {
+        // Use aggregated results directly (no individual vote records)
+        votesFor = aggregated.votesFor || 0;
+        votesAgainst = aggregated.votesAgainst || 0;
+        votesAbstain = aggregated.votesAbstain || 0;
+
+        console.log(`[VotingResults] ✅ Using aggregated results: FOR=${votesFor}, AGAINST=${votesAgainst}, ABSTAIN=${votesAbstain}`);
+      }
+
+      await prisma.voteResult.update({
+        where: { id: activeVoteResult.id },
+        data: { votesFor, votesAgainst, votesAbstain }
+      });
+
+      console.log(`[VotingResults] Updated counters: FOR=${votesFor}, AGAINST=${votesAgainst}, ABSTAIN=${votesAbstain}`);
+
+      // Send NOTIFY to update clients
+      const payload = {
+        id: activeVoteResult.id,
+        votesFor,
+        votesAgainst,
+        votesAbstain,
+        voteStatus: 'PENDING'
+      };
+      await pgClient.query(`NOTIFY vote_result_channel, '${JSON.stringify(payload)}'`);
+    } catch (e) {
+      console.error('[VotingResults] Error:', e.message);
+    }
+  });
+
   socket.on('disconnect', (reason) => {
     console.log('[cocon] disconnect', socket.id, reason);
     connectors.delete(socket.id);
