@@ -202,13 +202,11 @@ function ControlMeetingPage() {
         if (data?.endTime) {
           setVoteEndTime(data.endTime);
         } else {
-          // Fallback to old logic if endTime not provided
+          // Fallback: calculate endTime from createdAt + duration
           const createdMs = data?.createdAt ? new Date(data.createdAt).getTime() : Date.now();
-          const elapsed = Math.floor((Date.now() - createdMs) / 1000);
           const duration = Number(data?.duration) || 0;
-          const left = Math.max(0, duration - elapsed);
-          setTimeLeft(left || null);
-          setVoteEndTime(null);
+          const endTime = new Date(createdMs + (duration * 1000)).toISOString();
+          setVoteEndTime(endTime);
         }
         setActiveVoteQuestion(data?.question || 'Голосование'); // Store question name
         setEndedResult(null); // Clear previous result
@@ -611,6 +609,31 @@ function ControlMeetingPage() {
               </div>
             ) : null}
             {r.voteStatus ? (<div className="vri-status">Статус: {statusLabel(r.voteStatus)}</div>) : null}
+            {r.televicResultsPending && (
+              <div className="vri-televic-pending" style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: '8px',
+                marginTop: '8px',
+                padding: '8px 12px',
+                backgroundColor: '#fff3cd',
+                border: '1px solid #ffc107',
+                borderRadius: '4px',
+                fontSize: '13px',
+                color: '#856404'
+              }}>
+                <span style={{
+                  display: 'inline-block',
+                  width: '16px',
+                  height: '16px',
+                  border: '2px solid #856404',
+                  borderTop: '2px solid transparent',
+                  borderRadius: '50%',
+                  animation: 'spin 1s linear infinite'
+                }} />
+                <span style={{ fontWeight: 'bold' }}>Ожидание результатов от Televic CoCon...</span>
+              </div>
+            )}
           </div>
         ))}
       </div>
@@ -889,7 +912,7 @@ function ControlMeetingPage() {
                           <td>{a.speaker || a.speakerId || ''}</td>
                           <td>{renderResultsList(a)}</td>
                           <td>
-                          {meeting?.status !== 'COMPLETED' && !a.completed && (
+                          {meeting?.status !== 'COMPLETED' && (
                             <>
                               {/* Кнопка "Запустить голосование" - всегда зелёная */}
                               <button

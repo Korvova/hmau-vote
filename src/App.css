@@ -1385,3 +1385,13 @@ button.btn-play img[src*="icon_38.png"],
   border: 1px solid #e0e0e0;
   border-radius: 4px;
 }
+
+/* Spinner animation for Televic pending state */
+@keyframes spin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
