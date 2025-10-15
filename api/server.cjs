@@ -240,24 +240,27 @@ pgClient.on('notification', (msg) => {
     } else if (data.voteStatus === 'ENDED') {
       console.log('Отправка события vote-ended:', data);
       io.emit('vote-ended', data);
-      // Correct decision if all abstained or no YES/NO votes
+      // Correct decision if all abstained or no YES/NO votes (do NOT send NOTIFY to avoid infinite loop)
       (async () => {
         try {
           const id = Number(data.id || data.voteResultId);
           if (Number.isFinite(id) && (Number(data.votesFor) === 0 && Number(data.votesAgainst) === 0) && (Number(data.votesAbstain) > 0 || Number(data.votesFor) + Number(data.votesAgainst) + Number(data.votesAbstain) === 0)) {
-            const updated = await prisma.voteResult.update({ where: { id }, data: { decision: 'Не принято' } });
-            await pgClient.query(`NOTIFY vote_result_channel, '${JSON.stringify({ ...data, decision: 'Не принято' })}'`);
+            await prisma.voteResult.update({ where: { id }, data: { decision: 'Не принято' } });
+            // DO NOT send NOTIFY here - it creates infinite loop!
           }
         } catch {}
       })();
-      // Ensure agenda state reflects finished vote when ended by timer
+      // Ensure agenda state reflects finished vote when ended by timer (only if not already completed)
       (async () => {
         try {
-          await prisma.agendaItem.update({
-            where: { id: Number(data.agendaItemId) },
-            data: { completed: true, activeIssue: false, voting: false },
-          });
-          await pgClient.query(`NOTIFY meeting_status_channel, '${JSON.stringify({ id: Number(data.agendaItemId), meetingId: Number(data.meetingId), activeIssue: false, completed: true })}'`);
+          const agendaItem = await prisma.agendaItem.findUnique({ where: { id: Number(data.agendaItemId) } });
+          if (agendaItem && !agendaItem.completed) {
+            await prisma.agendaItem.update({
+              where: { id: Number(data.agendaItemId) },
+              data: { completed: true, activeIssue: false, voting: false },
+            });
+            await pgClient.query(`NOTIFY meeting_status_channel, '${JSON.stringify({ id: Number(data.agendaItemId), meetingId: Number(data.meetingId), activeIssue: false, completed: true })}'`);
+          }
         } catch (e) {
           console.error('Failed to mark agenda item completed on vote end:', e?.message || e);
         }

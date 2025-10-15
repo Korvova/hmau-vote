@@ -9,7 +9,9 @@
     "build": "vite build",
     "lint": "eslint .",
     "preview": "vite preview",
-    "test": "jest"
+    "test": "jest",
+    "test:api": "jest --config=jest.config.api.cjs",
+    "test:api:watch": "jest --config=jest.config.api.cjs --watch"
   },
   "dependencies": {
     "@prisma/client": "^6.16.3",

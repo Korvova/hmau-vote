@@ -703,11 +703,29 @@ module.exports = (prisma, pgClient, io) => {
  *     curl -X POST -H "Content-Type: application/json" -d '{"agendaItemId":576,"question":"Утвердить бюджет?","duration":300,"procedureId":10,"voteType":"OPEN"}' http://217.114.10.226:5000/api/start-vote
  */
 router.post('/start-vote', async (req, res) => {
-  const { agendaItemId, question, duration, procedureId, voteType } = req.body;
+  const { agendaItemId, question, duration, procedureId, voteType, durationTemplateId } = req.body;
   try {
-    console.log('Received start-vote request data:', { agendaItemId, question, duration, procedureId, voteType });
+    console.log('Received start-vote request data:', { agendaItemId, question, duration, procedureId, voteType, durationTemplateId });
 
-    if (!agendaItemId || !question || !duration || isNaN(duration) || duration <= 0) {
+    // If duration is not provided but durationTemplateId is, use template duration
+    let finalDuration = duration;
+    if ((!finalDuration || isNaN(finalDuration) || finalDuration <= 0) && durationTemplateId) {
+      const templates = [
+        { id: 1, duration: 30 },
+        { id: 2, duration: 60 },
+        { id: 3, duration: 120 },
+        { id: 4, duration: 180 },
+        { id: 5, duration: 300 },
+        { id: 6, duration: 600 },
+      ];
+      const template = templates.find(t => t.id === parseInt(durationTemplateId));
+      if (template) {
+        finalDuration = template.duration;
+        console.log(`Using duration from template ${durationTemplateId}: ${finalDuration} seconds`);
+      }
+    }
+
+    if (!agendaItemId || !question || !finalDuration || isNaN(finalDuration) || finalDuration <= 0) {
       throw new Error('Invalid request data: agendaItemId, question, and duration (positive number) are required');
     }
 
@@ -716,7 +734,7 @@ router.post('/start-vote', async (req, res) => {
 
     const finalProcedureId = procedureId ? parseInt(procedureId) : 10;
 
-    const durationInMs = duration * 1000;
+    const durationInMs = finalDuration * 1000;
     const createdAt = new Date();
 
     const agendaItem = await prisma.agendaItem.findUnique({
@@ -756,7 +774,7 @@ router.post('/start-vote', async (req, res) => {
         votesAbstain: 0,
         votesAbsent: participants.length,
         createdAt,
-        duration,
+        duration: finalDuration,
         voteStatus: 'PENDING',
         procedureId: finalProcedureId,
         voteType: finalVoteType,
@@ -765,7 +783,7 @@ router.post('/start-vote', async (req, res) => {
 
     const payload = {
       ...voteResult,
-      duration,
+      duration: finalDuration,
       createdAt: createdAt.toISOString(),
       voteStatus: 'PENDING',
     };
@@ -792,7 +810,7 @@ router.post('/start-vote', async (req, res) => {
               agendaItemNumber: agendaItem.number,
               votingTitle: question,
               voteType: finalVoteType,
-              duration: duration
+              duration: finalDuration
             }
           });
           console.log(`[Vote] Voting start command sent to CoCon connector`);

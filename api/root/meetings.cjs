@@ -812,26 +812,132 @@ module.exports = (prisma, pgClient, io) => {
 router.get('/:id/participants', async (req, res) => {
   const { id } = req.params;
   try {
+    const meetingId = parseInt(id);
     const meeting = await prisma.meeting.findUnique({
-      where: { id: parseInt(id) },
+      where: { id: meetingId },
       include: {
-        participants: {
-          select: {
-            id: true,
-            name: true,
-            isOnline: true,
-            televicExternalId: true,
-          },
-        },
+        divisions: {
+          include: {
+            users: true
+          }
+        }
       },
     });
+
     if (!meeting) {
       return res.status(404).json({ error: 'Р—Р°СЃРµРґР°РЅРёРµ РЅРµ РЅР°Р№РґРµРЅРѕ' });
     }
-    res.json(meeting.participants);
+
+    // Получаем всех пользователей из подразделений заседания
+    const userIds = new Set();
+    meeting.divisions.forEach(division => {
+      division.users.forEach(user => userIds.add(user.id));
+    });
+
+    const users = await prisma.user.findMany({
+      where: { id: { in: Array.from(userIds) } },
+      include: {
+        division: true
+      }
+    });
+
+    // Получаем информацию о местоположении участников
+    const participantLocations = await prisma.$queryRaw`
+      SELECT * FROM "ParticipantLocation" WHERE "meetingId" = ${meetingId}
+    `;
+
+    // Получаем информацию о доверенностях
+    const proxies = await prisma.$queryRaw`
+      SELECT * FROM "Proxy" WHERE "meetingId" = ${meetingId}
+    `;
+
+    // Формируем данные участников с location, proxy и receivedProxies
+    const participants = users.map(user => {
+      const locationRecord = participantLocations.find(loc => loc.userId === user.id);
+      const proxyRecord = proxies.find(p => p.fromUserId === user.id);
+      const receivedProxies = proxies
+        .filter(p => p.toUserId === user.id)
+        .map(p => {
+          const fromUser = users.find(u => u.id === p.fromUserId);
+          return {
+            fromUserId: p.fromUserId,
+            fromUserName: fromUser?.name || 'Unknown'
+          };
+        });
+
+      return {
+        id: user.id,
+        name: user.name,
+        divisions: [{ id: user.division?.id, name: user.division?.name }].filter(d => d.id),
+        location: locationRecord?.location || 'SITE',
+        proxy: proxyRecord ? {
+          toUserId: proxyRecord.toUserId,
+          toUserName: users.find(u => u.id === proxyRecord.toUserId)?.name || 'Unknown'
+        } : null,
+        receivedProxies,
+        voteWeight: 1 + receivedProxies.length
+      };
+    });
+
+    res.json({ participants });
   } catch (error) {
     console.error('РћС€РёР±РєР° РїСЂРё РїРѕР»СѓС‡РµРЅРёРё СѓС‡Р°СЃС‚РЅРёРєРѕРІ Р·Р°СЃРµРґР°РЅРёСЏ:', error);
     res.status(500).json({ error: 'РќРµ СѓРґР°Р»РѕСЃСЊ РїРѕР»СѓС‡РёС‚СЊ СѓС‡Р°СЃС‚РЅРёРєРѕРІ' });
+  }
+});
+
+/**
+ * @api {post} /api/meetings/:id/participants/save Сохранение настроек участников заседания
+ * @apiName СохранениеУчастниковЗаседания
+ * @apiGroup Заседания
+ * @apiDescription Сохраняет информацию о местоположении участников (SITE/HALL) и доверенностях
+ */
+router.post('/:id/participants/save', async (req, res) => {
+  const { id } = req.params;
+  const { participants } = req.body;
+
+  try {
+    const meetingId = parseInt(id);
+
+    // Проверяем, что заседание существует
+    const meeting = await prisma.meeting.findUnique({
+      where: { id: meetingId }
+    });
+
+    if (!meeting) {
+      return res.status(404).json({ error: 'Заседание не найдено' });
+    }
+
+    // Обрабатываем каждого участника
+    for (const participant of participants) {
+      const { userId, location, proxyToUserId } = participant;
+
+      // Сохраняем или обновляем местоположение
+      await prisma.$executeRaw`
+        INSERT INTO "ParticipantLocation" ("meetingId", "userId", "location", "createdAt", "updatedAt")
+        VALUES (${meetingId}, ${userId}, ${location}, NOW(), NOW())
+        ON CONFLICT ("meetingId", "userId")
+        DO UPDATE SET "location" = ${location}, "updatedAt" = NOW()
+      `;
+
+      // Удаляем старую доверенность, если есть
+      await prisma.$executeRaw`
+        DELETE FROM "Proxy" WHERE "meetingId" = ${meetingId} AND "fromUserId" = ${userId}
+      `;
+
+      // Добавляем новую доверенность, если указана
+      if (proxyToUserId) {
+        await prisma.$executeRaw`
+          INSERT INTO "Proxy" ("meetingId", "fromUserId", "toUserId", "createdAt", "updatedAt")
+          VALUES (${meetingId}, ${userId}, ${proxyToUserId}, NOW(), NOW())
+        `;
+      }
+    }
+
+    res.json({ success: true, message: 'Данные участников сохранены' });
+  } catch (error) {
+    console.error('Ошибка при сохранении участников:', error);
+    res.status(500).json({ error: 'Не удалось сохранить данные участников' });
   }
 });
 
