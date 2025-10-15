@@ -869,6 +869,9 @@ router.post('/start-vote', async (req, res) => {
             voteStatus: 'ENDED',
             votesAbsent: notVotedCount,
             decision,
+            // IMPORTANT: Clear televicResultsPending when vote ends by timer
+            // This ensures indicator disappears even if connector didn't send results (e.g. 0 votes)
+            televicResultsPending: false,
           },
         });
 
