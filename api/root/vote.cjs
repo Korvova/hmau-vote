@@ -356,7 +356,10 @@ module.exports = (prisma, pgClient, io) => {
         return res.status(400).json({ error: 'Invalid request data: userId, voteResultId, and valid choice are required' });
       }
 
-      const user = await prisma.user.findUnique({ where: { email: userId } });
+      // Support both email and numeric ID
+      const user = typeof userId === 'number' || !isNaN(userId)
+        ? await prisma.user.findUnique({ where: { id: parseInt(userId) } })
+        : await prisma.user.findUnique({ where: { email: userId } });
       if (!user) {
         return res.status(404).json({ error: 'User not found' });
       }
@@ -778,6 +781,9 @@ router.post('/start-vote', async (req, res) => {
         voteStatus: 'PENDING',
         procedureId: finalProcedureId,
         voteType: finalVoteType,
+        // Set televicResultsPending=true ONLY for Televic meetings
+        // This blocks finishing vote until connector sends results
+        televicResultsPending: agendaItem.meeting?.televicMeetingId ? true : false,
       },
     });
 
@@ -796,8 +802,12 @@ router.post('/start-vote', async (req, res) => {
 
         // Find connector socket
         const coconNS = io.of('/cocon-connector');
+        console.log(`[Vote] CoconNS exists:`, !!coconNS);
+        console.log(`[Vote] CoconNS.sockets size:`, coconNS.sockets?.size || 0);
+
         let socket = null;
         for (const [sid, sock] of coconNS.sockets) {
+          console.log(`[Vote] Found socket:`, sid);
           socket = sock;
           break;
         }
@@ -872,6 +882,36 @@ router.post('/start-vote', async (req, res) => {
           createdAt: updatedVoteResult.createdAt.toISOString(),
         };
         await pgClient.query(`NOTIFY vote_result_channel, '${JSON.stringify(updatedPayload)}'`);
+
+        // Stop voting in CoCon if meeting was created there
+        if (agendaItem.meeting?.televicMeetingId && io) {
+          try {
+            console.log(`[Vote] Stopping voting in CoCon after timer expired`);
+            const coconNS = io.of('/cocon-connector');
+            console.log(`[Vote] CoconNS exists:`, !!coconNS);
+            console.log(`[Vote] CoconNS.sockets size:`, coconNS.sockets?.size || 0);
+
+            let socket = null;
+            for (const [sid, sock] of coconNS.sockets) {
+              console.log(`[Vote] Found socket:`, sid);
+              socket = sock;
+              break;
+            }
+
+            if (socket) {
+              socket.emit('server:command:exec', {
+                id: require('crypto').randomUUID(),
+                type: 'StopVoting',
+                payload: {}
+              });
+              console.log(`[Vote] Voting stop command sent to CoCon connector`);
+            } else {
+              console.log(`[Vote] No CoCon connector online - skipping voting stop in CoCon`);
+            }
+          } catch (e) {
+            console.error('[Vote] Failed to stop voting in CoCon:', e.message);
+          }
+        }
       }
     }, durationInMs);
 

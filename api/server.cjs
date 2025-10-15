@@ -797,7 +797,14 @@ coconNS.on('connection', (socket) => {
 
       await prisma.voteResult.update({
         where: { id: activeVoteResult.id },
-        data: { votesFor, votesAgainst, votesAbstain }
+        data: {
+          votesFor,
+          votesAgainst,
+          votesAbstain,
+          // IMPORTANT: Clear televicResultsPending flag when results arrive from connector
+          // This unblocks the "Finish" button on the frontend
+          televicResultsPending: false
+        }
       });
 
       console.log(`[VotingResults] Updated counters: FOR=${votesFor}, AGAINST=${votesAgainst}, ABSTAIN=${votesAbstain}`);

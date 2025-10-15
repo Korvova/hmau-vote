@@ -95,11 +95,12 @@ model VoteResult {
   duration      Int?
   voteStatus    String     @default("PENDING")
   votes         Vote[]     @relation("VoteToVoteResult") // Связь один-ко-многим с Vote
- 
+
 procedureId   Int?
   procedure     VoteProcedure? @relation("VoteProcedureToVoteResult", fields: [procedureId], references: [id])
   decision      String?   // Результат голосования: "Принято" или "Не принято"
 voteType      VoteType?  @default(OPEN) // тип голосования открытое закрытое
+  televicResultsPending Boolean @default(false) // Ожидание результатов от Televic CoCon (блокирует завершение)
 }
 
 model Vote {
