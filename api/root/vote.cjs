@@ -251,7 +251,7 @@ const calculateDecision = async (prisma, voteResultId) => {
   }
 };
 
-module.exports = (prisma, pgClient) => {
+module.exports = (prisma, pgClient, io) => {
   /**
    * @api {post} /api/vote Запись голоса пользователя
    * @apiName ЗаписьГолоса
@@ -770,6 +770,39 @@ router.post('/start-vote', async (req, res) => {
       voteStatus: 'PENDING',
     };
     await pgClient.query(`NOTIFY vote_result_channel, '${JSON.stringify(payload)}'`);
+
+    // Если заседание создано в CoCon - запустить голосование там
+    if (agendaItem.meeting?.televicMeetingId && io) {
+      try {
+        console.log(`[Vote] Starting voting in CoCon for agenda item ${agendaItem.number}: "${question}"`);
+
+        // Find connector socket
+        const coconNS = io.of('/cocon-connector');
+        let socket = null;
+        for (const [sid, sock] of coconNS.sockets) {
+          socket = sock;
+          break;
+        }
+
+        if (socket) {
+          socket.emit('server:command:exec', {
+            id: require('crypto').randomUUID(),
+            type: 'StartVotingWithTemplate',
+            payload: {
+              agendaItemNumber: agendaItem.number,
+              votingTitle: question,
+              voteType: finalVoteType,
+              duration: duration
+            }
+          });
+          console.log(`[Vote] Voting start command sent to CoCon connector`);
+        } else {
+          console.log(`[Vote] No CoCon connector online - skipping voting start in CoCon`);
+        }
+      } catch (e) {
+        console.error('[Vote] Failed to start voting in CoCon:', e.message);
+      }
+    }
 
     setTimeout(async () => {
       const finalVoteResult = await prisma.voteResult.findFirst({
