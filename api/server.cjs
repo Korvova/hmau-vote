@@ -330,6 +330,7 @@ app.use('/api/meetings/excel', require('./root/meetings-excel.cjs'));
 app.use('/api', require('./root/agenda-items.cjs')(prisma, pgClient, io));
 app.use('/api', require('./root/vote-procedures.cjs')(prisma));
 app.use('/api', require('./root/vote-templates.cjs')(prisma));
+app.use('/api/duration-templates', require('./root/duration-templates.cjs'));
 app.use('/api', require('./root/vote.cjs')(prisma, pgClient, io));
 app.use('/api/televic', require('./root/televic.cjs')(prisma, pgClient, io));
 

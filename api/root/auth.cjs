@@ -39,7 +39,12 @@ const prisma = new PrismaClient();
  *     curl -X POST -H "Content-Type: application/json" -d '{"email":"user@example.com","password":"secure123"}' http://217.114.10.226:5000/api/login
  */
 router.post('/login', async (req, res) => {
-  const { email, password } = req.body;
+  console.log('[DEBUG] Login request - headers:', JSON.stringify(req.headers));
+  console.log('[DEBUG] Login request - body:', JSON.stringify(req.body));
+  console.log('[DEBUG] Login request - content-type:', req.get('content-type'));
+  // Support both 'email' and 'username' fields for backwards compatibility
+  const email = req.body.email || req.body.username;
+  const { password } = req.body;
   try {
     const user = await prisma.user.findUnique({ where: { email } });
     if (!user || user.password !== password) {
