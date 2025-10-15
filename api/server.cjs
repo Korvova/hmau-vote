@@ -236,7 +236,17 @@ pgClient.on('notification', (msg) => {
     const data = JSON.parse(msg.payload);
     if (data.voteStatus === 'PENDING') {
       console.log('Отправка события new-vote-result:', data);
-      io.emit('new-vote-result', { ...data, createdAt: new Date(data.createdAt).toISOString() });
+      // Safely convert createdAt to ISO string if present
+      const payload = { ...data };
+      if (data.createdAt) {
+        try {
+          payload.createdAt = new Date(data.createdAt).toISOString();
+        } catch (e) {
+          // If invalid date, use current time
+          payload.createdAt = new Date().toISOString();
+        }
+      }
+      io.emit('new-vote-result', payload);
     } else if (data.voteStatus === 'ENDED') {
       console.log('Отправка события vote-ended:', data);
       io.emit('vote-ended', data);
