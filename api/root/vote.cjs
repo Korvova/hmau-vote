@@ -781,9 +781,9 @@ router.post('/start-vote', async (req, res) => {
         voteStatus: 'PENDING',
         procedureId: finalProcedureId,
         voteType: finalVoteType,
-        // Set televicResultsPending=true ONLY for Televic meetings
-        // This blocks finishing vote until connector sends results
-        televicResultsPending: agendaItem.meeting?.televicMeetingId ? true : false,
+        // Real-time polling via sockets now handles results instantly
+        // No need to block with televicResultsPending anymore
+        televicResultsPending: false,
       },
     });
 
