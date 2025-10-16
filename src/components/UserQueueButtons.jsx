@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import axios from 'axios';
 import { io } from 'socket.io-client';
 
@@ -7,6 +7,15 @@ function UserQueueButtons({ meetingId, userId }) {
   const [speechQueue, setSpeechQueue] = useState([]);
   const [questionQueueEnabled, setQuestionQueueEnabled] = useState(true);
   const [speechQueueEnabled, setSpeechQueueEnabled] = useState(true);
+
+  // Microphone states
+  const [questionMicEnabled, setQuestionMicEnabled] = useState(false);
+  const [speechMicEnabled, setSpeechMicEnabled] = useState(false);
+  const [hasTelevicLink, setHasTelevicLink] = useState(false); // Проверка привязки к Televic
+
+  // Refs to track if we've already toggled mic for this timer session
+  const questionMicToggledRef = useRef(false);
+  const speechMicToggledRef = useRef(false);
 
   // Find user's position in each queue
   const questionEntry = useMemo(() => {
@@ -40,6 +49,26 @@ function UserQueueButtons({ meetingId, userId }) {
   const [questionTimeLeft, setQuestionTimeLeft] = useState(null);
   const [speechTimeLeft, setSpeechTimeLeft] = useState(null);
 
+  // Toggle microphone via Televic API
+  const toggleMicrophone = async (action, type) => {
+    try {
+      console.log(`[Microphone] ${type}: ${action} for user ${userId}`);
+      await axios.post('/api/televic/microphone/toggle', {
+        userId,
+        action // 'enable' or 'disable'
+      });
+
+      if (type === 'QUESTION') {
+        setQuestionMicEnabled(action === 'enable');
+      } else {
+        setSpeechMicEnabled(action === 'enable');
+      }
+    } catch (error) {
+      console.error('Error toggling microphone:', error);
+      // Don't show alert for auto-toggle, only log
+    }
+  };
+
   // Load queues
   const loadQueue = async (type) => {
     try {
@@ -55,7 +84,7 @@ function UserQueueButtons({ meetingId, userId }) {
   };
 
   useEffect(() => {
-    if (!meetingId) return;
+    if (!meetingId || !userId) return;
 
     const loadMeetingSettings = async () => {
       try {
@@ -67,10 +96,21 @@ function UserQueueButtons({ meetingId, userId }) {
       }
     };
 
+    const checkTelevicLink = async () => {
+      try {
+        const response = await axios.get(`/api/users/${userId}`);
+        setHasTelevicLink(!!response.data?.televicExternalId);
+      } catch (error) {
+        console.error('Error checking Televic link:', error);
+        setHasTelevicLink(false);
+      }
+    };
+
     loadMeetingSettings();
+    checkTelevicLink();
     loadQueue('QUESTION');
     loadQueue('SPEECH');
-  }, [meetingId]);
+  }, [meetingId, userId]);
 
   // Socket.io listeners
   useEffect(() => {
@@ -149,6 +189,50 @@ function UserQueueButtons({ meetingId, userId }) {
     }
   }, [speechEntry]);
 
+  // Auto-enable microphone when timer starts for QUESTION
+  useEffect(() => {
+    if (questionEntry?.status === 'ACTIVE' && questionEntry.timerEndTime && !questionMicToggledRef.current) {
+      console.log('[Microphone] Auto-enabling for QUESTION timer start');
+      questionMicToggledRef.current = true;
+      toggleMicrophone('enable', 'QUESTION');
+    }
+
+    // Reset ref when no longer active
+    if (!questionEntry || questionEntry.status !== 'ACTIVE') {
+      questionMicToggledRef.current = false;
+    }
+  }, [questionEntry?.status, questionEntry?.timerEndTime]);
+
+  // Auto-disable microphone when QUESTION timer ends (reaches 0)
+  useEffect(() => {
+    if (questionTimeLeft === 0 && questionMicEnabled) {
+      console.log('[Microphone] Auto-disabling for QUESTION timer end');
+      toggleMicrophone('disable', 'QUESTION');
+    }
+  }, [questionTimeLeft, questionMicEnabled]);
+
+  // Auto-enable microphone when timer starts for SPEECH
+  useEffect(() => {
+    if (speechEntry?.status === 'ACTIVE' && speechEntry.timerEndTime && !speechMicToggledRef.current) {
+      console.log('[Microphone] Auto-enabling for SPEECH timer start');
+      speechMicToggledRef.current = true;
+      toggleMicrophone('enable', 'SPEECH');
+    }
+
+    // Reset ref when no longer active
+    if (!speechEntry || speechEntry.status !== 'ACTIVE') {
+      speechMicToggledRef.current = false;
+    }
+  }, [speechEntry?.status, speechEntry?.timerEndTime]);
+
+  // Auto-disable microphone when SPEECH timer ends (reaches 0)
+  useEffect(() => {
+    if (speechTimeLeft === 0 && speechMicEnabled) {
+      console.log('[Microphone] Auto-disabling for SPEECH timer end');
+      toggleMicrophone('disable', 'SPEECH');
+    }
+  }, [speechTimeLeft, speechMicEnabled]);
+
   // Join queue
   const handleJoinQueue = async (type) => {
     try {
@@ -157,6 +241,13 @@ function UserQueueButtons({ meetingId, userId }) {
       console.error('Error joining queue:', error);
       alert(error.response?.data?.error || 'Ошибка при встании в очередь');
     }
+  };
+
+  // Manual microphone toggle
+  const handleMicToggle = async (type) => {
+    const currentState = type === 'QUESTION' ? questionMicEnabled : speechMicEnabled;
+    const newAction = currentState ? 'disable' : 'enable';
+    await toggleMicrophone(newAction, type);
   };
 
   return (
@@ -182,6 +273,9 @@ function UserQueueButtons({ meetingId, userId }) {
             </button>
           ) : questionPosition === 'active' ? (
           <div style={{
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
             padding: '0.75rem 1.5rem',
             backgroundColor: '#4caf50',
             color: 'white',
@@ -189,11 +283,30 @@ function UserQueueButtons({ meetingId, userId }) {
             fontSize: '1rem',
             fontWeight: 'bold',
           }}>
-            Ваш вопрос
-            {questionTimeLeft !== null && (
-              <span style={{ marginLeft: '1rem', fontSize: '1.2rem' }}>
-                {Math.floor(questionTimeLeft / 60)}:{String(questionTimeLeft % 60).padStart(2, '0')}
-              </span>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
+              <span>Ваш вопрос</span>
+              {questionTimeLeft !== null && (
+                <span style={{ fontSize: '1.2rem' }}>
+                  {Math.floor(questionTimeLeft / 60)}:{String(questionTimeLeft % 60).padStart(2, '0')}
+                </span>
+              )}
+            </div>
+            {hasTelevicLink && (
+              <button
+                onClick={() => handleMicToggle('QUESTION')}
+                title={questionMicEnabled ? 'Выключить звук' : 'Включить звук'}
+                style={{
+                  backgroundColor: 'transparent',
+                  border: 'none',
+                  fontSize: '20px',
+                  cursor: 'pointer',
+                  padding: '0px',
+                  lineHeight: 1,
+                  opacity: 1,
+                }}
+              >
+                {questionMicEnabled ? '🔊' : '🔇'}
+              </button>
             )}
           </div>
         ) : (
@@ -232,6 +345,9 @@ function UserQueueButtons({ meetingId, userId }) {
             </button>
           ) : speechPosition === 'active' ? (
           <div style={{
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
             padding: '0.75rem 1.5rem',
             backgroundColor: '#4caf50',
             color: 'white',
@@ -239,11 +355,30 @@ function UserQueueButtons({ meetingId, userId }) {
             fontSize: '1rem',
             fontWeight: 'bold',
           }}>
-            Ваше выступление
-            {speechTimeLeft !== null && (
-              <span style={{ marginLeft: '1rem', fontSize: '1.2rem' }}>
-                {Math.floor(speechTimeLeft / 60)}:{String(speechTimeLeft % 60).padStart(2, '0')}
-              </span>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
+              <span>Ваше выступление</span>
+              {speechTimeLeft !== null && (
+                <span style={{ fontSize: '1.2rem' }}>
+                  {Math.floor(speechTimeLeft / 60)}:{String(speechTimeLeft % 60).padStart(2, '0')}
+                </span>
+              )}
+            </div>
+            {hasTelevicLink && (
+              <button
+                onClick={() => handleMicToggle('SPEECH')}
+                title={speechMicEnabled ? 'Выключить звук' : 'Включить звук'}
+                style={{
+                  backgroundColor: 'transparent',
+                  border: 'none',
+                  fontSize: '20px',
+                  cursor: 'pointer',
+                  padding: '0px',
+                  lineHeight: 1,
+                  opacity: 1,
+                }}
+              >
+                {speechMicEnabled ? '🔊' : '🔇'}
+              </button>
             )}
           </div>
         ) : (
