@@ -266,7 +266,27 @@ const formatDate = (dateString) => {
   return `${day} ${month} ${year} года`;
 };
 
+// Helper to check if user belongs to system/invited group
+const isInvitedUser = (user) => {
+  // Check if user has divisions array (from API)
+  if (Array.isArray(user.divisions) && user.divisions.length > 0) {
+    return user.divisions.some(d => {
+      if (!d || !d.name) return false;
+      const name = d.name.replace(/👥/g, '').trim().toLowerCase();
+      return name === 'приглашенные';
+    });
+  }
+  // Fallback: check single division object
+  if (user.division && user.division.name) {
+    const name = user.division.name.replace(/👥/g, '').trim().toLowerCase();
+    return name === 'приглашенные';
+  }
+  return false;
+};
+
 const VoteResultsPDF = ({ meeting, agendaItems, voteResults, participants = [] }) => {
+  // Filter out invited guests from participants
+  const regularParticipants = participants.filter(p => !isInvitedUser(p));
   // Group vote results by agenda item
   const votesByAgenda = {};
   voteResults.forEach(vote => {
@@ -476,7 +496,7 @@ const VoteResultsPDF = ({ meeting, agendaItems, voteResults, participants = [] }
 
         // Detailed pages for each vote in this agenda item
         return votes.map((voteResult, voteIndex) => {
-          const voters = getVotersByChoice(voteResult.votes || [], participants);
+          const voters = getVotersByChoice(voteResult.votes || [], regularParticipants);
           const isClosedVote = voteResult.voteType === 'CLOSED';
           const endTime = voteResult.createdAt
             ? new Date(new Date(voteResult.createdAt).getTime() + (voteResult.duration || 0) * 1000)
