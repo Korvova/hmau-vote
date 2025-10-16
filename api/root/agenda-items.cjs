@@ -281,6 +281,125 @@ router.delete('/meetings/:id/agenda-items/:itemId', async (req, res) => {
   }
 });
 
+/**
+ * @api {get} /api/agenda-items/:id/detailed-votes Получение детальных данных голосований по вопросу повестки
+ * @apiName ПолучениеДетальныхГолосований
+ * @apiGroup Повестка
+ * @apiDescription Возвращает все голосования (voteResults) для указанного вопроса повестки с детальной информацией о каждом голосе (votes), информацией о заседании и участниках. Используется для генерации детального PDF отчёта.
+ * @apiParam {Number} id Идентификатор вопроса повестки (параметр пути).
+ * @apiSuccess {Object} agendaItem Объект вопроса повестки.
+ * @apiSuccess {Object} meeting Объект заседания с подразделениями.
+ * @apiSuccess {Object[]} voteResults Массив результатов голосований с индивидуальными голосами.
+ * @apiSuccess {Object[]} participants Массив всех участников заседания из подразделений.
+ * @apiSuccess {Number} voteResults.votesFor Количество голосов "За".
+ * @apiSuccess {Number} voteResults.votesAgainst Количество голосов "Против".
+ * @apiSuccess {Number} voteResults.votesAbstain Количество голосов "Воздержались".
+ * @apiSuccess {Number} voteResults.votesAbsent Количество не проголосовавших.
+ * @apiSuccess {String} voteResults.decision Решение ("Принято" или "Не принято").
+ * @apiSuccess {String} voteResults.voteStatus Статус голосования (PENDING, ENDED, APPLIED, CANCELLED).
+ * @apiSuccess {String} voteResults.voteType Тип голосования (OPEN или CLOSED).
+ * @apiSuccess {Date} voteResults.createdAt Дата начала голосования.
+ * @apiSuccess {Number} voteResults.duration Длительность голосования в секундах.
+ * @apiSuccess {Object[]} voteResults.votes Массив голосов участников.
+ * @apiSuccess {Number} voteResults.votes.userId Идентификатор пользователя.
+ * @apiSuccess {String} voteResults.votes.choice Выбор пользователя (FOR, AGAINST, ABSTAIN).
+ * @apiSuccess {Object} voteResults.votes.user Данные пользователя.
+ * @apiSuccess {String} voteResults.votes.user.name Имя пользователя.
+ * @apiError (404) NotFound Вопрос повестки не найден.
+ * @apiError (500) ServerError Ошибка сервера.
+ * @apiExample {curl} Пример запроса:
+ *     curl http://217.114.10.226:5000/api/agenda-items/280/detailed-votes
+ */
+router.get('/agenda-items/:id/detailed-votes', async (req, res) => {
+  const { id } = req.params;
+  const agendaItemId = parseInt(id, 10);
+
+  if (!agendaItemId || isNaN(agendaItemId)) {
+    return res.status(400).json({ error: 'Invalid agenda item ID' });
+  }
+
+  try {
+    // Get agenda item with meeting and divisions
+    const agendaItem = await req.prisma.agendaItem.findUnique({
+      where: { id: agendaItemId },
+      include: {
+        meeting: {
+          include: {
+            divisions: {
+              include: {
+                users: {
+                  select: {
+                    id: true,
+                    name: true,
+                    email: true,
+                  },
+                },
+              },
+            },
+          },
+        },
+      },
+    });
+
+    if (!agendaItem) {
+      return res.status(404).json({ error: 'Agenda item not found' });
+    }
+
+    // Collect all unique users from divisions
+    const userMap = new Map();
+    agendaItem.meeting.divisions.forEach(div => {
+      div.users.forEach(user => {
+        if (!userMap.has(user.id)) {
+          userMap.set(user.id, user);
+        }
+      });
+    });
+    const participants = Array.from(userMap.values());
+
+    // Get all vote results for this agenda item
+    const voteResults = await req.prisma.voteResult.findMany({
+      where: { agendaItemId },
+      orderBy: { createdAt: 'asc' },
+    });
+
+    // For each vote result, get individual votes with user info
+    const detailedResults = await Promise.all(
+      voteResults.map(async (voteResult) => {
+        const votes = await req.prisma.vote.findMany({
+          where: { voteResultId: voteResult.id },
+          include: {
+            user: {
+              select: {
+                id: true,
+                name: true,
+                email: true,
+              },
+            },
+          },
+          orderBy: { createdAt: 'asc' },
+        });
+
+        return {
+          ...voteResult,
+          votes,
+        };
+      })
+    );
+
+    console.log(`[API] Found ${voteResults.length} vote results for agenda item ${agendaItemId}`);
+
+    res.json({
+      agendaItem,
+      meeting: agendaItem.meeting,
+      voteResults: detailedResults,
+      participants,
+    });
+  } catch (error) {
+    console.error(`[API] Error fetching detailed votes for agenda item ${agendaItemId}:`, error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
 module.exports = (prisma, pgClient, io) => {
   router.prisma = prisma;
   router.io = io;

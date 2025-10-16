@@ -12,6 +12,10 @@ Font.register({
       src: 'https://fonts.gstatic.com/s/roboto/v30/KFOlCnqEu92Fr1MmWUlvAx05IsDqlA.ttf',
       fontWeight: 'bold',
     },
+    {
+      src: 'https://fonts.gstatic.com/s/roboto/v30/KFOkCnqEu92Fr1Mu52xPKTM1K9nz.ttf',
+      fontStyle: 'italic',
+    },
   ],
 });
 

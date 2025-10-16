@@ -12,16 +12,21 @@ import VoteResultsPDF from './VoteResultsPDF.jsx';
 function MeetingResultsPDFButton({ meeting, agenda }) {
   const [showPdfDownload, setShowPdfDownload] = useState(false);
   const [allVoteResults, setAllVoteResults] = useState([]);
+  const [participants, setParticipants] = useState([]);
 
   useEffect(() => {
-    // Load all vote results when meeting is completed
+    // Load all vote results and participants when meeting is completed
     if (meeting?.status === 'COMPLETED' && meeting?.id) {
       (async () => {
         try {
           const voteRes = await getVoteResults(meeting.id);
           setAllVoteResults(Array.isArray(voteRes) ? voteRes : []);
+
+          // Load participants
+          const partRes = await axios.get(`/api/meetings/${meeting.id}/participants`);
+          setParticipants(Array.isArray(partRes.data) ? partRes.data : []);
         } catch (err) {
-          console.error('Failed to load vote results:', err);
+          console.error('Failed to load vote results or participants:', err);
         }
       })();
     }
@@ -97,6 +102,7 @@ function MeetingResultsPDFButton({ meeting, agenda }) {
                     meeting={meeting}
                     agendaItems={agenda}
                     voteResults={allVoteResults}
+                    participants={participants}
                   />
                 }
                 fileName={`results_${meeting?.name || 'meeting'}_${new Date().toISOString().split('T')[0]}.pdf`}
