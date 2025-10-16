@@ -1,7 +1,5 @@
 import './App.css';
-import { Routes, Route, Navigate, useLocation, useNavigate } from 'react-router-dom';
-import { useEffect, useMemo } from 'react';
-import socket from './utils/socket.js';
+import { Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import HomePage from './pages/HomePage.jsx';
 import UsersPage from './pages/UsersPage.jsx';
 import DivisionsPage from './pages/DivisionsPage.jsx';
@@ -63,40 +61,8 @@ function RequireNonAdmin({ children }) {
 
 
 function App() {
-  const navigate = useNavigate();
-  const user = useAuth();
-
-  // Memoize userId to prevent unnecessary socket reconnections
-  const userId = useMemo(() => user?.id, [user?.id]);
-
-  // Auto-logout if admin disconnects this user via status toggle
-  useEffect(() => {
-    // Attach listener only if user is logged in
-    if (!userId) return;
-
-    // Connect socket lazily (only when needed)
-    if (!socket.connected) {
-      socket.connect();
-    }
-
-    const handleStatus = (data) => {
-      try {
-        const raw = localStorage.getItem('authUser');
-        const auth = raw ? JSON.parse(raw) : null;
-        const sameId = Number(auth?.id) === Number(data?.userId);
-        const sameEmail = auth?.email && data?.email && String(auth.email).toLowerCase() === String(data.email).toLowerCase();
-        if (auth && !auth.isAdmin && (sameId || sameEmail) && data?.isOnline === false) {
-          try { localStorage.removeItem('authUser'); } catch {}
-          navigate('/login', { replace: true });
-        }
-      } catch {}
-    };
-    socket.on('user-status-changed', handleStatus);
-    return () => {
-      socket.off('user-status-changed', handleStatus);
-    };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [userId]); // navigate is stable from useNavigate, doesn't need to be in deps
+  // Socket removed from App.jsx - connects only on pages needing real-time updates
+  // Static pages (divisions, meetings, etc.) load instantly without socket
   return (
     <Routes>
       <Route path="/login" element={<LoginPage />} />
