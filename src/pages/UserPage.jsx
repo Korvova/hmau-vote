@@ -852,9 +852,11 @@ function UserPage() {
           <div className="modal-content vote-modal">
             <h2 id="vote-modal-title">{voteTitle}</h2>
             {voteQuestion ? <p className="vote-modal__question">{voteQuestion}</p> : null}
-            <div className="vote-modal__timer">
-              Осталось времени: <span>{formatTime(remainingSeconds ?? (activeVote?.duration || 0))}</span>
-            </div>
+            {remainingSeconds !== null && remainingSeconds !== undefined && (
+              <div className="vote-modal__timer">
+                Осталось времени: <span>{formatTime(remainingSeconds)}</span>
+              </div>
+            )}
             {voteWeight && voteWeight > 1 ? (
               <div style={{
                 backgroundColor: '#fef3c7',
