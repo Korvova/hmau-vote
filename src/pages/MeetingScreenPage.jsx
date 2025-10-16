@@ -3,11 +3,22 @@ import { useParams } from 'react-router-dom';
 import socket from '../utils/socket.js';
 import { getMeeting, getVoteResults, getAgendaItems, getMeetingParticipants } from '../utils/api.js';
 
-// Helper to check if division is system/invited group
-const isInvitedDivision = (division) => {
-  if (!division || !division.name) return false;
-  const name = division.name.replace(/👥/g, '').trim().toLowerCase();
-  return name === 'приглашенные';
+// Helper to check if user belongs to system/invited group
+const isInvitedUser = (user) => {
+  // Check if user has divisions array (from API)
+  if (Array.isArray(user.divisions) && user.divisions.length > 0) {
+    return user.divisions.some(d => {
+      if (!d || !d.name) return false;
+      const name = d.name.replace(/👥/g, '').trim().toLowerCase();
+      return name === 'приглашенные';
+    });
+  }
+  // Fallback: check single division object
+  if (user.division && user.division.name) {
+    const name = user.division.name.replace(/👥/g, '').trim().toLowerCase();
+    return name === 'приглашенные';
+  }
+  return false;
 };
 
 function MeetingScreenPage() {
@@ -883,7 +894,7 @@ function MeetingScreenPage() {
   const config = screenConfig?.registration || {};
 
   // Filter out invited participants (👥Приглашенные) from all counts
-  const regularParticipants = participants.filter(p => !isInvitedDivision(p.division));
+  const regularParticipants = participants.filter(p => !isInvitedUser(p));
 
   const totalParticipants = regularParticipants.length;
   const onlineParticipants = regularParticipants.filter(p => p.isOnline);
