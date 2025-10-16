@@ -346,6 +346,14 @@ app.use('/api', require('./root/vote-templates.cjs')(prisma));
 app.use('/api/duration-templates', require('./root/duration-templates.cjs'));
 app.use('/api', require('./root/vote.cjs')(prisma, pgClient, io));
 app.use('/api/televic', require('./root/televic.cjs')(prisma, pgClient, io));
+app.use('/api/screen-configs', (req, res, next) => {
+  req.prisma = prisma;
+  next();
+}, require('./root/screen-configs.cjs'));
+app.use('/api/screen-uploads', require('./root/screen-uploads.cjs'));
+
+// Serve uploaded files
+app.use('/uploads', express.static(path.join(__dirname, '../uploads')));
 
 // Manual end of vote for an agenda item
 // Important: implemented here to avoid touching files in api/root
