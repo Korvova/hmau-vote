@@ -544,6 +544,9 @@ table tr td.state.state-on span::after {
 table tr td.state.state-off span::after {
   background-color: #ea2727
 }
+table tr td.state.state-televic span::after {
+  background-color: #2196F3
+}
 table tr td.state span {
   width: 20px;
   height: 20px;

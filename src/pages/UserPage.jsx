@@ -751,7 +751,7 @@ function UserPage() {
                                     </div>
                                   )}
                                 </td>
-                                <td className={`state state-${u.isOnline ? 'on' : 'off'}`}><span /></td>
+                                <td className={`state state-${u.isBadgeInserted ? 'televic' : (u.isOnline ? 'on' : 'off')}`}><span /></td>
                               </tr>
                             ))}
                           </tbody>
