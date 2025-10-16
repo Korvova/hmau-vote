@@ -14,7 +14,7 @@ import {
   getVoteResults,
 } from '../utils/api.js';
 import HeaderDropdown from '../components/HeaderDropdown.jsx';
-import UserQueueButtons from '../components/UserQueueButtons.jsx';
+import UserQueueButtons from '../components/UserQueueButtons.jsx'; // Temporarily disabled - backend not implemented
 import MeetingResultsPDFButton from '../components/MeetingResultsPDFButton.jsx';
 function useAuth() {
   try { const raw = localStorage.getItem('authUser'); return raw ? JSON.parse(raw) : null; } catch { return null; }

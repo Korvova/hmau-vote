@@ -1493,5 +1493,8 @@ router.get('/:id/absent-users', async (req, res) => {
     }
   });
 
+  // Mount queue router as nested router (supports /api/meetings/:id/queue routes)
+  router.use('/:id/queue', require('./queue.cjs')(prisma, io));
+
   return router;
 };

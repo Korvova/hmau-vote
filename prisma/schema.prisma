@@ -30,6 +30,7 @@ model User {
   deviceLink  DeviceLink?  @relation // Добавляем связь с устройством
   televicExternalId String? @unique // Внешний ID делегата в Televic
   isBadgeInserted Boolean @default(false) // Статус карточки в Televic (воткнута/вынута)
+  queueEntries Queue[] // Записи в очередях
 }
 
 model Division {
@@ -58,6 +59,7 @@ model Meeting {
   televicMeetingId Int?     // ID заседания в Televic CoCon (для зеркалирования)
   createInTelevic Boolean   @default(false) // Флаг для создания заседания в Televic при запуске
   showVoteOnBroadcast Boolean @default(false) // Флаг для отображения результата голосования на экране трансляции
+  queues Queue[] // Очереди на вопрос/выступление
 }
 
 model AgendaItem {
@@ -166,7 +168,33 @@ enum VoteType {
   CLOSED
 }
 
+enum QueueType {
+  QUESTION
+  SPEECH
+}
 
+enum QueueStatus {
+  WAITING
+  ACTIVE
+  COMPLETED
+}
 
+model Queue {
+  id           Int         @id @default(autoincrement())
+  meetingId    Int
+  meeting      Meeting     @relation(fields: [meetingId], references: [id], onDelete: Cascade)
+  userId       Int
+  user         User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  type         QueueType   // QUESTION или SPEECH
+  status       QueueStatus @default(WAITING) // WAITING, ACTIVE, COMPLETED
+  position     Int         // Позиция в очереди
+  timerSeconds Int?        // Время таймера в секундах (из шаблона)
+  timerEndTime DateTime?   // Время окончания таймера
+  createdAt    DateTime    @default(now())
+  updatedAt    DateTime    @updatedAt
 
+  @@unique([meetingId, userId, type]) // Один пользователь не может быть дважды в одной очереди одного типа
+  @@index([meetingId, type, status])
+  @@index([meetingId, type, position])
+}
 
