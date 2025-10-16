@@ -252,6 +252,45 @@ router.delete('/:id', async (req, res) => {
   }
 });
 
+/**
+ * @api {get} /api/users/:id Получение данных пользователя
+ * @apiName ПолучениеПользователя
+ * @apiGroup Пользователи
+ * @apiDescription Возвращает данные конкретного пользователя по его ID, включая статус isBadgeInserted
+ * @apiParam {Number} id Идентификатор пользователя (параметр пути)
+ * @apiSuccess {Object} user Объект пользователя
+ * @apiSuccess {Number} user.id Идентификатор пользователя
+ * @apiSuccess {String} user.name Имя пользователя
+ * @apiSuccess {String} user.email Электронная почта
+ * @apiSuccess {Boolean} user.isOnline Статус онлайн
+ * @apiSuccess {Boolean} user.isBadgeInserted Статус вставленной карточки Televic
+ * @apiError (404) NotFound Пользователь не найден
+ * @apiExample {curl} Пример использования:
+ *     curl http://217.114.10.226:5000/api/users/2
+ */
+router.get('/:id', async (req, res) => {
+  const { id } = req.params;
+  try {
+    const user = await req.prisma.user.findUnique({
+      where: { id: parseInt(id) },
+      select: {
+        id: true,
+        name: true,
+        email: true,
+        isOnline: true,
+        isBadgeInserted: true
+      }
+    });
+    if (!user) {
+      return res.status(404).json({ error: 'Пользователь не найден' });
+    }
+    res.json(user);
+  } catch (error) {
+    console.error('Ошибка при получении пользователя:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
 module.exports = (prisma) => {
   router.prisma = prisma;
   return router;
