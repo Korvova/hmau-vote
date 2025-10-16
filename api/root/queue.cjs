@@ -117,8 +117,8 @@ module.exports = (prisma, io) => {
       });
   
       // Emit socket event
-      if (router.io) {
-        router.io.emit('queue-updated', {
+      if (io) {
+        io.emit('queue-updated', {
           meetingId: parseInt(id),
           type: type,
           action: 'joined',
@@ -167,8 +167,8 @@ module.exports = (prisma, io) => {
       `;
   
       // Emit socket event
-      if (router.io) {
-        router.io.emit('queue-updated', {
+      if (io) {
+        io.emit('queue-updated', {
           meetingId: parseInt(id),
           type: type,
           action: 'removed',
@@ -253,8 +253,8 @@ module.exports = (prisma, io) => {
       });
   
       // Emit socket event
-      if (router.io) {
-        router.io.emit('queue-timer-started', {
+      if (io) {
+        io.emit('queue-timer-started', {
           meetingId: parseInt(id),
           type: type,
           entry: updated,
@@ -344,8 +344,8 @@ module.exports = (prisma, io) => {
       });
   
       // Emit socket event
-      if (router.io) {
-        router.io.emit('queue-next', {
+      if (io) {
+        io.emit('queue-next', {
           meetingId: parseInt(id),
           type: type,
           nextEntry: nextEntry,
@@ -408,8 +408,8 @@ module.exports = (prisma, io) => {
       });
   
       // Emit socket event for timer ended
-      if (router.io) {
-        router.io.emit('queue-timer-ended', {
+      if (io) {
+        io.emit('queue-timer-ended', {
           meetingId: parseInt(id),
           type: type,
           userId: parseInt(userId),
