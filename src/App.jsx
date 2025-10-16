@@ -64,9 +64,13 @@ function RequireNonAdmin({ children }) {
 
 function App() {
   const navigate = useNavigate();
+  const user = useAuth();
 
   // Auto-logout if admin disconnects this user via status toggle
   useEffect(() => {
+    // Only create socket if user is logged in
+    if (!user) return;
+
     const socket = io();
     const handleStatus = (data) => {
       try {
@@ -85,7 +89,7 @@ function App() {
       socket.off('user-status-changed', handleStatus);
       socket.disconnect();
     };
-  }, [navigate]);
+  }, [navigate, user]);
   return (
     <Routes>
       <Route path="/login" element={<LoginPage />} />
