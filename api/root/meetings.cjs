@@ -838,6 +838,13 @@ router.get('/:id/participants', async (req, res) => {
       where: { id: { in: Array.from(userIds) } },
       include: {
         division: true
+      },
+      select: {
+        id: true,
+        name: true,
+        division: true,
+        isOnline: true,
+        isBadgeInserted: true
       }
     });
 
@@ -875,7 +882,9 @@ router.get('/:id/participants', async (req, res) => {
           toUserName: users.find(u => u.id === proxyRecord.toUserId)?.name || 'Unknown'
         } : null,
         receivedProxies,
-        voteWeight: 1 + receivedProxies.length
+        voteWeight: 1 + receivedProxies.length,
+        isOnline: user.isOnline || false,
+        isBadgeInserted: user.isBadgeInserted || false
       };
     });
 
