@@ -122,7 +122,7 @@ function QueueBlock({ meetingId, durationTemplates }) {
       socket.off('queue-settings-updated', handleQueueSettingsUpdated);
       socket.disconnect();
     };
-  }, [meetingId, activeTab]);
+  }, [meetingId]); // Removed activeTab - socket doesn't need to reconnect when tab changes
 
   // Timer countdown
   useEffect(() => {
