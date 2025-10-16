@@ -836,9 +836,6 @@ router.get('/:id/participants', async (req, res) => {
 
     const users = await prisma.user.findMany({
       where: { id: { in: Array.from(userIds) } },
-      include: {
-        division: true
-      },
       select: {
         id: true,
         name: true,
