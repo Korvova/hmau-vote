@@ -265,8 +265,10 @@ function UserPage() {
     const update = () => {
       const diff = voteDeadline - Date.now();
       const seconds = diff > 0 ? Math.ceil(diff / 1000) : 0;
-      setRemainingSeconds(seconds);
+
       if (diff <= 0) {
+        // Clear timer first to avoid showing "00:00"
+        setRemainingSeconds(null);
         clearChangeTimers();
         setVoteModalOpen(false);
         setVoteDeadline(null);
@@ -284,6 +286,8 @@ function UserPage() {
             return { ...item, activeIssue: false };
           });
         });
+      } else {
+        setRemainingSeconds(seconds);
       }
     };
     update();
