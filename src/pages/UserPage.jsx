@@ -107,7 +107,7 @@ function UserPage() {
         const userData = await response.json();
         if (userData?.isBadgeInserted) {
           console.log('🎛️ User has badge inserted - voting blocked on website');
-          alert('Вы вставили карточку в пульт Televic. Пожалуйста, голосуйте через пульт.');
+          // No alert needed - banner is displayed on page
           return;
         }
       } catch (err) {
