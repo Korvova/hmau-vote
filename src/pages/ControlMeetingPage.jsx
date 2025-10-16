@@ -138,13 +138,15 @@ function ControlMeetingPage() {
         const meetingUsers = Array.isArray(m?.divisions)
           ? m.divisions.flatMap(d => Array.isArray(d.users) ? d.users : [])
           : [];
-        setUsers(meetingUsers);
+        // Initialize all microphones as OFF (muted: true)
+        setUsers(meetingUsers.map(u => ({ ...u, muted: true })));
 
         // Load participants with location and proxy info
         try {
           const participantsRes = await axios.get(`/api/meetings/${id}/participants`);
           const partsData = participantsRes.data?.participants || participantsRes.data;
-          setParticipants(Array.isArray(partsData) ? partsData : []);
+          // Initialize all microphones as OFF (muted: true)
+          setParticipants(Array.isArray(partsData) ? partsData.map(p => ({ ...p, muted: true })) : []);
         } catch (err) {
           console.error('Failed to load participants:', err);
         }
