@@ -1,6 +1,6 @@
 import './App.css';
 import { Routes, Route, Navigate, useLocation, useNavigate } from 'react-router-dom';
-import { useEffect } from 'react';
+import { useEffect, useMemo } from 'react';
 import { io } from 'socket.io-client';
 import HomePage from './pages/HomePage.jsx';
 import UsersPage from './pages/UsersPage.jsx';
@@ -66,10 +66,13 @@ function App() {
   const navigate = useNavigate();
   const user = useAuth();
 
+  // Memoize userId to prevent unnecessary socket reconnections
+  const userId = useMemo(() => user?.id, [user?.id]);
+
   // Auto-logout if admin disconnects this user via status toggle
   useEffect(() => {
     // Only create socket if user is logged in
-    if (!user) return;
+    if (!userId) return;
 
     const socket = io();
     const handleStatus = (data) => {
@@ -89,7 +92,7 @@ function App() {
       socket.off('user-status-changed', handleStatus);
       socket.disconnect();
     };
-  }, [navigate, user]);
+  }, [navigate, userId]);
   return (
     <Routes>
       <Route path="/login" element={<LoginPage />} />
