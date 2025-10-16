@@ -841,7 +841,8 @@ router.get('/:id/participants', async (req, res) => {
         name: true,
         division: true,
         isOnline: true,
-        isBadgeInserted: true
+        isBadgeInserted: true,
+        televicExternalId: true
       }
     });
 
