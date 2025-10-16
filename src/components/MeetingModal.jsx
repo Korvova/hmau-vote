@@ -8,7 +8,6 @@ function MeetingModal({ open, data, divisions = [], users = [], title = 'Ред�
   const [form, setForm] = useState({ title: '', startAt: '', endAt: '' });
   const [divisionIds, setDivisionIds] = useState([]);
   const [agenda, setAgenda] = useState([]);
-  const [password, setPassword] = useState('');
   const [showParticipants, setShowParticipants] = useState(false);
   const [participantCount, setParticipantCount] = useState(0);
   const [voteProcedureId, setVoteProcedureId] = useState(null);
@@ -63,7 +62,6 @@ function MeetingModal({ open, data, divisions = [], users = [], title = 'Ред�
     setAgenda(ag);
     setVoteProcedureId(data?.voteProcedureId || null);
     setQuorumType(data?.quorumType || null);
-    setPassword('');
   }, [open, data, divisions]);
 
   // Загружаем процедуры голосования при открытии модального окна
@@ -186,7 +184,7 @@ function MeetingModal({ open, data, divisions = [], users = [], title = 'Ред�
       quorumType: quorumType,
       createInTelevic: createInTelevic,
     };
-    onSubmit?.(payload, password);
+    onSubmit?.(payload);
   };
 
   const handleSaveAndConfigureParticipants = async (e) => {
@@ -232,7 +230,7 @@ function MeetingModal({ open, data, divisions = [], users = [], title = 'Ред�
       createInTelevic: createInTelevic,
       openParticipantsAfterSave: true, // Флаг для родителя
     };
-    onSubmit?.(payload, password);
+    onSubmit?.(payload);
   };
 
   if (!open) return null;
@@ -441,16 +439,8 @@ function MeetingModal({ open, data, divisions = [], users = [], title = 'Ред�
             ))}
           </div>
 
-          {/* Пароль + Применить */}
-          <div style={{ display: 'flex', gap: 20, marginTop: 24, alignItems: 'center' }}>
-            <input
-              type="password"
-              placeholder="Пароль"
-              required
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              style={{ ...inputStyle, flex: 1 }}
-            />
+          {/* Применить */}
+          <div style={{ display: 'flex', gap: 20, marginTop: 24, alignItems: 'center', justifyContent: 'flex-end' }}>
             <button type="submit" className="btn" style={{ ...smallButton, backgroundColor: '#2b8af8', color: '#fff', border: 'none' }}>Применить</button>
           </div>
         </form>
