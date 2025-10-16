@@ -278,7 +278,8 @@ router.get('/:id', async (req, res) => {
         name: true,
         email: true,
         isOnline: true,
-        isBadgeInserted: true
+        isBadgeInserted: true,
+        division: true
       }
     });
     if (!user) {
