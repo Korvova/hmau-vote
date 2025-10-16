@@ -56,10 +56,18 @@ model Meeting {
   createdAt   DateTime     @default(now())
   updatedAt   DateTime     @updatedAt
   isArchived  Boolean      @default(false)
+  voteProcedureId Int?     // ID процедуры голосования по умолчанию
+  voteProcedure VoteProcedure? @relation(fields: [voteProcedureId], references: [id], onDelete: SetNull)
+  questionQueueEnabled Boolean @default(true) // Включена ли очередь на вопросы
+  speechQueueEnabled Boolean @default(true)   // Включена ли очередь на выступления
   screenConfig Json?        // Конфигурации экранов (registration, agenda, voting, final)
+  showVoteOnBroadcast Boolean? @default(false) // Флаг для отображения результата голосования на экране трансляции
+  quorumType  Int?         // Тип кворума (хранится как число)
+  timerDuration Int?       // Длительность таймера в секундах
+  timerStartedAt DateTime? // Время начала таймера
+  timerActive Boolean?     @default(false) // Активен ли таймер
   televicMeetingId Int?     // ID заседания в Televic CoCon (для зеркалирования)
   createInTelevic Boolean   @default(false) // Флаг для создания заседания в Televic при запуске
-  showVoteOnBroadcast Boolean @default(false) // Флаг для отображения результата голосования на экране трансляции
   queues Queue[] // Очереди на вопрос/выступление
 }
 
@@ -127,6 +135,7 @@ model VoteProcedure {
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
   voteResults  VoteResult[] @relation("VoteProcedureToVoteResult") // Добавленное поле
+  meetings     Meeting[] // Связь с заседаниями
 }
 
 

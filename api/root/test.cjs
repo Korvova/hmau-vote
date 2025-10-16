@@ -559,4 +559,315 @@ router.get('/count-guests', async (req, res) => {
   }
 });
 
+/**
+ * POST /api/test/create-meeting
+ * Создает тестовое заседание с 3 вопросами повестки
+ *
+ * Параметры:
+ * - type: тип кворума ("TWO_THIRDS_FIXED" | "TWO_THIRDS_REGISTERED" | "HALF_PLUS_ONE")
+ *   - TWO_THIRDS_FIXED: Не менее 2/3 от установленного числа депутатов (voteProcedureId=3)
+ *   - TWO_THIRDS_REGISTERED: 2/3 от установленного (кворум >1)
+ *   - HALF_PLUS_ONE: Половина +1 (voteProcedureId=4)
+ *
+ * Создает:
+ * - Заседание "Десятое тест сайт ({тип})"
+ * - Добавляет группы: "Тестовая группа 10" и "👥Приглашенные"
+ * - 3 вопроса повестки с докладчиками "Иван 1", "Иван 2", "Иван 3"
+ */
+router.post('/create-meeting', async (req, res) => {
+  try {
+    const { PrismaClient } = require('@prisma/client');
+    const prisma = req.prisma || new PrismaClient();
+
+    const type = req.body.type || 'TWO_THIRDS_FIXED';
+
+    // Определить параметры заседания по типу
+    let meetingName, voteProcedureId, quorumValue;
+
+    switch (type) {
+      case 'TWO_THIRDS_FIXED':
+        meetingName = 'Десятое тест сайт (Не менее 2/3 от установленного числа депутатов)';
+        voteProcedureId = 3; // Не менее 2/3 от установленного
+        quorumValue = null;
+        break;
+      case 'TWO_THIRDS_REGISTERED':
+        meetingName = 'Десятое тест сайт 2/3 от установленного';
+        voteProcedureId = 3; // 2/3 от установленного
+        quorumValue = 2; // Больше 1
+        break;
+      case 'HALF_PLUS_ONE':
+        meetingName = 'Десятое тест сайт Половина +1';
+        voteProcedureId = 4; // Большинство от установленного (0.5)
+        quorumValue = null;
+        break;
+      default:
+        return res.status(400).json({
+          success: false,
+          error: `Invalid meeting type: ${type}. Must be TWO_THIRDS_FIXED, TWO_THIRDS_REGISTERED, or HALF_PLUS_ONE`
+        });
+    }
+
+    console.log(`[TEST] Creating meeting: ${meetingName}`);
+    console.log(`[TEST] Vote procedure ID: ${voteProcedureId}`);
+
+    // 1. Найти группы
+    const testDivision = await prisma.division.findFirst({
+      where: { name: 'Тестовая группа 10' }
+    });
+
+    const guestDivision = await prisma.division.findFirst({
+      where: { name: '👥Приглашенные' }
+    });
+
+    if (!testDivision) {
+      return res.status(400).json({
+        success: false,
+        error: 'Division "Тестовая группа 10" not found. Create test users first using /api/test/create-users'
+      });
+    }
+
+    console.log(`[TEST] Found test division: ${testDivision.name} (ID: ${testDivision.id})`);
+    if (guestDivision) {
+      console.log(`[TEST] Found guest division: ${guestDivision.name} (ID: ${guestDivision.id})`);
+    }
+
+    // 2. Создать заседание
+    const startTime = new Date();
+    const endTime = new Date(startTime.getTime() + 4 * 60 * 60 * 1000); // +4 часа
+
+    const meeting = await prisma.meeting.create({
+      data: {
+        name: meetingName,
+        startTime: startTime,
+        endTime: endTime,
+        status: 'WAITING',
+        voteProcedureId: voteProcedureId,
+        ...(quorumValue !== null && { quorumType: quorumValue }),
+        divisions: {
+          connect: guestDivision
+            ? [{ id: testDivision.id }, { id: guestDivision.id }]
+            : [{ id: testDivision.id }]
+        }
+      },
+      include: {
+        divisions: true
+      }
+    });
+
+    console.log(`[TEST] Created meeting: ${meeting.name} (ID: ${meeting.id})`);
+
+    // 3. Создать 3 вопроса повестки
+    const agendaItems = [];
+    for (let i = 1; i <= 3; i++) {
+      const agendaItem = await prisma.agendaItem.create({
+        data: {
+          number: i,
+          title: `Вопрос ${i}`,
+          speakerName: `Иван ${i}`,
+          meetingId: meeting.id
+        }
+      });
+      agendaItems.push(agendaItem);
+      console.log(`[TEST] Created agenda item: ${agendaItem.title} (ID: ${agendaItem.id})`);
+    }
+
+    res.json({
+      success: true,
+      message: `Created test meeting: ${meetingName}`,
+      meeting: {
+        id: meeting.id,
+        name: meeting.name,
+        startTime: meeting.startTime,
+        endTime: meeting.endTime,
+        status: meeting.status,
+        voteProcedureId: meeting.voteProcedureId,
+        quorumType: meeting.quorumType,
+        divisions: meeting.divisions.map(d => ({
+          id: d.id,
+          name: d.name
+        }))
+      },
+      agendaItems: agendaItems.map(item => ({
+        id: item.id,
+        number: item.number,
+        title: item.title,
+        speakerName: item.speakerName
+      }))
+    });
+
+  } catch (error) {
+    console.error('[TEST] Error in create-meeting:', error);
+    res.status(500).json({
+      success: false,
+      error: error.message,
+      stack: process.env.NODE_ENV === 'development' ? error.stack : undefined
+    });
+  }
+});
+
+/**
+ * DELETE /api/test/delete-meeting
+ * Удаляет тестовое заседание по типу
+ *
+ * Параметры:
+ * - type: тип кворума ("TWO_THIRDS_FIXED" | "TWO_THIRDS_REGISTERED" | "HALF_PLUS_ONE")
+ * - или id: ID заседания для удаления
+ */
+router.delete('/delete-meeting', async (req, res) => {
+  try {
+    const { PrismaClient } = require('@prisma/client');
+    const prisma = req.prisma || new PrismaClient();
+
+    const type = req.body.type || req.query.type;
+    const meetingId = req.body.id || req.query.id;
+
+    let meetingName;
+
+    if (meetingId) {
+      // Удалить по ID
+      console.log(`[TEST] Deleting meeting by ID: ${meetingId}`);
+
+      // Удалить связанные agenda items
+      await prisma.agendaItem.deleteMany({
+        where: { meetingId: parseInt(meetingId) }
+      });
+
+      await prisma.meeting.delete({
+        where: { id: parseInt(meetingId) }
+      });
+
+      return res.json({
+        success: true,
+        message: `Deleted meeting with ID: ${meetingId}`,
+        deletedId: parseInt(meetingId)
+      });
+    }
+
+    // Удалить по типу
+    switch (type) {
+      case 'TWO_THIRDS_FIXED':
+        meetingName = 'Десятое тест сайт (Не менее 2/3 от установленного числа депутатов)';
+        break;
+      case 'TWO_THIRDS_REGISTERED':
+        meetingName = 'Десятое тест сайт 2/3 от установленного';
+        break;
+      case 'HALF_PLUS_ONE':
+        meetingName = 'Десятое тест сайт Половина +1';
+        break;
+      default:
+        return res.status(400).json({
+          success: false,
+          error: `Invalid meeting type: ${type}. Must be TWO_THIRDS_FIXED, TWO_THIRDS_REGISTERED, or HALF_PLUS_ONE`
+        });
+    }
+
+    console.log(`[TEST] Deleting meeting: ${meetingName}`);
+
+    // Найти заседание
+    const meeting = await prisma.meeting.findFirst({
+      where: { name: meetingName }
+    });
+
+    if (!meeting) {
+      return res.status(404).json({
+        success: false,
+        error: `Meeting not found: ${meetingName}`
+      });
+    }
+
+    // Удалить agenda items
+    const deletedAgenda = await prisma.agendaItem.deleteMany({
+      where: { meetingId: meeting.id }
+    });
+
+    console.log(`[TEST] Deleted ${deletedAgenda.count} agenda items`);
+
+    // Удалить заседание
+    await prisma.meeting.delete({
+      where: { id: meeting.id }
+    });
+
+    console.log(`[TEST] Deleted meeting: ${meetingName} (ID: ${meeting.id})`);
+
+    res.json({
+      success: true,
+      message: `Deleted meeting: ${meetingName}`,
+      deletedId: meeting.id,
+      deletedAgendaItems: deletedAgenda.count
+    });
+
+  } catch (error) {
+    console.error('[TEST] Error in delete-meeting:', error);
+    res.status(500).json({
+      success: false,
+      error: error.message,
+      stack: process.env.NODE_ENV === 'development' ? error.stack : undefined
+    });
+  }
+});
+
+/**
+ * GET /api/test/list-meetings
+ * Список всех тестовых заседаний
+ */
+router.get('/list-meetings', async (req, res) => {
+  try {
+    const { PrismaClient } = require('@prisma/client');
+    const prisma = req.prisma || new PrismaClient();
+
+    const meetings = await prisma.meeting.findMany({
+      where: {
+        name: {
+          startsWith: 'Десятое тест сайт'
+        }
+      },
+      include: {
+        divisions: {
+          select: {
+            id: true,
+            name: true
+          }
+        },
+        agendaItems: {
+          select: {
+            id: true,
+            number: true,
+            title: true,
+            speakerName: true
+          },
+          orderBy: {
+            number: 'asc'
+          }
+        }
+      },
+      orderBy: {
+        createdAt: 'desc'
+      }
+    });
+
+    res.json({
+      success: true,
+      found: meetings.length,
+      meetings: meetings.map(m => ({
+        id: m.id,
+        name: m.name,
+        startTime: m.startTime,
+        endTime: m.endTime,
+        status: m.status,
+        voteProcedureId: m.voteProcedureId,
+        quorumType: m.quorumType,
+        divisions: m.divisions,
+        agendaItems: m.agendaItems
+      }))
+    });
+
+  } catch (error) {
+    console.error('[TEST] Error in list-meetings:', error);
+    res.status(500).json({
+      success: false,
+      error: error.message
+    });
+  }
+});
+
 module.exports = router;
