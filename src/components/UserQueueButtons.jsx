@@ -211,6 +211,14 @@ function UserQueueButtons({ meetingId, userId }) {
     }
   }, [questionTimeLeft, questionMicEnabled]);
 
+  // Auto-disable microphone when user exits QUESTION queue or is no longer active
+  useEffect(() => {
+    if (questionMicEnabled && (!questionEntry || questionEntry.status !== 'ACTIVE')) {
+      console.log('[Microphone] Auto-disabling for QUESTION - user no longer active or left queue');
+      toggleMicrophone('disable', 'QUESTION');
+    }
+  }, [questionEntry, questionMicEnabled]);
+
   // Auto-enable microphone when timer starts for SPEECH
   useEffect(() => {
     if (speechEntry?.status === 'ACTIVE' && speechEntry.timerEndTime && !speechMicToggledRef.current) {
@@ -232,6 +240,14 @@ function UserQueueButtons({ meetingId, userId }) {
       toggleMicrophone('disable', 'SPEECH');
     }
   }, [speechTimeLeft, speechMicEnabled]);
+
+  // Auto-disable microphone when user exits SPEECH queue or is no longer active
+  useEffect(() => {
+    if (speechMicEnabled && (!speechEntry || speechEntry.status !== 'ACTIVE')) {
+      console.log('[Microphone] Auto-disabling for SPEECH - user no longer active or left queue');
+      toggleMicrophone('disable', 'SPEECH');
+    }
+  }, [speechEntry, speechMicEnabled]);
 
   // Join queue
   const handleJoinQueue = async (type) => {
