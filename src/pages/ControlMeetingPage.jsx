@@ -143,7 +143,8 @@ function ControlMeetingPage() {
         // Load participants with location and proxy info
         try {
           const participantsRes = await axios.get(`/api/meetings/${id}/participants`);
-          setParticipants(Array.isArray(participantsRes.data) ? participantsRes.data : []);
+          const partsData = participantsRes.data?.participants || participantsRes.data;
+          setParticipants(Array.isArray(partsData) ? partsData : []);
         } catch (err) {
           console.error('Failed to load participants:', err);
         }
