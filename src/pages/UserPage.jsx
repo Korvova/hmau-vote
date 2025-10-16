@@ -676,6 +676,17 @@ function UserPage() {
       socket.disconnect();
     };
   }, [auth?.id, auth?.email, auth?.isAdmin, navigate]);
+
+  // Initialize badge status from participants on load
+  useEffect(() => {
+    if (auth?.id && participants.length > 0) {
+      const currentUser = participants.find(u => u.id === auth.id);
+      if (currentUser) {
+        setIsBadgeInserted(currentUser.isBadgeInserted || false);
+      }
+    }
+  }, [auth?.id, participants]);
+
   const voteTitle = activeVote?.templateTitle || activeVote?.question || 'Голосование';
   const voteQuestion = activeVote?.question && activeVote.question !== voteTitle ? activeVote.question : null;
   return (
