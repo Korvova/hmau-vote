@@ -21,6 +21,7 @@ model User {
   isAdmin     Boolean   @default(false)
   divisionId  Int?
   division    Division? @relation(fields: [divisionId], references: [id])
+  username    String?   @unique // Логин пользователя
   meetings    Meeting[] @relation("MeetingParticipants")
   votes       Vote[]
   agendaItems AgendaItem[] @relation
