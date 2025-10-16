@@ -1056,7 +1056,7 @@ function ControlMeetingPage() {
                   </div>
                   <h2 style={{ margin: '0 0 12px' }}>Список участников</h2>
                   <div style={{ marginBottom: '12px', fontSize: '14px', color: '#666' }}>
-                    Всего участников: {meetingUsers.length} | В сети: {meetingUsers.filter(u => u.isOnline).length}
+                    Всего: {meetingUsers.length} | Делегатов: {meetingUsers.filter(u => !isInvitedUser(u)).length} | В сети: {meetingUsers.filter(u => u.isOnline).length} | Гостей: {meetingUsers.filter(u => isInvitedUser(u)).length}
                   </div>
                   <div className="participants-table-wrapper">
                     <div className="page__table">
