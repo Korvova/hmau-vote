@@ -116,6 +116,11 @@ function UserQueueButtons({ meetingId, userId }) {
   useEffect(() => {
     if (!meetingId) return;
 
+    // Connect socket lazily (only when needed)
+    if (!socket.connected) {
+      socket.connect();
+    }
+
     const handleQueueUpdated = (data) => {
       if (data.meetingId !== parseInt(meetingId)) return;
       loadQueue(data.type);

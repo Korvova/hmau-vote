@@ -74,6 +74,11 @@ function App() {
     // Attach listener only if user is logged in
     if (!userId) return;
 
+    // Connect socket lazily (only when needed)
+    if (!socket.connected) {
+      socket.connect();
+    }
+
     const handleStatus = (data) => {
       try {
         const raw = localStorage.getItem('authUser');

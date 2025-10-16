@@ -182,6 +182,11 @@ function ControlMeetingPage() {
 
   // Live updates: user status + vote events
   useEffect(() => {
+    // Connect socket lazily (only when needed)
+    if (!socket.connected) {
+      socket.connect();
+    }
+
     const processedEvents = new Set();
     const debounceTimers = {};
 

@@ -57,6 +57,10 @@ function UsersPage() {
 
   // Socket.IO listener for badge status updates
   useEffect(() => {
+    // Connect socket lazily (only when needed)
+    if (!socket.connected) {
+      socket.connect();
+    }
 
     const onBadgeStatusChanged = (data) => {
       setUsers((prev) => prev.map((u) =>

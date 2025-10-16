@@ -48,6 +48,11 @@ function ProtocolMeetingPage() {
       const auth = JSON.parse(localStorage.getItem('authUser') || 'null');
       if (auth?.isAdmin) return; // Admins don't need auto-redirect
 
+      // Connect socket lazily (only when needed)
+      if (!socket.connected) {
+        socket.connect();
+      }
+
       socket.on('meeting-status-changed', (data) => {
         console.log('Meeting status changed:', data);
         // If ANY meeting started (status changed to IN_PROGRESS), redirect to /user

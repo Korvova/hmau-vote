@@ -471,6 +471,11 @@ function UserPage() {
   useEffect(() => {
     if (!meeting?.id) return undefined;
 
+    // Connect socket lazily (only when needed)
+    if (!socket.connected) {
+      socket.connect();
+    }
+
     const handleNewVote = (data) => {
       console.log('🔔 [handleNewVote] Received event:', {
         voteId: data?.id,
@@ -675,6 +680,11 @@ function UserPage() {
 
   // Also listen for forced disconnects and logout
   useEffect(() => {
+    // Connect socket lazily (only when needed)
+    if (!socket.connected) {
+      socket.connect();
+    }
+
     const onStatus = (data) => {
       try {
         const sameId = Number(auth?.id) === Number(data?.userId);

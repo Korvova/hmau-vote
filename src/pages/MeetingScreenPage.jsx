@@ -164,6 +164,11 @@ function MeetingScreenPage() {
   }, []);
 
   useEffect(() => {
+    // Connect socket lazily (only when needed)
+    if (!socket.connected) {
+      socket.connect();
+    }
+
     const strId = String(id);
     const processedEvents = new Set();
 
