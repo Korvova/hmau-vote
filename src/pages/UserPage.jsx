@@ -123,6 +123,13 @@ function UserPage() {
       try {
         const response = await fetch(`/api/users/${auth.id}`);
         const userData = await response.json();
+
+        // Блокируем голосование для приглашенных гостей
+        if (isInvitedUser(userData)) {
+          console.log('👥 User is invited guest - voting blocked');
+          return;
+        }
+
         if (userData?.isBadgeInserted) {
           console.log('🎛️ User has badge inserted - voting blocked on website');
           // No alert needed - banner is displayed on page
