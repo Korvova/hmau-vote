@@ -283,19 +283,20 @@ pgClient.on('notification', (msg) => {
           }
         } catch {}
       })();
-      // Ensure agenda state reflects finished vote when ended by timer (only if not already completed)
+      // FIXED: When vote ends, only stop voting - do NOT mark agenda as completed
+      // Agenda items should only be completed when user explicitly clicks "Завершить вопрос" button
       (async () => {
         try {
           const agendaItem = await prisma.agendaItem.findUnique({ where: { id: Number(data.agendaItemId) } });
-          if (agendaItem && !agendaItem.completed) {
+          if (agendaItem) {
             await prisma.agendaItem.update({
               where: { id: Number(data.agendaItemId) },
-              data: { completed: true, activeIssue: false, voting: false },
+              data: { voting: false }, // Only stop voting, keep activeIssue and completed as is
             });
-            await pgClient.query(`NOTIFY meeting_status_channel, '${JSON.stringify({ id: Number(data.agendaItemId), meetingId: Number(data.meetingId), activeIssue: false, completed: true })}'`);
+            await pgClient.query(`NOTIFY meeting_status_channel, '${JSON.stringify({ id: Number(data.agendaItemId), meetingId: Number(data.meetingId), voting: false })}'`);
           }
         } catch (e) {
-          console.error('Failed to mark agenda item completed on vote end:', e?.message || e);
+          console.error('Failed to update agenda item on vote end:', e?.message || e);
         }
       })();
     } else if (data.voteStatus === 'APPLIED') {
@@ -502,9 +503,17 @@ app.post('/api/vote-results/:agendaItemId/end', async (req, res) => {
     const votes = await prisma.vote.findMany({ where: { agendaItemId: agendaId } });
     const votedUserIds = [...new Set(votes.map(v => v.userId))];
 
+    // FIXED: Get all divisions and filter out "Приглашенные" (invited guests)
+    const allDivisions = finalVoteResult.meeting.divisions || [];
+    const regularDivisions = allDivisions.filter(d => {
+      if (!d || !d.name) return true;
+      const name = d.name.replace(/👥/g, '').trim().toLowerCase();
+      return name !== 'приглашенные';
+    });
+
     const participants = await prisma.user.findMany({
       where: {
-        divisionId: { in: finalVoteResult.meeting.divisions ? finalVoteResult.meeting.divisions.map(d => d.id) : [] },
+        divisionId: { in: regularDivisions.map(d => d.id) },
         isAdmin: false,
       },
     });
@@ -514,7 +523,8 @@ app.post('/api/vote-results/:agendaItemId/end', async (req, res) => {
 
     const ctx = {
       totalParticipants: participants.length,
-      totalOnlineParticipants: await prisma.user.count({ where: { divisionId: { in: finalVoteResult.meeting.divisions ? finalVoteResult.meeting.divisions.map(d => d.id) : [] }, isAdmin: false, isOnline: true } }),
+      // FIXED: Count only regular participants (exclude invited guests) for online count
+      totalOnlineParticipants: await prisma.user.count({ where: { divisionId: { in: regularDivisions.map(d => d.id) }, isAdmin: false, isOnline: true } }),
       totalVotes: (finalVoteResult.votesFor + finalVoteResult.votesAgainst + finalVoteResult.votesAbstain),
       votesFor: finalVoteResult.votesFor,
       votesAgainst: finalVoteResult.votesAgainst,
@@ -564,11 +574,13 @@ app.post('/api/vote-results/:agendaItemId/end', async (req, res) => {
       data: { voteStatus: 'ENDED', votesAbsent: notVotedCount, decision },
     });
 
-    await prisma.agendaItem.update({ where: { id: agendaId }, data: { voting: false, activeIssue: false, completed: true } });
+    // FIXED: Only stop voting, do NOT mark agenda as completed
+    // Agenda items should only be completed when user explicitly clicks "Завершить вопрос" button
+    await prisma.agendaItem.update({ where: { id: agendaId }, data: { voting: false } });
 
     // Broadcast agenda item state change to connected clients
     try {
-      await pgClient.query(`NOTIFY meeting_status_channel, '${JSON.stringify({ id: agendaId, meetingId: finalVoteResult.meetingId, activeIssue: false, completed: true })}'`);
+      await pgClient.query(`NOTIFY meeting_status_channel, '${JSON.stringify({ id: agendaId, meetingId: finalVoteResult.meetingId, voting: false })}'`);
     } catch {}
 
     const payload = { ...updatedVoteResult, createdAt: updatedVoteResult.createdAt instanceof Date ? updatedVoteResult.createdAt.toISOString() : updatedVoteResult.createdAt };
@@ -653,11 +665,14 @@ coconNS.on('connection', (socket) => {
         if (delegateId === undefined) return;
 
         console.log(`[BadgeEvent] Delegate ${delegateId}: badge ${badgeInserted ? 'inserted' : 'removed'}`);
+        console.log(`[BadgeEvent] DEBUG: Looking for user with televicExternalId='${String(delegateId)}'`);
 
         // Find user by televicExternalId
         const user = await prisma.user.findUnique({
           where: { televicExternalId: String(delegateId) }
         });
+
+        console.log(`[BadgeEvent] DEBUG: Query result:`, user ? `id=${user.id}, name=${user.name}, televicExternalId=${user.televicExternalId}` : 'null');
 
         if (!user) {
           console.log(`[BadgeEvent] No user found with televicExternalId=${delegateId}`);

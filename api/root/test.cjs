@@ -1188,4 +1188,46 @@ router.get('/list-meetings-televic', async (req, res) => {
   }
 });
 
+/**
+ * POST /api/test/refresh-prisma
+ * Переподключает Prisma клиент для обновления кеша после изменения televicExternalId
+ *
+ * Использовать после:
+ * - Изменения televicExternalId у пользователей
+ * - Удаления и создания пользователей с Televic связями
+ * - Любых изменений в маппинге пользователей с делегатами
+ *
+ * Альтернатива: pm2 restart voting-api
+ */
+router.post('/refresh-prisma', async (req, res) => {
+  try {
+    console.log('[TEST] Refreshing Prisma client connection...');
+
+    // Попробовать получить глобальный prisma из Express app
+    const app = req.app;
+    if (app && app.locals && app.locals.prisma) {
+      await app.locals.prisma.$disconnect();
+      console.log('[TEST] Disconnected global Prisma client');
+
+      // Переподключить
+      await app.locals.prisma.$connect();
+      console.log('[TEST] Reconnected global Prisma client');
+    }
+
+    res.json({
+      success: true,
+      message: 'Prisma client refreshed. Badge events should now use updated televicExternalId mappings.',
+      note: 'If this does not work, use: pm2 restart voting-api'
+    });
+
+  } catch (error) {
+    console.error('[TEST] Error refreshing Prisma:', error);
+    res.status(500).json({
+      success: false,
+      error: error.message,
+      note: 'Try manual restart: pm2 restart voting-api'
+    });
+  }
+});
+
 module.exports = router;

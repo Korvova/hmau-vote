@@ -956,11 +956,11 @@ function ControlMeetingPage() {
                                   alert(e.message || 'Не удалось установить активный вопрос');
                                 }
                               }}
-                              disabled={meeting?.status === 'COMPLETED' || a.completed}
+                              disabled={meeting?.status === 'COMPLETED'}
                               style={{
                                 width: '20px',
                                 height: '20px',
-                                cursor: (meeting?.status === 'COMPLETED' || a.completed) ? 'not-allowed' : 'pointer',
+                                cursor: (meeting?.status === 'COMPLETED') ? 'not-allowed' : 'pointer',
                                 accentColor: '#2b8af8',
                               }}
                             />

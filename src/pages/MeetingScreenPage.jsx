@@ -160,8 +160,17 @@ function MeetingScreenPage() {
               setVote(null);
             }
           } else {
-            // No pending vote and trigger is OFF - show current agenda
-            setVote(null);
+            // FIXED: If trigger is OFF but we already have vote results showing,
+            // keep them displayed until explicitly hidden by user action
+            // Only clear if there's no current vote or it's a new pending vote starting
+            setVote((prevVote) => {
+              // If we have vote results showing (ENDED/APPLIED), keep showing them
+              if (prevVote && (prevVote.voteStatus === 'ENDED' || prevVote.voteStatus === 'APPLIED')) {
+                return prevVote;
+              }
+              // Otherwise clear (e.g., no vote was ever shown)
+              return null;
+            });
           }
         }
       } catch (err) {
