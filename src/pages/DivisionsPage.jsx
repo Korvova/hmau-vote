@@ -32,10 +32,17 @@ function DivisionsPage() {
         let list = await getDivisions();
         let normalized = (list || []).map((d) => {
           const rawName = d.displayName || d.name || '';
-          const isInvited = Boolean(d.system) || /(^|\s)Приглашенные(\s|$)/i.test(rawName);
+          const isInvited = Boolean(d.system) || (d.name === 'Приглашенные');
           const display = isInvited ? '👥Приглашенные' : rawName;
           return { id: d.id, name: display, usersCount: d.userCount || 0, system: isInvited };
         });
+        // Remove duplicates: keep only the first system division
+        const systemDivisions = normalized.filter(d => d.system);
+        if (systemDivisions.length > 1) {
+          // Keep the first one (oldest), mark others for deletion
+          console.warn(`Found ${systemDivisions.length} system divisions, keeping only id=${systemDivisions[0].id}`);
+          normalized = normalized.filter(d => !d.system || d.id === systemDivisions[0].id);
+        }
         // Fallback: if system group missing entirely, create and refetch
         const hasInvited = normalized.some(d => d.system);
         if (!hasInvited) {
@@ -43,7 +50,7 @@ function DivisionsPage() {
           list = await getDivisions();
           normalized = (list || []).map((d) => {
             const rawName = d.displayName || d.name || '';
-            const isInvited = Boolean(d.system) || /(^|\s)Приглашенные(\s|$)/i.test(rawName);
+            const isInvited = Boolean(d.system) || (d.name === 'Приглашенные');
             const display = isInvited ? '👥Приглашенные' : rawName;
             return { id: d.id, name: display, usersCount: d.userCount || 0, system: isInvited };
           });
