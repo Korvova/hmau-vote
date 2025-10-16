@@ -46,6 +46,7 @@ function UserPage() {
   const [voteWeight, setVoteWeight] = useState(null);
   const [receivedProxiesFrom, setReceivedProxiesFrom] = useState([]);
   const [voteResults, setVoteResults] = useState([]);
+  const [isBadgeInserted, setIsBadgeInserted] = useState(false);
   const changeTimerRef = useRef(null);
   const changeCountdownRef = useRef(null);
   const meetingIdRef = useRef(null);
@@ -662,6 +663,10 @@ function UserPage() {
       setParticipants((prev) => prev.map((u) =>
         u.id === data?.userId ? { ...u, isBadgeInserted: data.isBadgeInserted } : u
       ));
+      // Update current user's badge status for banner display
+      if (data?.userId === auth?.id) {
+        setIsBadgeInserted(data.isBadgeInserted);
+      }
     };
     socket.on('user-status-changed', onStatus);
     socket.on('badge-status-changed', onBadgeStatusChanged);
@@ -707,6 +712,28 @@ function UserPage() {
           <div className="container">
             <div className="wrapper">
               <div className="page__top">
+                {isBadgeInserted && (
+                  <div style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '12px',
+                    marginBottom: '16px',
+                    padding: '14px 18px',
+                    backgroundColor: '#e3f2fd',
+                    border: '2px solid #2196F3',
+                    borderRadius: '8px',
+                    fontSize: '15px',
+                    fontWeight: '500',
+                    color: '#0d47a1'
+                  }}>
+                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" style={{ flexShrink: 0 }}>
+                      <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
+                    </svg>
+                    <span>
+                      Вы вставили карточку в пульт Televic. Голосование доступно только через пульт.
+                    </span>
+                  </div>
+                )}
                 <div className="top__heading" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
                   <h1>{meeting?.name || 'Заседание'}</h1>
                 </div>
