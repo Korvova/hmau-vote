@@ -1,7 +1,7 @@
 import './App.css';
 import { Routes, Route, Navigate, useLocation, useNavigate } from 'react-router-dom';
 import { useEffect, useMemo } from 'react';
-import { io } from 'socket.io-client';
+import socket from './utils/socket.js';
 import HomePage from './pages/HomePage.jsx';
 import UsersPage from './pages/UsersPage.jsx';
 import DivisionsPage from './pages/DivisionsPage.jsx';
@@ -71,10 +71,9 @@ function App() {
 
   // Auto-logout if admin disconnects this user via status toggle
   useEffect(() => {
-    // Only create socket if user is logged in
+    // Attach listener only if user is logged in
     if (!userId) return;
 
-    const socket = io();
     const handleStatus = (data) => {
       try {
         const raw = localStorage.getItem('authUser');
@@ -90,9 +89,9 @@ function App() {
     socket.on('user-status-changed', handleStatus);
     return () => {
       socket.off('user-status-changed', handleStatus);
-      socket.disconnect();
     };
-  }, [navigate, userId]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [userId]); // navigate is stable from useNavigate, doesn't need to be in deps
   return (
     <Routes>
       <Route path="/login" element={<LoginPage />} />

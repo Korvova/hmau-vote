@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 import axios from 'axios';
-import { io } from 'socket.io-client';
+import socket from '../utils/socket.js';
 
 function UserQueueButtons({ meetingId, userId }) {
   const [questionQueue, setQuestionQueue] = useState([]);
@@ -116,8 +116,6 @@ function UserQueueButtons({ meetingId, userId }) {
   useEffect(() => {
     if (!meetingId) return;
 
-    const socket = io();
-
     const handleQueueUpdated = (data) => {
       if (data.meetingId !== parseInt(meetingId)) return;
       loadQueue(data.type);
@@ -149,7 +147,6 @@ function UserQueueButtons({ meetingId, userId }) {
       socket.off('queue-timer-started', handleTimerStarted);
       socket.off('queue-next', handleQueueNext);
       socket.off('queue-settings-updated', handleQueueSettingsUpdated);
-      socket.disconnect();
     };
   }, [meetingId]);
 

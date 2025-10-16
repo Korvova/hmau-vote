@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { useParams } from 'react-router-dom';
-import { io } from 'socket.io-client';
+import socket from '../utils/socket.js';
 import { getMeeting, getVoteResults, getAgendaItems, getMeetingParticipants } from '../utils/api.js';
 
 function MeetingScreenPage() {
@@ -164,7 +164,6 @@ function MeetingScreenPage() {
   }, []);
 
   useEffect(() => {
-    const socket = io();
     const strId = String(id);
     const processedEvents = new Set();
 
@@ -363,7 +362,6 @@ function MeetingScreenPage() {
       socket.off('queue-updated', handleQueueUpdate);
       socket.off('meeting-timer-started', handleTimerStarted);
       socket.off('meeting-timer-stopped', handleTimerStopped);
-      socket.disconnect();
     };
   }, [id]);
 

@@ -5,7 +5,7 @@ import { getMeeting, getAgendaItems, getUsers, startAgendaItem as startAgendaIte
 import StartVoteModal from '../components/StartVoteModal.jsx';
 import TimerModal from '../components/TimerModal.jsx';
 import QueueBlock from '../components/QueueBlock.jsx';
-import { io } from 'socket.io-client';
+import socket from '../utils/socket.js';
 import axios from 'axios';
 import { PDFDownloadLink } from '@react-pdf/renderer';
 import VoteResultsPDF from '../components/VoteResultsPDF.jsx';
@@ -182,7 +182,6 @@ function ControlMeetingPage() {
 
   // Live updates: user status + vote events
   useEffect(() => {
-    const socket = io();
     const processedEvents = new Set();
     const debounceTimers = {};
 
@@ -403,7 +402,6 @@ function ControlMeetingPage() {
       socket.off('meeting-timer-stopped', onMeetingTimerStopped);
       socket.off('badge-status-changed', onBadgeStatusChanged);
       socket.off('vote-result-updated', onVoteResultUpdated);
-      socket.disconnect();
     };
   }, [meeting?.id, id]);
 
@@ -1464,7 +1462,6 @@ function ControlMeetingPage() {
 }
 
 export default ControlMeetingPage;
-
 
 
 

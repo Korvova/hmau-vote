@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { io } from 'socket.io-client';
+import socket from '../utils/socket.js';
 import HeaderDropdown from '../components/HeaderDropdown.jsx';
 import MeetingResultsPDFButton from '../components/MeetingResultsPDFButton.jsx';
 import { getMeeting, getAgendaItems, getUsers, getVoteResults, logout as apiLogout } from '../utils/api.js';
@@ -48,8 +48,6 @@ function ProtocolMeetingPage() {
       const auth = JSON.parse(localStorage.getItem('authUser') || 'null');
       if (auth?.isAdmin) return; // Admins don't need auto-redirect
 
-      const socket = io();
-
       socket.on('meeting-status-changed', (data) => {
         console.log('Meeting status changed:', data);
         // If ANY meeting started (status changed to IN_PROGRESS), redirect to /user
@@ -62,7 +60,6 @@ function ProtocolMeetingPage() {
 
       return () => {
         socket.off('meeting-status-changed');
-        socket.disconnect();
       };
     } catch (err) {
       console.error('Socket setup error:', err);

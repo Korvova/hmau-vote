@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { io } from 'socket.io-client';
+import socket from '../utils/socket.js';
 import EditModal from '../components/EditModal.jsx';
 import DisconnectModal from '../components/DisconnectModal.jsx';
 import HeaderDropdown from '../components/HeaderDropdown.jsx';
@@ -57,7 +57,6 @@ function UsersPage() {
 
   // Socket.IO listener for badge status updates
   useEffect(() => {
-    const socket = io();
 
     const onBadgeStatusChanged = (data) => {
       setUsers((prev) => prev.map((u) =>
@@ -69,7 +68,6 @@ function UsersPage() {
 
     return () => {
       socket.off('badge-status-changed', onBadgeStatusChanged);
-      socket.disconnect();
     };
   }, []);
 
@@ -383,5 +381,4 @@ function UsersPage() {
   );
 }
 export default UsersPage;
-
 

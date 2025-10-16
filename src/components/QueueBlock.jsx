@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import axios from 'axios';
-import { io } from 'socket.io-client';
+import socket from '../utils/socket.js';
 
 function QueueBlock({ meetingId, durationTemplates }) {
   const [activeTab, setActiveTab] = useState('QUESTION'); // 'QUESTION' | 'SPEECH'
@@ -71,8 +71,6 @@ function QueueBlock({ meetingId, durationTemplates }) {
   useEffect(() => {
     if (!meetingId) return;
 
-    const socket = io();
-
     const handleQueueUpdated = (data) => {
       if (data.meetingId !== parseInt(meetingId)) return;
       loadQueue(data.type);
@@ -120,7 +118,6 @@ function QueueBlock({ meetingId, durationTemplates }) {
       socket.off('queue-next', handleQueueNext);
       socket.off('queue-timer-ended', handleTimerEnded);
       socket.off('queue-settings-updated', handleQueueSettingsUpdated);
-      socket.disconnect();
     };
   }, [meetingId]); // Removed activeTab - socket doesn't need to reconnect when tab changes
 

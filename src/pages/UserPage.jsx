@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { io } from 'socket.io-client';
+import socket from '../utils/socket.js';
 import {
   getMeetings,
   getMeeting,
@@ -470,7 +470,6 @@ function UserPage() {
   }, [meeting?.id, openVoteModal, isVoteModalOpen]);
   useEffect(() => {
     if (!meeting?.id) return undefined;
-    const socket = io();
 
     const handleNewVote = (data) => {
       console.log('🔔 [handleNewVote] Received event:', {
@@ -583,7 +582,6 @@ function UserPage() {
       socket.off('agenda-item-updated', handleAgendaItemUpdated);
       socket.off('meeting-status-changed', handleMeetingStatusChanged);
       socket.off('agenda-item-added', handleAgendaItemAdded);
-      socket.disconnect();
     };
   }, [meeting?.id, onVoteCleared, onVoteEnded, openVoteModal, isVoteModalOpen, navigate]);
 
@@ -677,7 +675,6 @@ function UserPage() {
 
   // Also listen for forced disconnects and logout
   useEffect(() => {
-    const socket = io();
     const onStatus = (data) => {
       try {
         const sameId = Number(auth?.id) === Number(data?.userId);
@@ -704,7 +701,6 @@ function UserPage() {
     return () => {
       socket.off('user-status-changed', onStatus);
       socket.off('badge-status-changed', onBadgeStatusChanged);
-      socket.disconnect();
     };
   }, [auth?.id, auth?.email, auth?.isAdmin, navigate]);
 
