@@ -897,10 +897,11 @@ function MeetingScreenPage() {
   const regularParticipants = participants.filter(p => !isInvitedUser(p));
 
   const totalParticipants = regularParticipants.length;
-  const onlineParticipants = regularParticipants.filter(p => p.isOnline);
+  // Consider both online (website) and badge inserted (Televic) as present
+  const onlineParticipants = regularParticipants.filter(p => p.isOnline || p.isBadgeInserted);
 
-  // All offline participants (including those who gave proxy) - excluding invited
-  const offlineParticipants = regularParticipants.filter(p => !p.isOnline);
+  // All offline participants (no website connection AND no badge in Televic) - excluding invited
+  const offlineParticipants = regularParticipants.filter(p => !p.isOnline && !p.isBadgeInserted);
 
   // Count total present: online participants + all received proxies by online participants
   const totalReceivedProxies = onlineParticipants.reduce((sum, p) => {
