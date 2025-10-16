@@ -198,3 +198,18 @@ model Queue {
   @@index([meetingId, type, position])
 }
 
+
+enum ScreenType {
+  REGISTRATION  // Экран регистрации (до начала заседания)
+  AGENDA        // Экран активной повестки (во время заседания)
+  VOTING        // Экран голосования (во время голосования)
+  FINAL         // Финальный экран (итоги голосования)
+}
+
+model ScreenConfig {
+  id        Int        @id @default(autoincrement())
+  type      ScreenType @unique // Тип экрана
+  config    Json       // Настройки интерфейса (JSON)
+  createdAt DateTime   @default(now())
+  updatedAt DateTime   @updatedAt
+}
