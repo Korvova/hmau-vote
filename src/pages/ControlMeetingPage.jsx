@@ -415,10 +415,13 @@ function ControlMeetingPage() {
       const now = Date.now();
       const endMs = new Date(voteEndTime).getTime();
       const left = Math.max(0, Math.floor((endMs - now) / 1000));
-      setTimeLeft(left);
 
       if (left <= 0) {
+        // Clear both at once to avoid showing "0 сек"
+        setTimeLeft(null);
         setVoteEndTime(null);
+      } else {
+        setTimeLeft(left);
       }
     };
 
