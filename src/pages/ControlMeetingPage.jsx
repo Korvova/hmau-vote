@@ -11,6 +11,24 @@ import { PDFDownloadLink } from '@react-pdf/renderer';
 import VoteResultsPDF from '../components/VoteResultsPDF.jsx';
 import DetailedVoteResultsPDF from '../components/DetailedVoteResultsPDF.jsx';
 
+// Helper to check if user belongs to system/invited group
+const isInvitedUser = (user) => {
+  // Check if user has divisions array (from API)
+  if (Array.isArray(user.divisions) && user.divisions.length > 0) {
+    return user.divisions.some(d => {
+      if (!d || !d.name) return false;
+      const name = d.name.replace(/👥/g, '').trim().toLowerCase();
+      return name === 'приглашенные';
+    });
+  }
+  // Fallback: check single division object
+  if (user.division && user.division.name) {
+    const name = user.division.name.replace(/👥/g, '').trim().toLowerCase();
+    return name === 'приглашенные';
+  }
+  return false;
+};
+
 function ControlMeetingPage() {
   const { id } = useParams();
   const [configOpen, setConfigOpen] = useState(false);
@@ -1054,6 +1072,7 @@ function ControlMeetingPage() {
                             <tr key={u.id}>
                               <td>
                                 <div>
+                                  {isInvitedUser(u) && <span title="Приглашенный гость">👥 </span>}
                                   {u.name} {u.location ? `(${u.location === 'HALL' ? 'Зал' : 'Сайт'})` : ''}
                                   {u.televicExternalId && (
                                     <span className="televic-badge-container">
