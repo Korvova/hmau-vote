@@ -452,10 +452,18 @@ function UserPage() {
     (async () => {
       try {
         const pending = await getActiveVoteResult(meeting.id).catch(() => null);
+        console.log('🔍 [Pending Check] Found pending vote:', {
+          hasPending: !!pending,
+          voteId: pending?.id,
+          voteStatus: pending?.voteStatus,
+          isModalOpen: isVoteModalOpen
+        });
         // Открываем модалку только если она еще не открыта
         if (pending && !isVoteModalOpen) {
-          console.log('📢 Opening vote modal from pending result');
+          console.log('✅ [Pending Check] Opening vote modal from pending result');
           openVoteModal(pending);
+        } else if (pending && isVoteModalOpen) {
+          console.log('⏭️ [Pending Check] Modal already open, skipping');
         }
       } catch {}
     })();
@@ -465,24 +473,47 @@ function UserPage() {
     const socket = io();
 
     const handleNewVote = (data) => {
-      const meetingId = meetingIdRef.current;
-      if (meetingId && data?.meetingId && String(data.meetingId) !== meetingId) return;
-      if (meetingId && !data?.meetingId && activeVoteRef.current?.meetingId && String(activeVoteRef.current.meetingId) !== meetingId) return;
-      if (data?.voteStatus && data.voteStatus !== 'PENDING') return;
+      console.log('🔔 [handleNewVote] Received event:', {
+        voteId: data?.id,
+        voteStatus: data?.voteStatus,
+        meetingId: data?.meetingId,
+        currentMeetingId: meetingIdRef.current,
+        isModalOpen: isVoteModalOpen,
+        activeVoteId: activeVoteRef.current?.id
+      });
 
-      // Не переоткрываем модалку если она уже открыта для того же голосования
-      if (isVoteModalOpen && activeVoteRef.current?.id === data?.id) {
-        console.log('⏭️ Skipping openVoteModal - already open for same vote');
+      const meetingId = meetingIdRef.current;
+      if (meetingId && data?.meetingId && String(data.meetingId) !== meetingId) {
+        console.log('❌ [handleNewVote] Wrong meeting, ignoring');
+        return;
+      }
+      if (meetingId && !data?.meetingId && activeVoteRef.current?.meetingId && String(activeVoteRef.current.meetingId) !== meetingId) {
+        console.log('❌ [handleNewVote] Wrong meeting (via activeVote), ignoring');
+        return;
+      }
+      if (data?.voteStatus && data.voteStatus !== 'PENDING') {
+        console.log('❌ [handleNewVote] Vote status is not PENDING:', data.voteStatus, '- ignoring');
         return;
       }
 
-      console.log('📢 Opening vote modal from socket event');
+      // Не переоткрываем модалку если она уже открыта для того же голосования
+      if (isVoteModalOpen && activeVoteRef.current?.id === data?.id) {
+        console.log('⏭️ [handleNewVote] Skipping openVoteModal - already open for same vote');
+        return;
+      }
+
+      console.log('✅ [handleNewVote] Opening vote modal from socket event');
       openVoteModal(data);
     };
 
     const handleEnded = (data) => {
+      console.log('🏁 [handleEnded] Received vote-ended event:', data);
       const meetingId = meetingIdRef.current;
-      if (meetingId && data?.meetingId && String(data.meetingId) !== meetingId) return;
+      if (meetingId && data?.meetingId && String(data.meetingId) !== meetingId) {
+        console.log('❌ [handleEnded] Wrong meeting, ignoring');
+        return;
+      }
+      console.log('✅ [handleEnded] Calling onVoteEnded');
       onVoteEnded(data);
     };
 
