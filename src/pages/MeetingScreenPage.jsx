@@ -3,6 +3,13 @@ import { useParams } from 'react-router-dom';
 import socket from '../utils/socket.js';
 import { getMeeting, getVoteResults, getAgendaItems, getMeetingParticipants } from '../utils/api.js';
 
+// Helper to check if division is system/invited group
+const isInvitedDivision = (division) => {
+  if (!division || !division.name) return false;
+  const name = division.name.replace(/👥/g, '').trim().toLowerCase();
+  return name === 'приглашенные';
+};
+
 function MeetingScreenPage() {
   const { id } = useParams();
   const [meeting, setMeeting] = useState(null);
@@ -874,11 +881,15 @@ function MeetingScreenPage() {
 
   // Otherwise show registration screen
   const config = screenConfig?.registration || {};
-  const totalParticipants = participants.length;
-  const onlineParticipants = participants.filter(p => p.isOnline);
 
-  // All offline participants (including those who gave proxy)
-  const offlineParticipants = participants.filter(p => !p.isOnline);
+  // Filter out invited participants (👥Приглашенные) from all counts
+  const regularParticipants = participants.filter(p => !isInvitedDivision(p.division));
+
+  const totalParticipants = regularParticipants.length;
+  const onlineParticipants = regularParticipants.filter(p => p.isOnline);
+
+  // All offline participants (including those who gave proxy) - excluding invited
+  const offlineParticipants = regularParticipants.filter(p => !p.isOnline);
 
   // Count total present: online participants + all received proxies by online participants
   const totalReceivedProxies = onlineParticipants.reduce((sum, p) => {
