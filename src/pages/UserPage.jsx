@@ -641,9 +641,16 @@ function UserPage() {
         setParticipants((prev) => prev.map((u) => (u.id === data?.userId ? { ...u, isOnline: !!data.isOnline } : u)));
       } catch {}
     };
+    const onBadgeStatusChanged = (data) => {
+      setParticipants((prev) => prev.map((u) =>
+        u.id === data?.userId ? { ...u, isBadgeInserted: data.isBadgeInserted } : u
+      ));
+    };
     socket.on('user-status-changed', onStatus);
+    socket.on('badge-status-changed', onBadgeStatusChanged);
     return () => {
       socket.off('user-status-changed', onStatus);
+      socket.off('badge-status-changed', onBadgeStatusChanged);
       socket.disconnect();
     };
   }, [auth?.id, auth?.email, auth?.isAdmin, navigate]);
