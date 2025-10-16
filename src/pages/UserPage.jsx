@@ -98,6 +98,14 @@ function UserPage() {
       return;
     }
 
+    // Приоритет пульта: Если пользователь вставил карточку Televic, блокируем голосование на сайте
+    const currentUser = participants.find(u => u.id === auth?.id);
+    if (currentUser?.isBadgeInserted) {
+      console.log('🎛️ User has badge inserted - voting blocked on website');
+      alert('Вы вставили карточку в пульт Televic. Пожалуйста, голосуйте через пульт.');
+      return;
+    }
+
     clearChangeTimers();
     const normalized = {
       ...data,
@@ -142,7 +150,7 @@ function UserPage() {
         return { ...item, activeIssue: false };
       });
     });
-  }, [clearChangeTimers, auth?.id]);
+  }, [clearChangeTimers, auth?.id, participants]);
   const finalizeChoice = useCallback(async (choice) => {
     if (!choice || !activeVoteRef.current) return;
     try {
