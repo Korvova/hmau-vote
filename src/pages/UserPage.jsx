@@ -26,6 +26,24 @@ const CHOICE_LABELS = {
   ABSTAIN: 'Воздержусь',
 };
 
+// Helper to check if user belongs to system/invited group
+const isInvitedUser = (user) => {
+  // Check if user has divisions array (from API)
+  if (Array.isArray(user.divisions) && user.divisions.length > 0) {
+    return user.divisions.some(d => {
+      if (!d || !d.name) return false;
+      const name = d.name.replace(/👥/g, '').trim().toLowerCase();
+      return name === 'приглашенные';
+    });
+  }
+  // Fallback: check single division object
+  if (user.division && user.division.name) {
+    const name = user.division.name.replace(/👥/g, '').trim().toLowerCase();
+    return name === 'приглашенные';
+  }
+  return false;
+};
+
 function UserPage() {
   const auth = useAuth();
   const navigate = useNavigate();
@@ -840,7 +858,7 @@ function UserPage() {
                   <div>
                     <h2 style={{ margin: '0 0 12px' }}>Список участников</h2>
                     <div style={{ marginBottom: '12px', fontSize: '14px', color: '#666' }}>
-                      Всего участников: {meetingUsers.length} | В сети: {meetingUsers.filter(u => u.isOnline).length}
+                      Всего: {meetingUsers.length} | Делегатов: {meetingUsers.filter(u => !isInvitedUser(u)).length} | В сети: {meetingUsers.filter(u => u.isOnline).length} | Гостей: {meetingUsers.filter(u => isInvitedUser(u)).length}
                     </div>
                     <div className="participants-table-wrapper">
                       <div className="page__table">
@@ -856,6 +874,7 @@ function UserPage() {
                               <tr key={u.id}>
                                 <td>
                                   <div>
+                                    {isInvitedUser(u) && <span title="Приглашенный гость">👥 </span>}
                                     {u.name} {u.location ? `(${u.location === 'HALL' ? 'Зал' : 'Сайт'})` : ''}
                                   </div>
                                   {u.proxy && (
