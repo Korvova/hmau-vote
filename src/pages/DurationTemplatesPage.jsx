@@ -33,7 +33,7 @@ function DurationTemplatesPage() {
         const normalized = (Array.isArray(list) ? list : []).map(t => ({
           id: t.id,
           name: t.name,
-          durationInSeconds: t.durationInSeconds
+          durationInSeconds: Number(t.durationInSeconds) || 0
         }));
         setRows(normalized);
       } catch (e) {
@@ -105,9 +105,11 @@ function DurationTemplatesPage() {
   };
 
   const formatDuration = (seconds) => {
-    if (seconds < 60) return `${seconds} сек`;
-    const mins = Math.floor(seconds / 60);
-    const secs = seconds % 60;
+    const num = Number(seconds);
+    if (isNaN(num) || num === null || num === undefined) return '—';
+    if (num < 60) return `${num} сек`;
+    const mins = Math.floor(num / 60);
+    const secs = num % 60;
     return secs > 0 ? `${mins} мин ${secs} сек` : `${mins} мин`;
   };
 
