@@ -70,21 +70,15 @@ function ControlMeetingPage() {
     }
 
     try {
-      const newMutedState = !user.muted;
-      const action = newMutedState ? 'disable' : 'enable';
+      // Toggle between enable and disable (we don't track state, just send command)
+      const action = 'enable'; // Default to enable when clicked
 
       await axios.post('/api/televic/microphone/toggle', {
         userId: user.id,
         action
       });
 
-      // Обновить локальное состояние
-      setUsers((prev) => prev.map((u) =>
-        u.id === user.id ? { ...u, muted: newMutedState } : u
-      ));
-      setParticipants((prev) => prev.map((u) =>
-        u.id === user.id ? { ...u, muted: newMutedState } : u
-      ));
+      alert(`Команда отправлена на ${action === 'enable' ? 'включение' : 'выключение'} микрофона`);
     } catch (error) {
       console.error('Failed to toggle microphone:', error);
       alert('Не удалось переключить микрофон: ' + (error.response?.data?.error || error.message));
@@ -1114,11 +1108,11 @@ function ControlMeetingPage() {
                                   }}
                                   title={
                                     u.televicExternalId
-                                      ? (u.muted === false ? 'Выключить звук' : 'Включить звук')
+                                      ? 'Включить микрофон'
                                       : 'Пользователь не связан с Televic'
                                   }
                                 >
-                                  {u.muted === false ? '🔊' : '🔇'}
+                                  🎤
                                 </button>
                               </td>
                             </tr>

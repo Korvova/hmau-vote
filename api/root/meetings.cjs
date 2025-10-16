@@ -882,8 +882,7 @@ router.get('/:id/participants', async (req, res) => {
         voteWeight: 1 + receivedProxies.length,
         isOnline: user.isOnline || false,
         isBadgeInserted: user.isBadgeInserted || false,
-        televicExternalId: user.televicExternalId || null,
-        muted: user.muted !== undefined ? user.muted : null
+        televicExternalId: user.televicExternalId || null
       };
     });
 
