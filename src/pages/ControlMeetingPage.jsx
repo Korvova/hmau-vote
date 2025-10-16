@@ -1104,20 +1104,22 @@ function ControlMeetingPage() {
                                 <button
                                   type="button"
                                   onClick={() => handleMicrophoneToggle(u)}
-                                  disabled={!u.televicExternalId}
+                                  disabled={!u.televicExternalId || !u.isBadgeInserted}
                                   style={{
                                     backgroundColor: 'transparent',
                                     border: 'none',
                                     fontSize: '20px',
-                                    cursor: u.televicExternalId ? 'pointer' : 'not-allowed',
+                                    cursor: (u.televicExternalId && u.isBadgeInserted) ? 'pointer' : 'not-allowed',
                                     padding: '0',
                                     lineHeight: '1',
-                                    opacity: u.televicExternalId ? 1 : 0.5
+                                    opacity: (u.televicExternalId && u.isBadgeInserted) ? 1 : 0.5
                                   }}
                                   title={
-                                    u.televicExternalId
-                                      ? (u.muted === false ? 'Выключить звук' : 'Включить звук')
-                                      : 'Пользователь не связан с Televic'
+                                    !u.televicExternalId
+                                      ? 'Пользователь не связан с Televic'
+                                      : !u.isBadgeInserted
+                                        ? 'Карточка не вставлена в пульт'
+                                        : (u.muted === false ? 'Выключить звук' : 'Включить звук')
                                   }
                                 >
                                   {u.muted === false ? '🔊' : '🔇'}
