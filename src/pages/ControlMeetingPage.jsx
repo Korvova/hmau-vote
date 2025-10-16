@@ -352,6 +352,35 @@ function ControlMeetingPage() {
       ));
     };
 
+    // REAL-TIME vote counter updates during active voting (from Televic pults)
+    const onVoteResultUpdated = (data) => {
+      try {
+        if (data?.meetingId && meeting?.id && Number(data.meetingId) !== Number(meeting.id)) return;
+
+        console.log('[ControlMeetingPage] Real-time vote update:', data);
+
+        // Update results in state to show live counters
+        setResults((prev) => {
+          const updated = Array.isArray(prev) ? [...prev] : [];
+          const index = updated.findIndex(r => r.id === data.voteResultId);
+
+          if (index >= 0) {
+            // Update existing vote result with new counters
+            updated[index] = {
+              ...updated[index],
+              votesFor: data.votesFor,
+              votesAgainst: data.votesAgainst,
+              votesAbstain: data.votesAbstain,
+            };
+          }
+
+          return updated;
+        });
+      } catch (e) {
+        console.error('[ControlMeetingPage] Error in onVoteResultUpdated:', e);
+      }
+    };
+
     socket.on('user-status-changed', onStatus);
     socket.on('new-vote-result', onNewVote);
     socket.on('vote-ended', onVoteEnded);
@@ -361,6 +390,7 @@ function ControlMeetingPage() {
     socket.on('meeting-timer-started', onMeetingTimerStarted);
     socket.on('meeting-timer-stopped', onMeetingTimerStopped);
     socket.on('badge-status-changed', onBadgeStatusChanged);
+    socket.on('vote-result-updated', onVoteResultUpdated);
     return () => {
       // Clear all debounce timers
       Object.values(debounceTimers).forEach(timer => clearTimeout(timer));
@@ -372,6 +402,7 @@ function ControlMeetingPage() {
       socket.off('meeting-timer-started', onMeetingTimerStarted);
       socket.off('meeting-timer-stopped', onMeetingTimerStopped);
       socket.off('badge-status-changed', onBadgeStatusChanged);
+      socket.off('vote-result-updated', onVoteResultUpdated);
       socket.disconnect();
     };
   }, [meeting?.id, id]);

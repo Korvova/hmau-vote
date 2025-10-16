@@ -795,7 +795,7 @@ coconNS.on('connection', (socket) => {
         console.log(`[VotingResults] ✅ Using aggregated results: FOR=${votesFor}, AGAINST=${votesAgainst}, ABSTAIN=${votesAbstain}`);
       }
 
-      await prisma.voteResult.update({
+      const updatedVoteResult = await prisma.voteResult.update({
         where: { id: activeVoteResult.id },
         data: {
           votesFor,
@@ -815,9 +815,24 @@ coconNS.on('connection', (socket) => {
         votesFor,
         votesAgainst,
         votesAbstain,
-        voteStatus: 'PENDING'
+        voteStatus: 'PENDING',
+        createdAt: updatedVoteResult.createdAt instanceof Date ? updatedVoteResult.createdAt.toISOString() : updatedVoteResult.createdAt
       };
       await pgClient.query(`NOTIFY vote_result_channel, '${JSON.stringify(payload)}'`);
+
+      // REAL-TIME UPDATE: Emit to all connected clients for live vote tracking
+      io.emit('vote-result-updated', {
+        voteResultId: activeVoteResult.id,
+        agendaItemId: activeVoteResult.agendaItemId,
+        meetingId: activeVoteResult.meetingId,
+        votesFor,
+        votesAgainst,
+        votesAbstain,
+        totalVotes: votesFor + votesAgainst + votesAbstain,
+        timestamp: new Date().toISOString()
+      });
+
+      console.log(`[VotingResults] ✅ Emitted real-time update: vote-result-updated`);
     } catch (e) {
       console.error('[VotingResults] Error:', e.message);
     }
