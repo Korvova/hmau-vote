@@ -359,6 +359,13 @@ function MeetingScreenPage() {
       }
     };
 
+    const handleBadgeStatusChanged = (data) => {
+      // Update isBadgeInserted status in real-time
+      setParticipants((prev) => prev.map((p) =>
+        p.id === data?.userId ? { ...p, isBadgeInserted: data.isBadgeInserted } : p
+      ));
+    };
+
     socket.on('new-vote-result', handleNewVote);
     socket.on('vote-ended', handleVoteEnded);
     // Don't clear on vote-applied - screen should stay on results until admin clicks (X)
@@ -369,6 +376,7 @@ function MeetingScreenPage() {
     socket.on('agenda-item-updated', handleAgendaUpdate);
     socket.on('meeting-status-changed', handleMeetingStatus);
     socket.on('user-status-changed', handleParticipantStatusChange);
+    socket.on('badge-status-changed', handleBadgeStatusChanged);
     socket.on('queue-updated', handleQueueUpdate);
     socket.on('meeting-timer-started', handleTimerStarted);
     socket.on('meeting-timer-stopped', handleTimerStopped);
@@ -382,6 +390,7 @@ function MeetingScreenPage() {
       socket.off('agenda-item-updated', handleAgendaUpdate);
       socket.off('meeting-status-changed', handleMeetingStatus);
       socket.off('user-status-changed', handleParticipantStatusChange);
+      socket.off('badge-status-changed', handleBadgeStatusChanged);
       socket.off('queue-updated', handleQueueUpdate);
       socket.off('meeting-timer-started', handleTimerStarted);
       socket.off('meeting-timer-stopped', handleTimerStopped);
