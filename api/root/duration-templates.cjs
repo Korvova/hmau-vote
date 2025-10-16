@@ -1,29 +1,96 @@
 const express = require('express');
 const router = express.Router();
 
-/**
- * @api {get} /api/duration-templates Получить список шаблонов длительности
- * @apiName GetDurationTemplates
- * @apiGroup Templates
- * @apiDescription Возвращает предустановленные шаблоны длительности для голосования
- */
-router.get('/', async (req, res) => {
-  try {
-    // Hardcoded duration templates (in seconds)
-    const templates = [
-      { id: 1, name: '30 секунд', duration: 30 },
-      { id: 2, name: '1 минута', duration: 60 },
-      { id: 3, name: '2 минуты', duration: 120 },
-      { id: 4, name: '3 минуты', duration: 180 },
-      { id: 5, name: '5 минут', duration: 300 },
-      { id: 6, name: '10 минут', duration: 600 },
-    ];
+module.exports = (prisma) => {
+  /**
+   * @api {get} /api/duration-templates Получить список шаблонов длительности
+   * @apiName GetDurationTemplates
+   * @apiGroup Templates
+   * @apiDescription Возвращает шаблоны длительности для голосования из базы данных
+   */
+  router.get('/', async (req, res) => {
+    try {
+      const templates = await prisma.durationTemplate.findMany({
+        orderBy: { id: 'asc' }
+      });
+      res.json(templates);
+    } catch (error) {
+      console.error('Error getting duration templates:', error.message);
+      res.status(500).json({ error: error.message });
+    }
+  });
 
-    res.json(templates);
-  } catch (error) {
-    console.error('Error getting duration templates:', error.message);
-    res.status(500).json({ error: error.message });
-  }
-});
+  /**
+   * @api {post} /api/duration-templates Создать новый шаблон длительности
+   * @apiName CreateDurationTemplate
+   * @apiGroup Templates
+   */
+  router.post('/', async (req, res) => {
+    try {
+      const { name, durationInSeconds } = req.body;
 
-module.exports = router;
+      if (!name || durationInSeconds === undefined) {
+        return res.status(400).json({ error: 'Name and durationInSeconds are required' });
+      }
+
+      const template = await prisma.durationTemplate.create({
+        data: {
+          name,
+          durationInSeconds: parseInt(durationInSeconds)
+        }
+      });
+
+      res.json(template);
+    } catch (error) {
+      console.error('Error creating duration template:', error.message);
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  /**
+   * @api {put} /api/duration-templates/:id Обновить шаблон длительности
+   * @apiName UpdateDurationTemplate
+   * @apiGroup Templates
+   */
+  router.put('/:id', async (req, res) => {
+    try {
+      const { id } = req.params;
+      const { name, durationInSeconds } = req.body;
+
+      const template = await prisma.durationTemplate.update({
+        where: { id: parseInt(id) },
+        data: {
+          name,
+          durationInSeconds: parseInt(durationInSeconds)
+        }
+      });
+
+      res.json(template);
+    } catch (error) {
+      console.error('Error updating duration template:', error.message);
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  /**
+   * @api {delete} /api/duration-templates/:id Удалить шаблон длительности
+   * @apiName DeleteDurationTemplate
+   * @apiGroup Templates
+   */
+  router.delete('/:id', async (req, res) => {
+    try {
+      const { id } = req.params;
+
+      await prisma.durationTemplate.delete({
+        where: { id: parseInt(id) }
+      });
+
+      res.json({ success: true });
+    } catch (error) {
+      console.error('Error deleting duration template:', error.message);
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  return router;
+};
