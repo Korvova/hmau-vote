@@ -38,12 +38,20 @@ function UsersPage() {
           getDivisions(),
           getUsers(),
         ]);
-        const processedDivs = (Array.isArray(divs) ? divs : []).map((d) => {
+        let processedDivs = (Array.isArray(divs) ? divs : []).map((d) => {
           const rawName = d.displayName || d.name || '';
-          const isInvited = Boolean(d.system) || /(^|\s)Приглашенные(\s|$)/i.test(rawName);
+          const isInvited = Boolean(d.system) || (d.name === 'Приглашенные');
           const display = isInvited ? '👥Приглашенные' : rawName;
           return { ...d, displayName: display, system: isInvited };
         });
+
+        // Remove duplicate system divisions - keep only the first one
+        const systemDivisions = processedDivs.filter(d => d.system);
+        if (systemDivisions.length > 1) {
+          console.warn(`Found ${systemDivisions.length} system divisions, keeping only id=${systemDivisions[0].id}`);
+          processedDivs = processedDivs.filter(d => !d.system || d.id === systemDivisions[0].id);
+        }
+
         setDivisions(processedDivs);
         setUsers(Array.isArray(us) ? us : []);
       } catch (e) {
