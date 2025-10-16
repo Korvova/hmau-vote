@@ -449,7 +449,8 @@ function UserPage() {
   }, [activeVote]);
   useEffect(() => {
     if (!meeting?.id) return;
-    (async () => {
+
+    const checkPendingVote = async () => {
       try {
         const pending = await getActiveVoteResult(meeting.id).catch(() => null);
         console.log('🔍 [Pending Check] Found pending vote:', {
@@ -464,10 +465,28 @@ function UserPage() {
           openVoteModal(pending);
         } else if (pending && isVoteModalOpen) {
           console.log('⏭️ [Pending Check] Modal already open, skipping');
+        } else if (!pending && isVoteModalOpen) {
+          // Если нет активного голосования, но модальное окно открыто - закрыть его
+          console.log('🚫 [Pending Check] No pending vote but modal is open - closing modal');
+          setVoteModalOpen(false);
+          setActiveVote(null);
+          setVoteLocked(false);
+          setSelectedChoice(null);
+          clearChangeTimers();
         }
       } catch {}
-    })();
-  }, [meeting?.id, openVoteModal, isVoteModalOpen]);
+    };
+
+    // Initial check
+    checkPendingVote();
+
+    // Poll every 3 seconds when modal is open to ensure we detect vote completion
+    const pollInterval = isVoteModalOpen ? setInterval(checkPendingVote, 3000) : null;
+
+    return () => {
+      if (pollInterval) clearInterval(pollInterval);
+    };
+  }, [meeting?.id, openVoteModal, isVoteModalOpen, clearChangeTimers]);
   useEffect(() => {
     if (!meeting?.id) return undefined;
 
