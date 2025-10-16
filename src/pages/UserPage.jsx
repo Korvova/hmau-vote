@@ -99,11 +99,20 @@ function UserPage() {
     }
 
     // Приоритет пульта: Если пользователь вставил карточку Televic, блокируем голосование на сайте
-    const currentUser = participants.find(u => u.id === auth?.id);
-    if (currentUser?.isBadgeInserted) {
-      console.log('🎛️ User has badge inserted - voting blocked on website');
-      alert('Вы вставили карточку в пульт Televic. Пожалуйста, голосуйте через пульт.');
-      return;
+    // Проверяем напрямую через API для гарантии актуальности данных
+    if (auth?.id) {
+      try {
+        const response = await fetch(`/api/users/${auth.id}`);
+        const userData = await response.json();
+        if (userData?.isBadgeInserted) {
+          console.log('🎛️ User has badge inserted - voting blocked on website');
+          alert('Вы вставили карточку в пульт Televic. Пожалуйста, голосуйте через пульт.');
+          return;
+        }
+      } catch (err) {
+        console.error('Failed to check badge status:', err);
+        // Continue anyway if API call fails
+      }
     }
 
     clearChangeTimers();
@@ -150,7 +159,7 @@ function UserPage() {
         return { ...item, activeIssue: false };
       });
     });
-  }, [clearChangeTimers, auth?.id, participants]);
+  }, [clearChangeTimers, auth?.id]);
   const finalizeChoice = useCallback(async (choice) => {
     if (!choice || !activeVoteRef.current) return;
     try {
