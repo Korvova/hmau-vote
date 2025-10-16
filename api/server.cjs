@@ -98,10 +98,33 @@ async function normalizeVoteProcedures() {
 // Ensure the default system division exists
 async function ensureSystemDivision() {
   try {
-    const name = '👥Приглашенные';
-    const existing = await prisma.division.findFirst({ where: { name } });
-    if (!existing) {
-      await prisma.division.create({ data: { name } });
+    // Check for any reserved name variation (Приглашенные, 👥Приглашенные, etc.)
+    const isReservedName = (name) => {
+      try {
+        if (!name || typeof name !== 'string') return false;
+        const n = name.replace(/👥/g, '').trim().toLowerCase();
+        return n === 'приглашенные';
+      } catch {
+        return false;
+      }
+    };
+
+    const allDivisions = await prisma.division.findMany({ select: { id: true, name: true } });
+    const sys = allDivisions.find((d) => isReservedName(d.name));
+
+    if (sys) {
+      // System division exists, ensure it has canonical name
+      if (sys.name !== 'Приглашенные') {
+        await prisma.division.update({
+          where: { id: sys.id },
+          data: { name: 'Приглашенные' }
+        });
+        console.log(`Updated system division id=${sys.id} to canonical name 'Приглашенные'`);
+      }
+    } else {
+      // Create system division with canonical name
+      await prisma.division.create({ data: { name: 'Приглашенные' } });
+      console.log('Created system division with canonical name');
     }
   } catch (e) {
     console.error('Failed to ensure system division:', e?.message || e);
