@@ -32,6 +32,8 @@ model User {
   televicExternalId String? @unique // Внешний ID делегата в Televic
   isBadgeInserted Boolean @default(false) // Статус карточки в Televic (воткнута/вынута)
   queueEntries Queue[] // Записи в очередях
+  proxiesGiven Proxy[] @relation("ProxyFrom") // Доверенности, которые пользователь передал
+  proxiesReceived Proxy[] @relation("ProxyTo") // Доверенности, которые пользователь получил
 }
 
 model Division {
@@ -69,6 +71,7 @@ model Meeting {
   televicMeetingId Int?     // ID заседания в Televic CoCon (для зеркалирования)
   createInTelevic Boolean   @default(false) // Флаг для создания заседания в Televic при запуске
   queues Queue[] // Очереди на вопрос/выступление
+  proxies Proxy[] // Доверенности участников заседания
 }
 
 model AgendaItem {
@@ -236,6 +239,21 @@ model DurationTemplate {
   durationInSeconds Int
   createdAt         DateTime @default(now())
   updatedAt         DateTime @updatedAt
+}
+
+model Proxy {
+  id         Int      @id @default(autoincrement())
+  meetingId  Int
+  meeting    Meeting  @relation(fields: [meetingId], references: [id], onDelete: Cascade)
+  fromUserId Int      // Кто передал доверенность
+  fromUser   User     @relation("ProxyFrom", fields: [fromUserId], references: [id], onDelete: Cascade)
+  toUserId   Int      // Кому передали доверенность
+  toUser     User     @relation("ProxyTo", fields: [toUserId], references: [id], onDelete: Cascade)
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  @@unique([meetingId, fromUserId]) // Один пользователь может передать доверенность только одному человеку в рамках заседания
+  @@index([meetingId, toUserId])
 }
 
 model Contact {
