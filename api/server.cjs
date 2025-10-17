@@ -820,14 +820,30 @@ coconNS.on('connection', (socket) => {
         }
         }
 
-        // Calculate counters from individual votes
+        // Calculate counters from individual votes WITH proxy weight
         const allVotes = await prisma.vote.findMany({
           where: { voteResultId: activeVoteResult.id }
         });
 
-        votesFor = allVotes.filter(v => v.choice === 'FOR').length;
-        votesAgainst = allVotes.filter(v => v.choice === 'AGAINST').length;
-        votesAbstain = allVotes.filter(v => v.choice === 'ABSTAIN').length;
+        // Get proxies for this meeting to calculate vote weight
+        const proxies = await prisma.proxy.findMany({
+          where: { meetingId: activeVoteResult.meeting.id }
+        });
+
+        // Calculate vote weight (own vote + received proxies)
+        const voteWeights = new Map();
+        allVotes.forEach(v => {
+          const weight = 1 + proxies.filter(p => p.toUserId === v.userId).length;
+          voteWeights.set(v.userId, weight);
+        });
+
+        // Count votes WITH weight (proxy multiplication)
+        votesFor = allVotes.filter(v => v.choice === 'FOR')
+          .reduce((sum, v) => sum + (voteWeights.get(v.userId) || 1), 0);
+        votesAgainst = allVotes.filter(v => v.choice === 'AGAINST')
+          .reduce((sum, v) => sum + (voteWeights.get(v.userId) || 1), 0);
+        votesAbstain = allVotes.filter(v => v.choice === 'ABSTAIN')
+          .reduce((sum, v) => sum + (voteWeights.get(v.userId) || 1), 0);
 
         console.log(`[VotingResults] ✅ Processed ${successCount} individual votes, ${errorCount} errors`);
       } else if (hasAggregatedResults) {
