@@ -471,11 +471,32 @@ module.exports = (prisma, pgClient, io) => {
           },
         });
 
-        const votesFor = votes.filter(v => v.choice === 'FOR').length;
-        const votesAgainst = votes.filter(v => v.choice === 'AGAINST').length;
-        const votesAbstain = votes.filter(v => v.choice === 'ABSTAIN').length;
+        // Get proxies for this meeting to calculate vote weight
+        const proxies = await tx.proxy.findMany({
+          where: { meetingId: voteResult.agendaItem.meeting.id }
+        });
+
+        // Calculate vote weight (own vote + received proxies)
+        const voteWeights = new Map();
+        votes.forEach(v => {
+          const weight = 1 + proxies.filter(p => p.toUserId === v.userId).length;
+          voteWeights.set(v.userId, weight);
+        });
+
+        // Count votes WITH weight (proxy multiplication)
+        const votesFor = votes.filter(v => v.choice === 'FOR')
+          .reduce((sum, v) => sum + (voteWeights.get(v.userId) || 1), 0);
+        const votesAgainst = votes.filter(v => v.choice === 'AGAINST')
+          .reduce((sum, v) => sum + (voteWeights.get(v.userId) || 1), 0);
+        const votesAbstain = votes.filter(v => v.choice === 'ABSTAIN')
+          .reduce((sum, v) => sum + (voteWeights.get(v.userId) || 1), 0);
+
+        // Absent calculation: exclude both voters AND those who gave proxies
         const votedUserIds = [...new Set(votes.map(v => v.userId))];
-        const votesAbsent = participants.length - votedUserIds.length;
+        const usersWhoGaveProxy = new Set(proxies.map(p => p.fromUserId));
+        const votesAbsent = participants.filter(p =>
+          !votedUserIds.includes(p.id) && !usersWhoGaveProxy.has(p.id)
+        ).length;
 
         const updatedVoteResult = await tx.voteResult.update({
           where: { id: voteResult.id },

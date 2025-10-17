@@ -791,7 +791,7 @@ function MeetingScreenPage() {
               fontWeight: 'bold',
               flexShrink: 0
             }}>
-              {activeItem.number}
+              {activeItem.number}.
             </div>
 
             {/* Agenda Content - Right Side */}
@@ -831,7 +831,7 @@ function MeetingScreenPage() {
           }}>
           <div style={{ display: 'flex', gap: '30px', marginBottom: '15px', justifyContent: 'flex-start' }}>
             {/* Question Section */}
-            <div style={{ minWidth: '200px' }}>
+            <div style={{ minWidth: '500px' }}>
               <div style={{ fontSize: config.questionNumberFontSize || '24px', color: config.questionNumberColor || '#ffffff', marginBottom: '10px' }}>
                 ВОПРОС <span style={{
                   display: 'inline-block',
