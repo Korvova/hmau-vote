@@ -371,7 +371,26 @@ router.get('/agenda-items/:id/detailed-votes', async (req, res) => {
       orderBy: { createdAt: 'asc' },
     });
 
-    // For each vote result, get individual votes with user info
+    // Get proxies for this meeting
+    const proxies = await req.prisma.proxy.findMany({
+      where: { meetingId: agendaItem.meeting.id },
+      include: {
+        fromUser: {
+          select: {
+            id: true,
+            name: true,
+          },
+        },
+        toUser: {
+          select: {
+            id: true,
+            name: true,
+          },
+        },
+      },
+    });
+
+    // For each vote result, get individual votes with user info and proxies
     const detailedResults = await Promise.all(
       voteResults.map(async (voteResult) => {
         const votes = await req.prisma.vote.findMany({
@@ -388,9 +407,25 @@ router.get('/agenda-items/:id/detailed-votes', async (req, res) => {
           orderBy: { createdAt: 'asc' },
         });
 
+        // Add proxy information to each vote
+        const votesWithProxies = votes.map(vote => {
+          const receivedProxies = proxies
+            .filter(p => p.toUserId === vote.userId)
+            .map(p => ({
+              fromUserId: p.fromUserId,
+              fromUserName: p.fromUser.name,
+            }));
+
+          return {
+            ...vote,
+            proxies: receivedProxies,
+            voteWeight: 1 + receivedProxies.length,
+          };
+        });
+
         return {
           ...voteResult,
-          votes,
+          votes: votesWithProxies,
         };
       })
     );
@@ -402,6 +437,7 @@ router.get('/agenda-items/:id/detailed-votes', async (req, res) => {
       meeting: agendaItem.meeting,
       voteResults: detailedResults,
       participants,
+      proxies, // Include proxies in response for reference
     });
   } catch (error) {
     console.error(`[API] Error fetching detailed votes for agenda item ${agendaItemId}:`, error);

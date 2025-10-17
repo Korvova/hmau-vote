@@ -183,17 +183,18 @@ const DetailedVoteResultsPDF = ({ agendaItem, meeting, voteResults, participants
       ABSENT: [],
     };
 
-    // First, add all who voted
+    // First, add all who voted (with full vote object including proxies)
     votes.forEach((vote) => {
       if (vote.choice && grouped[vote.choice]) {
-        grouped[vote.choice].push(vote.user);
+        grouped[vote.choice].push(vote); // Push full vote object, not just user
       }
     });
 
     // Find who didn't vote - add to ABSENT
     const votedUserIds = new Set(votes.map(v => v.user?.id).filter(Boolean));
     const didNotVote = allParticipants.filter(p => !votedUserIds.has(p.id));
-    grouped.ABSENT = [...grouped.ABSENT, ...didNotVote];
+    // For ABSENT, we just push user objects (no votes, no proxies)
+    grouped.ABSENT = [...grouped.ABSENT, ...didNotVote.map(user => ({ user }))];
 
     return grouped;
   };
@@ -294,11 +295,20 @@ const DetailedVoteResultsPDF = ({ agendaItem, meeting, voteResults, participants
                   <Text>За</Text>
                 </View>
                 {voters.FOR.length > 0 ? (
-                  voters.FOR.map((user, idx) => (
-                    <View key={`for-${idx}`} style={styles.votersRow}>
-                      <Text style={styles.voterName}>{user?.name || 'Неизвестно'}</Text>
-                    </View>
-                  ))
+                  voters.FOR.map((vote, idx) => {
+                    const user = vote.user || vote;
+                    const proxies = vote.proxies || [];
+                    const proxyText = proxies.length > 0
+                      ? ` (с доверенностями от: ${proxies.map(p => p.fromUserName).join(', ')})`
+                      : '';
+                    return (
+                      <View key={`for-${idx}`} style={styles.votersRow}>
+                        <Text style={styles.voterName}>
+                          {user?.name || 'Неизвестно'}{proxyText}
+                        </Text>
+                      </View>
+                    );
+                  })
                 ) : (
                   <View style={styles.votersRow}>
                     <Text style={styles.voterName}>—</Text>
@@ -310,11 +320,20 @@ const DetailedVoteResultsPDF = ({ agendaItem, meeting, voteResults, participants
                   <Text>Против</Text>
                 </View>
                 {voters.AGAINST.length > 0 ? (
-                  voters.AGAINST.map((user, idx) => (
-                    <View key={`against-${idx}`} style={styles.votersRow}>
-                      <Text style={styles.voterName}>{user?.name || 'Неизвестно'}</Text>
-                    </View>
-                  ))
+                  voters.AGAINST.map((vote, idx) => {
+                    const user = vote.user || vote;
+                    const proxies = vote.proxies || [];
+                    const proxyText = proxies.length > 0
+                      ? ` (с доверенностями от: ${proxies.map(p => p.fromUserName).join(', ')})`
+                      : '';
+                    return (
+                      <View key={`against-${idx}`} style={styles.votersRow}>
+                        <Text style={styles.voterName}>
+                          {user?.name || 'Неизвестно'}{proxyText}
+                        </Text>
+                      </View>
+                    );
+                  })
                 ) : (
                   <View style={styles.votersRow}>
                     <Text style={styles.voterName}>—</Text>
@@ -326,11 +345,20 @@ const DetailedVoteResultsPDF = ({ agendaItem, meeting, voteResults, participants
                   <Text>Воздержались</Text>
                 </View>
                 {voters.ABSTAIN.length > 0 ? (
-                  voters.ABSTAIN.map((user, idx) => (
-                    <View key={`abstain-${idx}`} style={styles.votersRow}>
-                      <Text style={styles.voterName}>{user?.name || 'Неизвестно'}</Text>
-                    </View>
-                  ))
+                  voters.ABSTAIN.map((vote, idx) => {
+                    const user = vote.user || vote;
+                    const proxies = vote.proxies || [];
+                    const proxyText = proxies.length > 0
+                      ? ` (с доверенностями от: ${proxies.map(p => p.fromUserName).join(', ')})`
+                      : '';
+                    return (
+                      <View key={`abstain-${idx}`} style={styles.votersRow}>
+                        <Text style={styles.voterName}>
+                          {user?.name || 'Неизвестно'}{proxyText}
+                        </Text>
+                      </View>
+                    );
+                  })
                 ) : (
                   <View style={styles.votersRow}>
                     <Text style={styles.voterName}>—</Text>
@@ -342,11 +370,14 @@ const DetailedVoteResultsPDF = ({ agendaItem, meeting, voteResults, participants
                   <Text>Не голосовали</Text>
                 </View>
                 {voters.ABSENT.length > 0 ? (
-                  voters.ABSENT.map((user, idx) => (
-                    <View key={`absent-${idx}`} style={idx === voters.ABSENT.length - 1 ? styles.votersRowLast : styles.votersRow}>
-                      <Text style={styles.voterName}>{user?.name || 'Неизвестно'}</Text>
-                    </View>
-                  ))
+                  voters.ABSENT.map((vote, idx) => {
+                    const user = vote.user || vote;
+                    return (
+                      <View key={`absent-${idx}`} style={idx === voters.ABSENT.length - 1 ? styles.votersRowLast : styles.votersRow}>
+                        <Text style={styles.voterName}>{user?.name || 'Неизвестно'}</Text>
+                      </View>
+                    );
+                  })
                 ) : (
                   <View style={styles.votersRowLast}>
                     <Text style={styles.voterName}>—</Text>
