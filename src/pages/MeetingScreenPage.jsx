@@ -760,7 +760,7 @@ function MeetingScreenPage() {
       >
         {/* Logo (Left Top, 9% width) */}
         {config.logoUrl && (
-          <div style={{ position: 'absolute', left: '0', top: '0', width: '9%' }}>
+          <div style={{ position: 'absolute', left: `${config.paddingLeft || 30}px`, top: '0', width: '9%' }}>
             <img src={config.logoUrl} alt="Logo" style={{ width: '100%' }} />
           </div>
         )}
@@ -783,23 +783,36 @@ function MeetingScreenPage() {
 
         {/* Main Content */}
         <div style={{ marginTop: '200px', display: 'flex', justifyContent: 'center' }}>
-          <div style={{ width: '80%' }}>
-            {/* Current Question Title */}
-            <div style={{ fontSize: config.currentQuestionFontSize || '36px', color: config.currentQuestionColor || '#ffffff', textAlign: 'left', marginBottom: '30px', fontWeight: 'bold' }}>
-              {activeItem.number} {activeItem.title}
+          <div style={{ width: '80%', display: 'flex', gap: '20px' }}>
+            {/* Agenda Number - Left Side */}
+            <div style={{
+              fontSize: '28px',
+              color: config.currentQuestionColor || '#ffffff',
+              fontWeight: 'bold',
+              flexShrink: 0
+            }}>
+              {activeItem.number}
             </div>
+
+            {/* Agenda Content - Right Side */}
+            <div style={{ flex: 1 }}>
+              {/* Current Question Title */}
+              <div style={{ fontSize: '28px', color: config.currentQuestionColor || '#ffffff', textAlign: 'left', marginBottom: '30px', fontWeight: 'bold' }}>
+                {activeItem.title}
+              </div>
 
             {/* Speaker (if exists) */}
             {activeItem.speakerName && activeItem.speakerName.trim() !== '' && (
               <div style={{ marginBottom: '30px', textAlign: 'left' }}>
-                <div style={{ fontSize: config.speakersLabelFontSize || '24px', color: config.speakersLabelColor || '#ffffff', marginBottom: '10px' }}>
+                <div style={{ fontSize: '28px', color: config.speakersLabelColor || '#ffffff', marginBottom: '10px' }}>
                   ДОКЛАДЫВАЮТ:
                 </div>
-                <div style={{ fontSize: config.speakersNamesFontSize || '20px', color: config.speakersNamesColor || '#ffffff', lineHeight: '1.6' }}>
+                <div style={{ fontSize: '28px', color: config.speakersNamesColor || '#ffffff', lineHeight: '1.6' }}>
                   {activeItem.speakerName}
                 </div>
               </div>
             )}
+            </div>
           </div>
         </div>
 
