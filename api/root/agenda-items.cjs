@@ -345,9 +345,16 @@ router.get('/agenda-items/:id/detailed-votes', async (req, res) => {
       return res.status(404).json({ error: 'Agenda item not found' });
     }
 
-    // Collect all unique users from divisions
+    // Collect all unique users from divisions, excluding "Приглашенные" (invited guests)
+    const allDivisions = agendaItem.meeting.divisions || [];
+    const regularDivisions = allDivisions.filter(d => {
+      if (!d || !d.name) return true;
+      const name = d.name.replace(/👥/g, '').trim().toLowerCase();
+      return name !== 'приглашенные';
+    });
+
     const userMap = new Map();
-    agendaItem.meeting.divisions.forEach(div => {
+    regularDivisions.forEach(div => {
       div.users.forEach(user => {
         if (!userMap.has(user.id)) {
           userMap.set(user.id, user);
