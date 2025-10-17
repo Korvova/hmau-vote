@@ -828,9 +828,16 @@ router.get('/:id/participants', async (req, res) => {
       return res.status(404).json({ error: 'Р—Р°СЃРµРґР°РЅРёРµ РЅРµ РЅР°Р№РґРµРЅРѕ' });
     }
 
-    // Получаем всех пользователей из подразделений заседания
+    // Получаем всех пользователей из подразделений заседания, исключая "Приглашенные"
+    const allDivisions = meeting.divisions || [];
+    const regularDivisions = allDivisions.filter(d => {
+      if (!d || !d.name) return true;
+      const name = d.name.replace(/👥/g, '').trim().toLowerCase();
+      return name !== 'приглашенные';
+    });
+
     const userIds = new Set();
-    meeting.divisions.forEach(division => {
+    regularDivisions.forEach(division => {
       division.users.forEach(user => userIds.add(user.id));
     });
 
