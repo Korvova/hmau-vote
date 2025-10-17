@@ -52,7 +52,13 @@ router.post('/login', async (req, res) => {
     }
     // Проверяем, авторизован ли пользователь (не админ)
     if (!user.isAdmin && user.isOnline) {
-      return res.status(403).json({ success: false, error: 'Пользователь авторизован на другом устройстве' });
+      // Получаем контактную информацию
+      const contact = await prisma.contact.findFirst();
+      return res.status(403).json({
+        success: false,
+        error: 'Пользователь авторизован на другом устройстве',
+        contact: contact ? { name: contact.name, phone: contact.phone } : null
+      });
     }
     // Обновляем статус пользователя на онлайн (триггер автоматически отправит уведомление)
     const updatedUser = await prisma.user.update({

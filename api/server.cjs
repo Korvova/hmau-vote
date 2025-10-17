@@ -372,6 +372,7 @@ app.use('/api', require('./root/vote.cjs')(prisma, pgClient, io));
 app.use('/api/televic', require('./root/televic.cjs')(prisma, pgClient, io));
 app.use('/api/screen-configs', require('./root/screen-configs.cjs'));
 app.use('/api/screen-uploads', require('./root/screen-uploads.cjs'));
+app.use('/api/contacts', require('./root/contacts.cjs'));
 
 // Serve uploaded files
 app.use('/uploads', express.static(path.join(__dirname, '../uploads')));

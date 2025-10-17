@@ -252,6 +252,65 @@ const calculateDecision = async (prisma, voteResultId) => {
 };
 
 module.exports = (prisma, pgClient, io) => {
+  // Helper functions for CoCon connector communication
+  const pendingVoteCommands = new Map(); // Track pending commands locally
+
+  /**
+   * Find an active CoCon connector socket
+   * @returns {Object|null} Socket instance or null if not found
+   */
+  const findConnectorSocket = () => {
+    if (!io) return null;
+    const coconNS = io.of('/cocon-connector');
+    if (!coconNS || !coconNS.sockets) return null;
+
+    // Return first available socket
+    for (const [sid, sock] of coconNS.sockets) {
+      return sock;
+    }
+    return null;
+  };
+
+  /**
+   * Dispatch a command to CoCon connector and wait for response
+   * @param {Object} socket - Socket instance
+   * @param {Object} options - Command options
+   * @param {String} options.type - Command type
+   * @param {Object} options.payload - Command payload
+   * @param {Number} options.timeoutMs - Timeout in milliseconds
+   * @returns {Promise<Object>} Command result
+   */
+  const dispatchVoteCommand = (socket, { type, payload, timeoutMs = 30000 }) => {
+    return new Promise((resolve, reject) => {
+      const id = require('crypto').randomUUID();
+      const timer = setTimeout(() => {
+        pendingVoteCommands.delete(id);
+        reject(new Error(`CoCon connector timeout after ${timeoutMs}ms`));
+      }, timeoutMs);
+
+      // Store pending command
+      pendingVoteCommands.set(id, { resolve, reject, timer });
+
+      // Listen for result once
+      const resultHandler = (msg) => {
+        if (msg && msg.id === id) {
+          const entry = pendingVoteCommands.get(id);
+          if (entry) {
+            clearTimeout(entry.timer);
+            pendingVoteCommands.delete(id);
+            socket.off('connector:command:result', resultHandler);
+            entry.resolve(msg);
+          }
+        }
+      };
+
+      socket.on('connector:command:result', resultHandler);
+
+      // Send command
+      socket.emit('server:command:exec', { id, type, payload, timeoutMs });
+    });
+  };
+
   /**
    * @api {post} /api/vote Запись голоса пользователя
    * @apiName ЗаписьГолоса
@@ -795,22 +854,11 @@ router.post('/start-vote', async (req, res) => {
     };
     await pgClient.query(`NOTIFY vote_result_channel, '${JSON.stringify(payload)}'`);
 
-    // Если заседание создано в CoCon - запустить голосование там
+    // Start voting in CoCon in background (fire and forget - website is master of data)
     if (agendaItem.meeting?.televicMeetingId && io) {
       try {
         console.log(`[Vote] Starting voting in CoCon for agenda item ${agendaItem.number}: "${question}"`);
-
-        // Find connector socket
-        const coconNS = io.of('/cocon-connector');
-        console.log(`[Vote] CoconNS exists:`, !!coconNS);
-        console.log(`[Vote] CoconNS.sockets size:`, coconNS.sockets?.size || 0);
-
-        let socket = null;
-        for (const [sid, sock] of coconNS.sockets) {
-          console.log(`[Vote] Found socket:`, sid);
-          socket = sock;
-          break;
-        }
+        const socket = findConnectorSocket();
 
         if (socket) {
           socket.emit('server:command:exec', {
@@ -823,12 +871,12 @@ router.post('/start-vote', async (req, res) => {
               duration: finalDuration
             }
           });
-          console.log(`[Vote] Voting start command sent to CoCon connector`);
+          console.log(`[Vote] Voting start command sent to CoCon connector (background)`);
         } else {
           console.log(`[Vote] No CoCon connector online - skipping voting start in CoCon`);
         }
       } catch (e) {
-        console.error('[Vote] Failed to start voting in CoCon:', e.message);
+        console.error('[Vote] Failed to send voting start to CoCon:', e.message);
       }
     }
 
@@ -880,34 +928,28 @@ router.post('/start-vote', async (req, res) => {
           data: { voting: false },
         });
 
-        const updatedPayload = {
-          ...updatedVoteResult,
-          createdAt: updatedVoteResult.createdAt.toISOString(),
-        };
-        await pgClient.query(`NOTIFY vote_result_channel, '${JSON.stringify(updatedPayload)}'`);
+        // DON'T send NOTIFY yet! First stop CoCon, then fetch results, THEN notify
+        console.log(`[Vote] Timer expired - sending stop command to CoCon and waiting for confirmation`);
 
-        // Stop voting in CoCon if meeting was created there
+        // Stop voting in CoCon and wait for confirmation (website is master - we decide when to stop)
         if (agendaItem.meeting?.televicMeetingId && io) {
           try {
             console.log(`[Vote] Stopping voting in CoCon after timer expired`);
-            const coconNS = io.of('/cocon-connector');
-            console.log(`[Vote] CoconNS exists:`, !!coconNS);
-            console.log(`[Vote] CoconNS.sockets size:`, coconNS.sockets?.size || 0);
-
-            let socket = null;
-            for (const [sid, sock] of coconNS.sockets) {
-              console.log(`[Vote] Found socket:`, sid);
-              socket = sock;
-              break;
-            }
+            const socket = findConnectorSocket();
 
             if (socket) {
-              socket.emit('server:command:exec', {
-                id: require('crypto').randomUUID(),
+              // WAIT for CoCon to stop voting
+              const result = await dispatchVoteCommand(socket, {
                 type: 'StopVoting',
-                payload: {}
+                payload: {},
+                timeoutMs: 10000 // 10 seconds to stop voting
               });
-              console.log(`[Vote] Voting stop command sent to CoCon connector`);
+
+              if (result && result.ok) {
+                console.log(`[Vote] ✅ CoCon voting stopped successfully`);
+              } else {
+                console.error(`[Vote] ❌ CoCon stop returned error:`, result ? result.error : 'no response');
+              }
             } else {
               console.log(`[Vote] No CoCon connector online - skipping voting stop in CoCon`);
             }
@@ -915,6 +957,13 @@ router.post('/start-vote', async (req, res) => {
             console.error('[Vote] Failed to stop voting in CoCon:', e.message);
           }
         }
+
+        // Now send NOTIFY with the final results
+        const updatedPayload = {
+          ...updatedVoteResult,
+          createdAt: updatedVoteResult.createdAt.toISOString(),
+        };
+        await pgClient.query(`NOTIFY vote_result_channel, '${JSON.stringify(updatedPayload)}'`);
       }
     }, durationInMs);
 
