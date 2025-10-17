@@ -440,6 +440,24 @@ module.exports = (prisma, pgClient, io) => {
         return res.status(404).json({ error: 'Vote result not found' });
       }
 
+      // Check if user has given proxy to someone else (they can't vote if they did)
+      const proxyGiven = await prisma.proxy.findFirst({
+        where: {
+          meetingId: voteResult.agendaItem.meeting.id,
+          fromUserId: user.id
+        }
+      });
+
+      if (proxyGiven) {
+        const proxyRecipient = await prisma.user.findUnique({
+          where: { id: proxyGiven.toUserId },
+          select: { name: true }
+        });
+        return res.status(403).json({
+          error: `Вы не можете голосовать, так как передали доверенность пользователю "${proxyRecipient?.name || 'Unknown'}"`
+        });
+      }
+
       const result = await prisma.$transaction(async (tx) => {
         const existingVote = await tx.vote.findFirst({
           where: {
