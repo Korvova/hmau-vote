@@ -39,6 +39,7 @@ router.get('/meetings/:id/agenda-items', async (req, res) => {
       title: item.title,
       speakerId: item.speakerId,
       speaker: item.speaker ? item.speaker.name : 'Нет',
+      speakerName: item.speakerName || null,
       link: item.link,
       voting: item.voting,
       completed: item.completed,
@@ -178,7 +179,7 @@ router.post('/meetings/:id/agenda-items', async (req, res) => {
  */
 router.put('/meetings/:id/agenda-items/:itemId', async (req, res) => {
   const { id, itemId } = req.params;
-  const { number, title, speakerId, link, activeIssue, completed } = req.body;
+  const { number, title, speakerId, link, activeIssue, completed, speakerName } = req.body;
   console.log(`Updating agenda item ${itemId} for meeting ${id}:`, req.body);
   try {
     const result = await req.prisma.$transaction([
@@ -197,6 +198,7 @@ router.put('/meetings/:id/agenda-items/:itemId', async (req, res) => {
           number,
           title,
           speakerId: speakerId ? parseInt(speakerId) : null,
+          speakerName: speakerName !== undefined ? speakerName : undefined,
           link,
           activeIssue: activeIssue !== undefined ? activeIssue : undefined,
           completed: completed !== undefined ? completed : undefined,

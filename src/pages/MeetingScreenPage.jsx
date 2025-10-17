@@ -773,8 +773,8 @@ function MeetingScreenPage() {
         </div>
 
         {/* Date (Right Top) */}
-        <div style={{ position: 'absolute', right: '0', top: '0', textAlign: 'right' }}>
-          <div style={{ fontSize: config.dateFontSize || '20px', color: config.dateColor || '#ffffff' }}>
+        <div style={{ position: 'absolute', right: '20px', top: '0', textAlign: 'right' }}>
+          <div style={{ fontSize: config.dateFontSize || '17px', color: config.dateColor || '#ffffff' }}>
             {new Date().toLocaleDateString('ru-RU', { day: '2-digit', month: 'long', year: 'numeric' })}
             <br />
             {new Date().toLocaleTimeString('ru-RU')}
@@ -782,28 +782,43 @@ function MeetingScreenPage() {
         </div>
 
         {/* Main Content */}
-        <div style={{ marginTop: '100px' }}>
-          {/* Current Question Title */}
-          <div style={{ fontSize: config.currentQuestionFontSize || '36px', color: config.currentQuestionColor || '#ffffff', textAlign: 'left', marginBottom: '30px', fontWeight: 'bold' }}>
-            {activeItem.number} {activeItem.title}
-          </div>
-
-          {/* Speaker (if exists) */}
-          {activeItem.speakerName && activeItem.speakerName.trim() !== '' && (
-            <div style={{ marginBottom: '30px' }}>
-              <div style={{ fontSize: config.speakersLabelFontSize || '24px', color: config.speakersLabelColor || '#ffffff', marginBottom: '10px' }}>
-                ДОКЛАДЫВАЮТ:
-              </div>
-              <div style={{ fontSize: config.speakersNamesFontSize || '20px', color: config.speakersNamesColor || '#ffffff', lineHeight: '1.6' }}>
-                {activeItem.speakerName}
-              </div>
+        <div style={{ marginTop: '200px', display: 'flex', justifyContent: 'center' }}>
+          <div style={{ width: '80%' }}>
+            {/* Current Question Title */}
+            <div style={{ fontSize: config.currentQuestionFontSize || '36px', color: config.currentQuestionColor || '#ffffff', textAlign: 'left', marginBottom: '30px', fontWeight: 'bold' }}>
+              {activeItem.number} {activeItem.title}
             </div>
-          )}
 
-          {/* Question and Speech Queues - Same Line */}
-          <div style={{ display: 'flex', gap: '40px', marginBottom: '15px' }}>
+            {/* Speaker (if exists) */}
+            {activeItem.speakerName && activeItem.speakerName.trim() !== '' && (
+              <div style={{ marginBottom: '30px', textAlign: 'left' }}>
+                <div style={{ fontSize: config.speakersLabelFontSize || '24px', color: config.speakersLabelColor || '#ffffff', marginBottom: '10px' }}>
+                  ДОКЛАДЫВАЮТ:
+                </div>
+                <div style={{ fontSize: config.speakersNamesFontSize || '20px', color: config.speakersNamesColor || '#ffffff', lineHeight: '1.6' }}>
+                  {activeItem.speakerName}
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* Question and Speech Queues - Bottom 20% */}
+        <div style={{
+          position: 'absolute',
+          bottom: '20%',
+          left: `${config.paddingLeft || 30}px`,
+          right: `${config.paddingRight || 30}px`,
+          zIndex: 10
+        }}>
+          <div style={{
+            marginLeft: 'auto',
+            marginRight: 'auto',
+            width: '80%'
+          }}>
+          <div style={{ display: 'flex', gap: '30px', marginBottom: '15px', justifyContent: 'flex-start' }}>
             {/* Question Section */}
-            <div style={{ flex: 1 }}>
+            <div style={{ minWidth: '200px' }}>
               <div style={{ fontSize: config.questionNumberFontSize || '24px', color: config.questionNumberColor || '#ffffff', marginBottom: '10px' }}>
                 ВОПРОС <span style={{
                   display: 'inline-block',
@@ -853,8 +868,8 @@ function MeetingScreenPage() {
             </div>
 
             {/* Speech Section */}
-            <div style={{ flex: 1 }}>
-              <div style={{ fontSize: config.speechNumberFontSize || '24px', color: config.speechNumberColor || '#ffffff', marginBottom: '10px' }}>
+            <div style={{ minWidth: '250px' }}>
+              <div style={{ fontSize: config.questionNumberFontSize || '24px', color: config.speechNumberColor || '#ffffff', marginBottom: '10px' }}>
                 ВЫСТУПЛЕНИЕ <span style={{
                   display: 'inline-block',
                   width: '35px',
@@ -902,7 +917,9 @@ function MeetingScreenPage() {
               </div>
             </div>
           </div>
+          </div>
         </div>
+
         <TimerOverlay />
       </div>
     );

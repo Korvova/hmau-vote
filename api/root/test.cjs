@@ -616,7 +616,7 @@ router.post('/create-meeting', async (req, res) => {
     });
 
     const guestDivision = await prisma.division.findFirst({
-      where: { name: '👥Приглашенные' }
+      where: { name: 'Приглашенные' }
     });
 
     if (!testDivision) {
@@ -905,7 +905,7 @@ router.post('/create-meeting-televic', async (req, res) => {
       case 'TWO_THIRDS_REGISTERED':
         meetingName = 'Десятое тест сайт телевик 2/3 от установленного';
         voteProcedureId = 3; // 2/3 от установленного
-        quorumValue = 2; // Больше 1
+        quorumValue = 'MORE_THAN_ONE'; // Больше 1
         break;
       case 'HALF_PLUS_ONE':
         meetingName = 'Десятое тест сайт телевик Половина +1';
@@ -929,7 +929,7 @@ router.post('/create-meeting-televic', async (req, res) => {
     });
 
     const guestDivision = await prisma.division.findFirst({
-      where: { name: '👥Приглашенные' }
+      where: { name: 'Приглашенные' }
     });
 
     if (!testDivision) {

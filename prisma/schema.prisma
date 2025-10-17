@@ -62,7 +62,7 @@ model Meeting {
   speechQueueEnabled Boolean @default(true)   // Включена ли очередь на выступления
   screenConfig Json?        // Конфигурации экранов (registration, agenda, voting, final)
   showVoteOnBroadcast Boolean? @default(false) // Флаг для отображения результата голосования на экране трансляции
-  quorumType  Int?         // Тип кворума (хранится как число)
+  quorumType  QuorumType?  // Тип кворума (enum: MORE_THAN_ONE, TWO_THIRDS_OF_TOTAL, HALF_PLUS_ONE)
   timerDuration Int?       // Длительность таймера в секундах
   timerStartedAt DateTime? // Время начала таймера
   timerActive Boolean?     @default(false) // Активен ли таймер
@@ -176,6 +176,12 @@ enum VoteChoice {
 enum VoteType {
   OPEN
   CLOSED
+}
+
+enum QuorumType {
+  MORE_THAN_ONE
+  TWO_THIRDS_OF_TOTAL
+  HALF_PLUS_ONE
 }
 
 enum QueueType {
