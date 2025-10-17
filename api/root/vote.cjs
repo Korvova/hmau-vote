@@ -819,9 +819,17 @@ router.post('/start-vote', async (req, res) => {
       data: { voting: true },
     });
 
+    // FIXED: Exclude "Приглашенные" (invited guests) from participants count
+    const allDivisions = agendaItem.meeting.divisions || [];
+    const regularDivisions = allDivisions.filter(d => {
+      if (!d || !d.name) return true;
+      const name = d.name.replace(/👥/g, '').trim().toLowerCase();
+      return name !== 'приглашенные';
+    });
+
     const participants = await prisma.user.findMany({
       where: {
-        divisionId: { in: agendaItem.meeting.divisions ? agendaItem.meeting.divisions.map(d => d.id) : [] },
+        divisionId: { in: regularDivisions.map(d => d.id) },
         isAdmin: false,
       },
     });
@@ -892,9 +900,17 @@ router.post('/start-vote', async (req, res) => {
         });
         const votedUserIds = [...new Set(votes.map(vote => vote.userId))];
 
+        // FIXED: Exclude "Приглашенные" (invited guests) from participants count
+        const allDivisions = finalVoteResult.meeting.divisions || [];
+        const regularDivisions = allDivisions.filter(d => {
+          if (!d || !d.name) return true;
+          const name = d.name.replace(/👥/g, '').trim().toLowerCase();
+          return name !== 'приглашенные';
+        });
+
         const participants = await prisma.user.findMany({
           where: {
-            divisionId: { in: finalVoteResult.meeting.divisions ? finalVoteResult.meeting.divisions.map(d => d.id) : [] },
+            divisionId: { in: regularDivisions.map(d => d.id) },
             isAdmin: false,
           },
         });
