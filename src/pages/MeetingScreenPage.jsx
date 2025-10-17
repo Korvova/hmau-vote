@@ -766,7 +766,7 @@ function MeetingScreenPage() {
         )}
 
         {/* Meeting Title (Center Top) */}
-        <div style={{ position: 'absolute', left: '15%', right: '15%', top: '0', textAlign: 'center' }}>
+        <div style={{ position: 'absolute', left: '20%', right: '15%', top: '0', textAlign: 'center' }}>
           <div style={{ fontSize: config.meetingTitleFontSize || '32px', color: config.meetingTitleColor || '#ffffff', fontWeight: 'bold' }}>
             {meeting?.name || 'ЗАСЕДАНИЕ'}
           </div>
