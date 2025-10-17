@@ -1,0 +1,74 @@
+version: '3.8'
+
+services:
+  # PostgreSQL Database
+  postgres:
+    image: postgres:16-alpine
+    container_name: voting-db
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: voting
+      POSTGRES_USER: votingapp
+      POSTGRES_PASSWORD: votingapp_2025!
+      POSTGRES_INITDB_ARGS: "--encoding=UTF8 --locale=C"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./init-db.sql:/docker-entrypoint-initdb.d/init-db.sql:ro
+    ports:
+      - "5432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U votingapp -d voting"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # Voting Application (API + Frontend)
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: voting-app
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      DATABASE_URL: "postgresql://votingapp:votingapp_2025!@postgres:5432/voting?schema=public"
+      PORT: 5000
+      NODE_ENV: production
+    volumes:
+      - ./uploads:/app/uploads
+    ports:
+      - "5000:5000"
+    healthcheck:
+      test: ["CMD", "node", "-e", "require('http').get('http://localhost:5000/api/health', (r) => {process.exit(r.statusCode === 200 ? 0 : 1)})"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+  # Nginx (reverse proxy and static files)
+  nginx:
+    image: nginx:alpine
+    container_name: voting-nginx
+    restart: unless-stopped
+    depends_on:
+      - app
+    volumes:
+      - ./nginx.conf:/etc/nginx/nginx.conf:ro
+      - ./dist:/usr/share/nginx/html/hmau-vote:ro
+    ports:
+      - "80:80"
+    healthcheck:
+      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+volumes:
+  postgres_data:
+    driver: local
+
+networks:
+  default:
+    name: voting-network
