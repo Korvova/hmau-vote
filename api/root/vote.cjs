@@ -34,7 +34,16 @@ const calculateDecision = async (prisma, voteResultId) => {
         isAdmin: false,
       },
     });
-    const totalParticipants = participants.length;
+
+    // Get proxies for this meeting to calculate total participants WITH weight
+    const proxies = await prisma.proxy.findMany({
+      where: { meetingId: voteResult.meetingId }
+    });
+
+    // Calculate total participants including proxy weights
+    // Formula: count of regular participants + count of proxies
+    const totalProxies = proxies.length;
+    const totalParticipants = participants.length + totalProxies;
 
     const onlineParticipants = await prisma.user.findMany({
       where: {
