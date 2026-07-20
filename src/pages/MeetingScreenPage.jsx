@@ -21,6 +21,13 @@ const isInvitedUser = (user) => {
   return false;
 };
 
+// Broadcast screen only: long question texts are cut at 699 chars + "..."
+const truncateQuestion = (text, max = 699) => {
+  if (!text) return text;
+  const s = String(text);
+  return s.length > max ? s.slice(0, max).trimEnd() + '...' : s;
+};
+
 function MeetingScreenPage() {
   const { id } = useParams();
   const [meeting, setMeeting] = useState(null);
@@ -676,7 +683,7 @@ function MeetingScreenPage() {
               marginBottom: '30px',
               lineHeight: '1.3'
             }}>
-              {vote.question}
+              {truncateQuestion(vote.question)}
             </div>
           )}
 
@@ -798,7 +805,7 @@ function MeetingScreenPage() {
             <div style={{ flex: 1 }}>
               {/* Current Question Title */}
               <div style={{ fontSize: '28px', color: config.currentQuestionColor || '#ffffff', textAlign: 'left', marginBottom: '30px', fontWeight: 'bold' }}>
-                {activeItem.title}
+                {truncateQuestion(activeItem.title)}
               </div>
 
             {/* Speaker (if exists) */}
