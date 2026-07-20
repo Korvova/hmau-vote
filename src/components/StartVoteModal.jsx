@@ -48,7 +48,8 @@ function StartVoteModal({ open, agendaItemId, defaultProcedureId, onClose, onSta
   useEffect(() => {
     if (durationTemplateId) {
       const selected = durationTemplates.find((t) => String(t.id) === String(durationTemplateId));
-      setDuration(selected ? String(selected.duration) : '');
+      const seconds = selected ? (selected.durationInSeconds ?? selected.duration) : '';
+      setDuration(seconds != null && seconds !== '' ? String(seconds) : '');
     }
   }, [durationTemplateId, durationTemplates]);
 

@@ -820,17 +820,11 @@ router.post('/start-vote', async (req, res) => {
     // If duration is not provided but durationTemplateId is, use template duration
     let finalDuration = duration;
     if ((!finalDuration || isNaN(finalDuration) || finalDuration <= 0) && durationTemplateId) {
-      const templates = [
-        { id: 1, duration: 30 },
-        { id: 2, duration: 60 },
-        { id: 3, duration: 120 },
-        { id: 4, duration: 180 },
-        { id: 5, duration: 300 },
-        { id: 6, duration: 600 },
-      ];
-      const template = templates.find(t => t.id === parseInt(durationTemplateId));
+      const template = await prisma.durationTemplate.findUnique({
+        where: { id: parseInt(durationTemplateId) },
+      });
       if (template) {
-        finalDuration = template.duration;
+        finalDuration = template.durationInSeconds;
         console.log(`Using duration from template ${durationTemplateId}: ${finalDuration} seconds`);
       }
     }
