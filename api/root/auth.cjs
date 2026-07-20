@@ -42,11 +42,13 @@ router.post('/login', async (req, res) => {
   console.log('[DEBUG] Login request - headers:', JSON.stringify(req.headers));
   console.log('[DEBUG] Login request - body:', JSON.stringify(req.body));
   console.log('[DEBUG] Login request - content-type:', req.get('content-type'));
-  // Support both 'email' and 'username' fields for backwards compatibility
-  const email = req.body.email || req.body.username;
+  // Support both 'email' and 'username' fields; the value may be an email or a login
+  const identifier = ((req.body.email || req.body.username) || '').trim();
   const { password } = req.body;
   try {
-    const user = await prisma.user.findUnique({ where: { email } });
+    const user = await prisma.user.findFirst({
+      where: { OR: [{ email: identifier }, { username: identifier }] },
+    });
     if (!user || user.password !== password) {
       return res.status(401).json({ success: false, error: 'Invalid email or password' });
     }
@@ -62,7 +64,7 @@ router.post('/login', async (req, res) => {
     }
     // Обновляем статус пользователя на онлайн (триггер автоматически отправит уведомление)
     const updatedUser = await prisma.user.update({
-      where: { email },
+      where: { id: user.id },
       data: { isOnline: true },
     });
     // Возвращаем id пользователя в ответе
@@ -93,15 +95,18 @@ router.post('/login', async (req, res) => {
  *     curl -X POST -H "Content-Type: application/json" -d '{"email":"user@example.com"}' http://217.114.10.226:5000/api/logout
  */
 router.post('/logout', async (req, res) => {
-  const { email } = req.body;
+  const { email, username } = req.body;
   try {
-    const user = await prisma.user.findUnique({ where: { email } });
+    const ids = [email, username].filter(Boolean).map((v) => String(v).trim());
+    const user = await prisma.user.findFirst({
+      where: { OR: ids.flatMap((v) => [{ email: v }, { username: v }]) },
+    });
     if (!user) {
       return res.status(404).json({ error: 'User not found' });
     }
     // Обновляем статус пользователя на оффлайн (триггер автоматически отправит уведомление)
     await prisma.user.update({
-      where: { email },
+      where: { id: user.id },
       data: { isOnline: false },
     });
     res.json({ success: true });
