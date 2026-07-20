@@ -109,6 +109,7 @@ router.get('/', async (req, res) => {
       return {
         id: user.id,
         name: user.name,
+        username: user.username,
         email: user.email,
         phone: user.phone,
         division: pretty.join(', ') || 'Нет',
@@ -149,12 +150,12 @@ router.get('/', async (req, res) => {
  *     curl -X POST -H "Content-Type: application/json" -d '{"name":"Иван Иванов","email":"ivan@example.com","phone":"1234567890","divisionId":1,"password":"secure123"}' http://217.114.10.226:5000/api/users
  */
 router.post('/', async (req, res) => {
-  const { name, email, phone, divisionId, password } = req.body;
+  const { name, email, phone, divisionId, password, username } = req.body;
   try {
     const divisionIds = Array.isArray(req.body?.divisionIds) ? req.body.divisionIds.map((v) => parseInt(v)).filter(Boolean) : [];
     const primary = divisionId ? parseInt(divisionId) : (divisionIds[0] ?? null);
     const user = await req.prisma.user.create({
-      data: { name, email, phone, password, divisionId: primary },
+      data: { name, email, phone, password, username: username || null, divisionId: primary },
     });
     try {
       const extras = divisionIds.filter((v) => v && v !== primary);
@@ -197,7 +198,7 @@ router.post('/', async (req, res) => {
  */
 router.put('/:id', async (req, res) => {
   const { id } = req.params;
-  const { name, email, phone, divisionId, divisionIds, password } = req.body;
+  const { name, email, phone, divisionId, divisionIds, password, username } = req.body;
   try {
     const user = await req.prisma.user.update({
       where: { id: parseInt(id) },
@@ -205,6 +206,7 @@ router.put('/:id', async (req, res) => {
         name,
         email,
         phone,
+        username: username === undefined ? undefined : (username || null),
         divisionId: divisionId ? parseInt(divisionId) : null,
         password: password || undefined,
       },
