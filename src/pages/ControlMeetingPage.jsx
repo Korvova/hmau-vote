@@ -377,6 +377,14 @@ function ControlMeetingPage() {
       ));
     };
 
+    const onMeetingStatusChanged = (data) => {
+      if (data?.id && meeting?.id && Number(data.id) !== Number(meeting.id)) return;
+      if (data?.status) {
+        console.log('[ControlMeetingPage] Meeting status changed via socket:', data.status);
+        setMeeting((prev) => (prev ? { ...prev, status: data.status } : prev));
+      }
+    };
+
     // REAL-TIME vote counter updates during active voting (from Televic pults)
     const onVoteResultUpdated = (data) => {
       try {
@@ -415,6 +423,7 @@ function ControlMeetingPage() {
     socket.on('meeting-timer-started', onMeetingTimerStarted);
     socket.on('meeting-timer-stopped', onMeetingTimerStopped);
     socket.on('badge-status-changed', onBadgeStatusChanged);
+    socket.on('meeting-status-changed', onMeetingStatusChanged);
     socket.on('vote-result-updated', onVoteResultUpdated);
     return () => {
       // Clear all debounce timers
@@ -427,6 +436,7 @@ function ControlMeetingPage() {
       socket.off('meeting-timer-started', onMeetingTimerStarted);
       socket.off('meeting-timer-stopped', onMeetingTimerStopped);
       socket.off('badge-status-changed', onBadgeStatusChanged);
+      socket.off('meeting-status-changed', onMeetingStatusChanged);
       socket.off('vote-result-updated', onVoteResultUpdated);
     };
   }, [meeting?.id, id]);

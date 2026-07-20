@@ -235,7 +235,7 @@ app.use(express.json());
  * @type {Object}
  */
 const pgClient = new Client({
-  connectionString: 'postgresql://postgres:postgres@localhost:5432/voting',
+  connectionString: process.env.DATABASE_URL || 'postgresql://votingapp:votingapp_2025!@postgres:5432/voting',
 });
 pgClient.connect();
 

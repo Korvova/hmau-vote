@@ -1,5 +1,5 @@
 # Multi-stage build for voting application
-FROM node:18-alpine AS builder
+FROM node:20-alpine AS builder
 
 # Install dependencies for Prisma
 RUN apk add --no-cache openssl libc6-compat
@@ -23,7 +23,7 @@ RUN npx prisma generate
 RUN npm run build
 
 # Production stage
-FROM node:18-alpine
+FROM node:20-alpine
 
 # Install openssl for Prisma
 RUN apk add --no-cache openssl
@@ -40,7 +40,9 @@ RUN npx prisma generate
 
 # Copy built files from builder
 COPY --from=builder /app/dist ./dist
-COPY --from=builder /app/api ./api
+
+# Copy api directly from context (not from builder to avoid cache issues)
+COPY api ./api
 
 # Copy uploads folder (will be overwritten by volume)
 RUN mkdir -p /app/uploads
