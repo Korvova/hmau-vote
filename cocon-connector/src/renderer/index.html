@@ -1,0 +1,225 @@
+<!doctype html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <title>CoCon Connector</title>
+    <style>
+      body { font-family: system-ui, sans-serif; margin: 20px; }
+      .row { display: flex; gap: 12px; margin-bottom: 10px; align-items: center; }
+      input, select { padding: 6px 8px; }
+      fieldset { margin-bottom: 16px; }
+      .btn { padding: 6px 10px; cursor: pointer; }
+      .mono { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; white-space: pre-wrap; }
+      .muted { color: #6b7280; font-size: 12px; }
+    </style>
+  </head>
+  <body>
+    <h2>CoCon Connector</h2>
+
+    <fieldset>
+      <legend>Settings</legend>
+      <div class="row">
+        <label style="width: 160px">Listen host</label>
+        <input id="listenHost" placeholder="0.0.0.0" />
+        <label>Port</label>
+        <input id="listenPort" placeholder="4000" style="width:100px" />
+      </div>
+      <div class="row">
+        <label style="width: 160px">Site API base</label>
+        <input id="siteApi" placeholder="https://rms-bot.com/api" style="width: 380px" />
+      </div>
+      <div class="row">
+        <label style="width: 160px">Socket base</label>
+        <input id="socketUrl" placeholder="https://rms-bot.com" style="width: 380px" />
+      </div>
+      <div class="row">
+        <label style="width: 160px">Namespace</label>
+        <input id="namespace" placeholder="/cocon-connector" style="width: 240px" />
+        <label>Topic</label>
+        <input id="topic" placeholder="gost-duma-2025" style="width: 220px" />
+      </div>
+      <div class="row">
+        <label style="width: 160px">Room ID</label>
+        <input id="roomId" placeholder="1" style="width:100px" />
+        <label>Connector ID</label>
+        <input id="connectorId" placeholder="auto" style="width:240px" />
+      </div>
+      <div class="row">
+        <label style="width: 160px">Plixus MME IP</label>
+        <input id="mmeIp" placeholder="10.0.20.32" />
+        <label>MME API Port</label>
+        <input id="mmePort" placeholder="9012" style="width:100px" />
+      </div>
+      <div class="row">
+        <label style="width: 160px">CoCon base</label>
+        <input id="coConBase" placeholder="http://localhost:8890/CoCon" style="width: 380px" />
+        <span class="muted">(REST CoCon)</span>
+      </div>
+      <div class="row">
+        <label style="width: 160px">Login Method</label>
+        <input id="loginMethod" placeholder="0" style="width:100px" />
+        <span class="muted">0 = badge, 2 = fixed seating</span>
+      </div>
+      <div class="row">
+        <label style="width: 160px">Max seats</label>
+        <input id="maxSeats" placeholder="2" style="width:100px" />
+        <span class="muted">ограничить количество добавляемых делегатов</span>
+      </div>
+      <div class="row">
+        <label style="width: 160px">Legacy API base</label>
+        <input id="legacyApiBase" placeholder="http://localhost:58521" style="width: 380px" />
+        <span class="muted">(опционально — старый .NET коннектор)</span>
+      </div>
+      <div class="row">
+        <label style="width: 160px">Auth token</label>
+        <input id="token" placeholder="optional" style="width: 240px" />
+        <button class="btn" id="setDefaults">Set Recommended Defaults</button>
+      </div>
+      <div class="row">
+        <button class="btn" id="saveBtn">Save</button>
+        <span id="saveStatus"></span>
+      </div>
+    </fieldset>
+
+    <fieldset>
+      <legend>Connectivity</legend>
+      <div class="row">
+        <button class="btn" id="refreshSock">Refresh Socket Status</button>
+        <button class="btn" id="checkCocon">Check CoCon</button>
+        <button class="btn" id="checkMme">Check MME</button>
+        <button class="btn" id="checkAll">Check All</button>
+      </div>
+      <div id="sock"></div>
+      <div class="mono" id="out"></div>
+    </fieldset>
+    <fieldset>
+      <legend>Quick Test</legend>
+      <div class="row">
+        <input id="qtTemplate" placeholder="3_Vote_Public" />
+        <button class="btn" id="qtStart">Start test (start/add del/open vote)</button>
+      </div>
+    </fieldset>
+
+    <script>
+      const out = document.getElementById('out');
+      const $ = (id) => document.getElementById(id);
+
+      function getToken() {
+        return $('token').value || window.localStorage.getItem('connector_token') || '';
+      }
+
+      function withAuth(init={}) {
+        const t = getToken();
+        const headers = Object.assign({}, init.headers || {});
+        if (t) headers['X-Auth-Token'] = t;
+        return Object.assign({}, init, { headers });
+      }
+
+      async function loadConfig() {
+        // Try with token first; if unauthorized and no token, fallback
+        let r = await fetch('http://localhost:4000/api/config', withAuth()).then(r=>r.ok?r.json():null).catch(()=>null);
+        if (!r) {
+          r = await fetch('http://localhost:4000/api/config').then(r=>r.ok?r.json():null).catch(()=>null);
+        }
+        if (!r) return;
+        $('listenHost').value = r.listener?.host || '0.0.0.0';
+        $('listenPort').value = r.listener?.port || '4000';
+        $('siteApi').value = r.site?.apiBase || 'https://rms-bot.com/api';
+        $('socketUrl').value = r.site?.socketUrl || 'https://rms-bot.com';
+        $('namespace').value = r.site?.namespace || '/cocon-connector';
+        $('topic').value = r.site?.topic || 'gost-duma-2025';
+        $('roomId').value = r.cocon?.roomId || '1';
+        $('connectorId').value = (r.connector?.connectorId || 'auto');
+        $('mmeIp').value = r.cocon?.mmeIp || '10.0.20.32';
+        $('mmePort').value = r.cocon?.mmeApiPort || '9012';
+        $('coConBase').value = r.cocon?.coConBase || 'http://localhost:8890/CoCon';
+        $('loginMethod').value = (r.cocon?.loginMethod ?? 0);
+        $('maxSeats').value = (r.cocon?.maxSeats ?? 2);
+        $('legacyApiBase').value = r.cocon?.legacyApiBase || 'http://localhost:58521';
+        $('token').value = r.security?.token || '';
+      }
+
+      async function saveConfig() {
+        const payload = {
+          listener: { host: $('listenHost').value, port: Number($('listenPort').value) },
+          site: { apiBase: $('siteApi').value, socketUrl: $('socketUrl').value, namespace: $('namespace').value, topic: $('topic').value },
+          cocon: {
+            mmeIp: $('mmeIp').value,
+            mmeApiPort: Number($('mmePort').value),
+            coConBase: $('coConBase').value,
+            roomId: Number($('roomId').value),
+            loginMethod: Number($('loginMethod').value || 0),
+            maxSeats: Number($('maxSeats').value || 0),
+            legacyApiBase: $('legacyApiBase').value
+          },
+          security: { token: $('token').value },
+          connector: { connectorId: $('connectorId').value }
+        };
+        // persist token locally to allow authenticated calls after enabling it
+        try { if (payload.security && payload.security.token) localStorage.setItem('connector_token', payload.security.token); } catch {}
+        const r = await fetch('http://localhost:4000/api/config', withAuth({ method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(payload) })).then(r=>r.json()).catch(e=>({error:e.message}));
+        $('saveStatus').textContent = r && !r.error ? 'Saved' : 'Error';
+        setTimeout(()=> $('saveStatus').textContent = '', 1500);
+      }
+
+      function print(label, obj) {
+        out.textContent = `>>> ${label}\n` + JSON.stringify(obj, null, 2) + "\n\n" + out.textContent;
+      }
+
+      $('saveBtn').onclick = saveConfig;
+      $('setDefaults').onclick = () => {
+        $('listenHost').value = '0.0.0.0';
+        $('listenPort').value = '4000';
+        $('siteApi').value = 'https://rms-bot.com/api';
+        $('socketUrl').value = 'https://rms-bot.com';
+        $('namespace').value = '/cocon-connector';
+        $('topic').value = 'gost-duma-2025';
+        $('roomId').value = '1';
+        $('mmeIp').value = '10.0.20.32';
+        $('mmePort').value = '9012';
+        $('coConBase').value = 'http://localhost:8890/CoCon';
+        $('loginMethod').value = '0';
+        $('maxSeats').value = '2';
+        $('legacyApiBase').value = 'http://localhost:58521';
+      };
+
+      // Connectivity
+      const refreshSock = async () => {
+        const r = await fetch('http://localhost:4000/api/config', withAuth()).then(r=>r.json()).catch(()=>null);
+        if (!r) return;
+        const s = r.connector?.lastSocketStatus || {};
+        const connId = r.connector?.connectorId || '';
+        $('sock').textContent = `socket connected=${s.connected ? 'true' : 'false'} id=${s.id || ''} connectorId=${connId}`;
+      };
+      $('refreshSock').onclick = refreshSock;
+      $('checkCocon').onclick = async () => print('cocon-health', await fetch('http://localhost:4000/api/cocon/health', withAuth()).then(r=>r.json()).catch(e=>({error:e.message})));
+      $('checkMme').onclick = async () => print('mme-health', await fetch('http://localhost:4000/api/mme/health', withAuth()).then(r=>r.json()).catch(e=>({error:e.message})));
+      $('checkAll').onclick = async () => print('connectivity', await fetch('http://localhost:4000/api/health/connectivity', withAuth()).then(r=>r.json()).catch(e=>({error:e.message})));
+
+      loadConfig();
+      refreshSock();
+
+      // Quick test handler
+      $('qtStart').onclick = async () => {
+        const payload = { template: $('qtTemplate').value || '3_Vote_Public' };
+        let resp = await fetch('http://localhost:4000/api/cocon/test/start-run', withAuth({ method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(payload) }));
+        if (resp.status === 409) {
+          const data = await resp.json();
+          const confirmStop = window.confirm(`Уже запущено заседание (ID=${data.meetingId}). Остановить и запустить заново?`);
+          if (!confirmStop) { print('quick-test', data); return; }
+          // try stop
+          const stop = await fetch('http://localhost:4000/api/cocon/meeting/stop-running', withAuth({ method:'POST' })).then(r=>r.json()).catch(e=>({error:e.message}));
+          print('stop-running', stop);
+          if (stop && stop.ok) {
+            payload.stopIfRunning = true;
+            resp = await fetch('http://localhost:4000/api/cocon/test/start-run', withAuth({ method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(payload) }));
+          } else {
+            return;
+          }
+        }
+        const r = await resp.json();
+        print('quick-test', r);
+      };
+    </script>
+  </body>
+  </html>
