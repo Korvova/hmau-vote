@@ -261,6 +261,29 @@ function UserQueueButtons({ meetingId, userId }) {
     }
   };
 
+  // Leave queue (only while waiting)
+  const handleLeaveQueue = async (type) => {
+    if (!window.confirm('Выйти из очереди?')) return;
+    try {
+      await axios.delete(`/api/meetings/${meetingId}/queue/${userId}/${type}`);
+    } catch (error) {
+      console.error('Error leaving queue:', error);
+      alert(error.response?.data?.error || 'Ошибка при выходе из очереди');
+    }
+  };
+
+  const leaveButtonStyle = {
+    backgroundColor: 'rgba(255, 255, 255, 0.25)',
+    color: 'white',
+    border: 'none',
+    borderRadius: '4px',
+    padding: '0.3rem 0.75rem',
+    cursor: 'pointer',
+    fontSize: '0.9rem',
+    fontWeight: 'bold',
+    whiteSpace: 'nowrap',
+  };
+
   // Manual microphone toggle
   const handleMicToggle = async (type) => {
     const currentState = type === 'QUESTION' ? questionMicEnabled : speechMicEnabled;
@@ -335,8 +358,15 @@ function UserQueueButtons({ meetingId, userId }) {
             borderRadius: '6px',
             fontSize: '1rem',
             fontWeight: 'bold',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            gap: '1rem',
           }}>
-            Ваш номер в очереди: {questionPosition}
+            <span>Ваш номер в очереди: {questionPosition}</span>
+            <button onClick={() => handleLeaveQueue('QUESTION')} title="Выйти из очереди" style={leaveButtonStyle}>
+              ✕ Выйти
+            </button>
           </div>
           )}
         </div>
@@ -407,8 +437,15 @@ function UserQueueButtons({ meetingId, userId }) {
             borderRadius: '6px',
             fontSize: '1rem',
             fontWeight: 'bold',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            gap: '1rem',
           }}>
-            Ваш номер в очереди: {speechPosition}
+            <span>Ваш номер в очереди: {speechPosition}</span>
+            <button onClick={() => handleLeaveQueue('SPEECH')} title="Выйти из очереди" style={leaveButtonStyle}>
+              ✕ Выйти
+            </button>
           </div>
           )}
         </div>
