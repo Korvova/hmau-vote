@@ -731,14 +731,19 @@ function MeetingScreenPage() {
   if (activeItem) {
     const config = screenConfig?.agenda || {};
 
-    // Filter queues by status and get first 5
+    // Filter queues by status; show at most 4 entries, the rest is collapsed into "..."
+    const QUEUE_LIMIT = 4;
     const activeQuestions = questionQueue.filter(q => q.status === 'ACTIVE');
     const waitingQuestions = questionQueue.filter(q => q.status === 'WAITING');
-    const allQuestions = [...activeQuestions, ...waitingQuestions].slice(0, 5);
+    const fullQuestions = [...activeQuestions, ...waitingQuestions];
+    const allQuestions = fullQuestions.slice(0, QUEUE_LIMIT);
+    const moreQuestions = fullQuestions.length > QUEUE_LIMIT;
 
     const activeSpeeches = speechQueue.filter(s => s.status === 'ACTIVE');
     const waitingSpeeches = speechQueue.filter(s => s.status === 'WAITING');
-    const allSpeeches = [...activeSpeeches, ...waitingSpeeches].slice(0, 5);
+    const fullSpeeches = [...activeSpeeches, ...waitingSpeeches];
+    const allSpeeches = fullSpeeches.slice(0, QUEUE_LIMIT);
+    const moreSpeeches = fullSpeeches.length > QUEUE_LIMIT;
 
     // Calculate time remaining for active items
     const getTimeRemaining = (item) => {
@@ -788,8 +793,9 @@ function MeetingScreenPage() {
           </div>
         </div>
 
-        {/* Main Content */}
-        <div style={{ marginTop: '200px', display: 'flex', justifyContent: 'center' }}>
+        {/* Main Content — minHeight keeps the queue block at a stable spot;
+            a longer question simply pushes it further down */}
+        <div style={{ marginTop: '150px', display: 'flex', justifyContent: 'center', minHeight: '420px' }}>
           <div style={{ width: '80%', display: 'flex', gap: '20px' }}>
             {/* Agenda Number - Left Side */}
             <div style={{
@@ -823,12 +829,9 @@ function MeetingScreenPage() {
           </div>
         </div>
 
-        {/* Question and Speech Queues - Bottom 20% */}
+        {/* Question and Speech Queues — in normal flow, always below the question text */}
         <div style={{
-          position: 'absolute',
-          bottom: '20%',
-          left: `${config.paddingLeft || 30}px`,
-          right: `${config.paddingRight || 30}px`,
+          marginTop: '20px',
           zIndex: 10
         }}>
           <div style={{
@@ -862,9 +865,9 @@ function MeetingScreenPage() {
                       style={{
                         fontSize: config.speakerItemFontSize || '22px',
                         color: config.speakerItemColor || '#ffffff',
-                        padding: '10px 15px',
+                        padding: '6px 15px',
                         backgroundColor: isActive ? (config.activeSpeakerBgColor || '#2196f3') : 'transparent',
-                        marginBottom: '8px',
+                        marginBottom: '6px',
                         borderRadius: '4px',
                         display: 'flex',
                         justifyContent: 'space-between',
@@ -884,6 +887,11 @@ function MeetingScreenPage() {
                     </div>
                   );
                 })}
+                {moreQuestions && (
+                  <div style={{ fontSize: config.speakerItemFontSize || '22px', color: config.speakerItemColor || '#ffffff', padding: '0 15px' }}>
+                    …
+                  </div>
+                )}
               </div>
             </div>
 
@@ -912,9 +920,9 @@ function MeetingScreenPage() {
                       style={{
                         fontSize: config.speakerItemFontSize || '22px',
                         color: config.speakerItemColor || '#ffffff',
-                        padding: '10px 15px',
+                        padding: '6px 15px',
                         backgroundColor: isActive ? (config.activeSpeechBgColor || '#ff9800') : 'transparent',
-                        marginBottom: '8px',
+                        marginBottom: '6px',
                         borderRadius: '4px',
                         display: 'flex',
                         justifyContent: 'space-between',
@@ -934,6 +942,11 @@ function MeetingScreenPage() {
                     </div>
                   );
                 })}
+                {moreSpeeches && (
+                  <div style={{ fontSize: config.speakerItemFontSize || '22px', color: config.speakerItemColor || '#ffffff', padding: '0 15px' }}>
+                    …
+                  </div>
+                )}
               </div>
             </div>
           </div>
