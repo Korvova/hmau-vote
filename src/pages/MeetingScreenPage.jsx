@@ -795,7 +795,7 @@ function MeetingScreenPage() {
 
         {/* Main Content — minHeight keeps the queue block at a stable spot;
             a longer question simply pushes it further down */}
-        <div style={{ marginTop: '150px', display: 'flex', justifyContent: 'center', minHeight: '420px' }}>
+        <div style={{ marginTop: '135px', display: 'flex', justifyContent: 'center', minHeight: '595px' }}>
           <div style={{ width: '80%', display: 'flex', gap: '20px' }}>
             {/* Agenda Number - Left Side */}
             <div style={{
@@ -809,14 +809,15 @@ function MeetingScreenPage() {
 
             {/* Agenda Content - Right Side */}
             <div style={{ flex: 1 }}>
-              {/* Current Question Title */}
-              <div style={{ fontSize: '28px', color: config.currentQuestionColor || '#ffffff', textAlign: 'left', marginBottom: '30px', fontWeight: 'bold' }}>
+              {/* Current Question Title — fixed-height zone sized for the 699-char
+                  maximum, so ДОКЛАДЫВАЮТ and the queues below never jump */}
+              <div style={{ fontSize: '28px', color: config.currentQuestionColor || '#ffffff', textAlign: 'left', marginBottom: '24px', fontWeight: 'bold', minHeight: '465px' }}>
                 {truncateQuestion(activeItem.title)}
               </div>
 
             {/* Speaker (if exists) */}
             {activeItem.speakerName && activeItem.speakerName.trim() !== '' && (
-              <div style={{ marginBottom: '30px', textAlign: 'left' }}>
+              <div style={{ marginBottom: '16px', textAlign: 'left' }}>
                 <div style={{ fontSize: '28px', color: config.speakersLabelColor || '#ffffff', marginBottom: '10px' }}>
                   ДОКЛАДЫВАЮТ:
                 </div>
