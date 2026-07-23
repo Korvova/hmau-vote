@@ -874,7 +874,7 @@ function UserPage() {
                             <tr key={a.id || idx} className={a.activeIssue ? 'agenda-active' : undefined}>
                               <td>{a.number ?? idx + 1}</td>
                               <td>{a.title}</td>
-                              <td>{a.speaker || a.speakerId || '-'}</td>
+                              <td>{a.speakerName || (a.speaker && a.speaker !== 'Нет' ? a.speaker : '') || '-'}</td>
                               <td>{renderResultsList(a)}</td>
                             </tr>
                           ))}

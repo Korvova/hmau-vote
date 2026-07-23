@@ -293,7 +293,7 @@ module.exports = (prisma, pgClient, io) => {
         divisionsText: processedDivisions.map(d => d.displayName).join(', ') || 'РќРµС‚',
         isArchived: meeting.isArchived,
         televicMeetingId: meeting.televicMeetingId || null,
-        agendaItems: meeting.agendaItems.map(item => ({ id: item.id, number: item.number, title: item.title, speakerId: item.speakerId, link: item.link, voting: item.voting, completed: item.completed, activeIssue: item.activeIssue })),
+        agendaItems: meeting.agendaItems.map(item => ({ id: item.id, number: item.number, title: item.title, speakerId: item.speakerId, speakerName: item.speakerName || null, link: item.link, voting: item.voting, completed: item.completed, activeIssue: item.activeIssue })),
       };
 
       console.log('🔥 GET /api/meetings/:id response:', JSON.stringify(response, null, 2));
@@ -370,6 +370,7 @@ module.exports = (prisma, pgClient, io) => {
               number: item.number,
               title: item.title,
               speakerId: item.speakerId ? parseInt(item.speakerId) : null,
+              speakerName: item.speakerName || null,
               link: item.link || null,
               voting: false,
               completed: false,
@@ -680,6 +681,7 @@ module.exports = (prisma, pgClient, io) => {
                 number: item.number,
                 title: item.title,
                 speakerId: item.speakerId ? parseInt(item.speakerId) : null,
+                speakerName: item.speakerName || null,
                 link: item.link || null,
                 voting: false,
                 completed: false,

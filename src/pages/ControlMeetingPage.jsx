@@ -977,7 +977,7 @@ function ControlMeetingPage() {
                           </td>
                           <td>{a.number ?? idx + 1}</td>
                           <td>{a.title}</td>
-                          <td>{a.speaker || a.speakerId || ''}</td>
+                          <td>{a.speakerName || (a.speaker && a.speaker !== 'Нет' ? a.speaker : '') || 'Нет'}</td>
                           <td>{renderResultsList(a)}</td>
                           <td>
                           {meeting?.status !== 'COMPLETED' && (
