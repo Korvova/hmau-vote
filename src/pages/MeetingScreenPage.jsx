@@ -643,8 +643,8 @@ function MeetingScreenPage() {
           </div>
         </div>
 
-        {/* Progress Bar and Timer */}
-        <div style={{ marginBottom: '40px', display: 'flex', alignItems: 'center', gap: '20px' }}>
+        {/* Progress Bar and Timer — starts after the logo, never underneath it */}
+        <div style={{ marginBottom: '40px', display: 'flex', alignItems: 'center', gap: '20px', marginLeft: config.logoUrl ? 'calc(9% + 20px)' : 0 }}>
           <div style={{ flex: 1 }}>
             <div style={{
               width: '100%',
