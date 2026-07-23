@@ -952,11 +952,13 @@ function MeetingScreenPage() {
   const regularParticipants = participants.filter(p => !isInvitedUser(p));
 
   const totalParticipants = regularParticipants.length;
-  // Consider both online (website) and badge inserted (Televic) as present
-  const onlineParticipants = regularParticipants.filter(p => p.isOnline || p.isBadgeInserted);
+  // Participants with location "Зал" (HALL) register ONLY via Televic badge —
+  // a website login does not count for them. "Сайт" (SITE) — website or badge.
+  const isRegistered = (p) => (p.location === 'HALL' ? !!p.isBadgeInserted : (p.isOnline || p.isBadgeInserted));
+  const onlineParticipants = regularParticipants.filter(isRegistered);
 
-  // All offline participants (no website connection AND no badge in Televic) - excluding invited
-  const offlineParticipants = regularParticipants.filter(p => !p.isOnline && !p.isBadgeInserted);
+  // Everyone not registered by the rule above goes to the absent list
+  const offlineParticipants = regularParticipants.filter(p => !isRegistered(p));
 
   // Count total present: online participants + all received proxies by online participants
   const totalReceivedProxies = onlineParticipants.reduce((sum, p) => {

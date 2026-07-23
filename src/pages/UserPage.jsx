@@ -768,6 +768,9 @@ function UserPage() {
     }
   }, [auth?.id, participants]);
 
+  // Участник с местом «Зал» регистрируется только карточкой Televic
+  const myLocation = participants.find((u) => u.id === auth?.id)?.location || null;
+
   const voteTitle = activeVote?.templateTitle || activeVote?.question || 'Голосование';
   const voteQuestion = activeVote?.question && activeVote.question !== voteTitle ? activeVote.question : null;
   return (
@@ -823,6 +826,28 @@ function UserPage() {
                     </svg>
                     <span>
                       Вы вставили карточку в пульт Televic. Голосование доступно только через пульт.
+                    </span>
+                  </div>
+                )}
+                {!isBadgeInserted && myLocation === 'HALL' && (
+                  <div style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '12px',
+                    marginBottom: '16px',
+                    padding: '14px 18px',
+                    backgroundColor: '#fff7e6',
+                    border: '2px solid #f59e0b',
+                    borderRadius: '8px',
+                    fontSize: '15px',
+                    fontWeight: '500',
+                    color: '#92400e'
+                  }}>
+                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" style={{ flexShrink: 0 }}>
+                      <path d="M12 9v4m0 4h.01M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z" />
+                    </svg>
+                    <span>
+                      Вы участвуете из зала. Для регистрации на заседании вставьте карточку в пульт Televic.
                     </span>
                   </div>
                 )}

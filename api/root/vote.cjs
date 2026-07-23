@@ -45,14 +45,21 @@ const calculateDecision = async (prisma, voteResultId) => {
     const totalProxies = proxies.length;
     const totalParticipants = participants.length + totalProxies;
 
-    const onlineParticipants = await prisma.user.findMany({
-      where: {
-        divisionId: { in: voteResult.meeting.divisions ? voteResult.meeting.divisions.map(d => d.id) : [] },
-        isAdmin: false,
-        isOnline: true,
-      },
-    });
-    const totalOnlineParticipants = onlineParticipants.length;
+    // «Зарегистрировавшиеся»: место «Зал» (HALL) — только по карточке Televic,
+    // «Сайт» (SITE, по умолчанию) — вход на сайт или карточка
+    let participantLocations = [];
+    if (voteResult.meetingId) {
+      try {
+        participantLocations = await prisma.$queryRaw`SELECT "userId", "location" FROM "ParticipantLocation" WHERE "meetingId" = ${voteResult.meetingId}`;
+      } catch (e) {
+        console.log('[calculateDecision] ParticipantLocation lookup failed:', e.message);
+      }
+    }
+    const locationByUserId = new Map(participantLocations.map((l) => [l.userId, l.location]));
+    const isRegistered = (u) => (locationByUserId.get(u.id) === 'HALL'
+      ? !!u.isBadgeInserted
+      : (u.isOnline || u.isBadgeInserted));
+    const totalOnlineParticipants = participants.filter(isRegistered).length;
 
     const totalVotes = votesFor + votesAgainst + votesAbstain + votesAbsent;
     if (totalVotes > totalParticipants) {
