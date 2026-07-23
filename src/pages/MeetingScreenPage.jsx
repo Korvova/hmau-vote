@@ -28,6 +28,21 @@ const truncateQuestion = (text, max = 699) => {
   return s.length > max ? s.slice(0, max).trimEnd() + '...' : s;
 };
 
+// Quorum by the registration rule: «Зал» — Televic badge, «Сайт» — website or badge;
+// proxies received by registered participants are added. required === null → no check.
+const computeQuorum = (participants, meeting) => {
+  const regular = participants.filter(p => !isInvitedUser(p));
+  const registered = regular.filter(p => (p.location === 'HALL' ? !!p.isBadgeInserted : (p.isOnline || p.isBadgeInserted)));
+  const proxies = registered.reduce((s, p) => s + (Array.isArray(p.receivedProxies) ? p.receivedProxies.length : 0), 0);
+  const present = registered.length + proxies;
+  const total = regular.length;
+  const required = meeting?.quorumType === 'MORE_THAN_ONE' ? 2
+    : meeting?.quorumType === 'HALF_PLUS_ONE' ? Math.floor(total / 2) + 1
+    : meeting?.quorumType === 'TWO_THIRDS_OF_TOTAL' ? Math.ceil((2 * total) / 3)
+    : null;
+  return { present, total, required, has: required === null ? true : present >= required };
+};
+
 function MeetingScreenPage() {
   const { id } = useParams();
   const [meeting, setMeeting] = useState(null);
@@ -582,18 +597,8 @@ function MeetingScreenPage() {
       return 100 - percentElapsed;
     };
 
-    // Кворум по правилу регистрации: «Зал» — карточка Televic, «Сайт» — сайт или карточка;
-    // доверенности, полученные зарегистрированными, прибавляются
-    const regularForQuorum = participants.filter(p => !isInvitedUser(p));
-    const registeredForQuorum = regularForQuorum.filter(p => (p.location === 'HALL' ? !!p.isBadgeInserted : (p.isOnline || p.isBadgeInserted)));
-    const proxiesForQuorum = registeredForQuorum.reduce((s, p) => s + (Array.isArray(p.receivedProxies) ? p.receivedProxies.length : 0), 0);
-    const presentForQuorum = registeredForQuorum.length + proxiesForQuorum;
-    const totalForQuorum = regularForQuorum.length;
-    const requiredForQuorum = meeting?.quorumType === 'MORE_THAN_ONE' ? 2
-      : meeting?.quorumType === 'HALF_PLUS_ONE' ? Math.floor(totalForQuorum / 2) + 1
-      : meeting?.quorumType === 'TWO_THIRDS_OF_TOTAL' ? Math.ceil((2 * totalForQuorum) / 3)
-      : null; // кворум не задан — не проверяем
-    const hasQuorum = requiredForQuorum === null ? true : presentForQuorum >= requiredForQuorum;
+    // Кворум по правилу регистрации (общая формула для всех экранов)
+    const hasQuorum = computeQuorum(participants, meeting).has;
 
     // Determine result
     const getResultTitle = () => {
@@ -753,6 +758,10 @@ function MeetingScreenPage() {
   if (activeItem) {
     const config = screenConfig?.agenda || {};
 
+    // Без кворума вопрос на трансляции не показываем — вместо него надпись.
+    // Обновляется само: регистрация идёт, кворум набрался — появился вопрос.
+    const agendaQuorum = computeQuorum(participants, meeting);
+
     // Filter queues by status; show at most 4 entries, the rest is collapsed into "..."
     const QUEUE_LIMIT = 4;
     const activeQuestions = questionQueue.filter(q => q.status === 'ACTIVE');
@@ -815,6 +824,19 @@ function MeetingScreenPage() {
           </div>
         </div>
 
+        {/* Нет кворума — вместо вопроса и очередей показываем надпись */}
+        {!agendaQuorum.has && (
+          <div style={{ marginTop: '135px', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', minHeight: '500px', gap: '30px' }}>
+            <div style={{ fontSize: '72px', color: '#f44336', fontWeight: 'bold', letterSpacing: '2px' }}>
+              КВОРУМА НЕТ
+            </div>
+            <div style={{ fontSize: '32px', color: config.currentQuestionColor || '#ffffff' }}>
+              Зарегистрировано {agendaQuorum.present} из {agendaQuorum.total}, требуется {agendaQuorum.required}
+            </div>
+          </div>
+        )}
+
+        {agendaQuorum.has && (<>
         {/* Main Content — minHeight keeps the queue block at a stable spot;
             a longer question simply pushes it further down */}
         <div style={{ marginTop: '135px', display: 'flex', justifyContent: 'center', minHeight: '595px' }}>
@@ -975,6 +997,7 @@ function MeetingScreenPage() {
           </div>
           </div>
         </div>
+        </>)}
 
         <TimerOverlay />
       </div>
