@@ -53,6 +53,7 @@ module.exports = (prisma, pgClient, io) => {
         isArchived: meeting.isArchived,
         televicMeetingId: meeting.televicMeetingId || null,
         createInTelevic: meeting.createInTelevic || false, // Show T badge based on this flag
+        quorumType: meeting.quorumType || null,
       })));
     } catch (error) {
       console.error('РћС€РёР±РєР° РїСЂРё РїРѕР»СѓС‡РµРЅРёРё СЃРїРёСЃРєР° Р·Р°СЃРµРґР°РЅРёР№:', error);
@@ -293,6 +294,7 @@ module.exports = (prisma, pgClient, io) => {
         divisionsText: processedDivisions.map(d => d.displayName).join(', ') || 'РќРµС‚',
         isArchived: meeting.isArchived,
         televicMeetingId: meeting.televicMeetingId || null,
+        quorumType: meeting.quorumType || null,
         agendaItems: meeting.agendaItems.map(item => ({ id: item.id, number: item.number, title: item.title, speakerId: item.speakerId, speakerName: item.speakerName || null, link: item.link, voting: item.voting, completed: item.completed, activeIssue: item.activeIssue })),
       };
 
@@ -334,7 +336,7 @@ module.exports = (prisma, pgClient, io) => {
    *     curl -X POST -H "Content-Type: application/json" -d '{"name":"РќРѕРІРѕРµ Р·Р°СЃРµРґР°РЅРёРµ","startTime":"2025-06-03T10:00:00Z","endTime":"2025-06-03T12:00:00Z","divisionIds":[1,2],"agendaItems":[{"number":1,"title":"Р’РѕРїСЂРѕСЃ 1","speakerId":26,"link":"https://example.com"}]}' http://217.114.10.226:5000/api/meetings
    */
   router.post('/', async (req, res) => {
-    const { name, startTime, endTime, divisionIds, agendaItems, createInTelevic } = req.body;
+    const { name, startTime, endTime, divisionIds, agendaItems, createInTelevic, quorumType } = req.body;
     console.log('Received meeting data:', req.body);
     try {
       // Check if Televic connector is online when createInTelevic is requested
@@ -362,6 +364,7 @@ module.exports = (prisma, pgClient, io) => {
           status: 'WAITING',
           isArchived: false,
           createInTelevic: createInTelevic || false, // Save flag for later
+          quorumType: quorumType || null,
           divisions: {
             connect: divisionIds && Array.isArray(divisionIds) ? divisionIds.map(id => ({ id: parseInt(id) })) : [],
           },
@@ -617,7 +620,7 @@ module.exports = (prisma, pgClient, io) => {
    */
   router.put('/:id', async (req, res) => {
     const { id } = req.params;
-    const { name, startTime, endTime, divisionIds, agendaItems, status } = req.body;
+    const { name, startTime, endTime, divisionIds, agendaItems, status, quorumType } = req.body;
     console.log('Received update meeting data:', req.body);
     try {
       // Р’Р°Р»РёРґР°С†РёСЏ РІС…РѕРґРЅС‹С… РґР°РЅРЅС‹С…
@@ -671,6 +674,7 @@ module.exports = (prisma, pgClient, io) => {
             startTime: startDate,
             endTime: endDate,
             status: status || meeting.status,
+            quorumType: quorumType !== undefined ? (quorumType || null) : undefined,
             isArchived: false,
             divisions: {
               set: [],

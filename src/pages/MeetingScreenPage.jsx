@@ -582,8 +582,18 @@ function MeetingScreenPage() {
       return 100 - percentElapsed;
     };
 
-    // Calculate quorum - кворум есть всегда (если собрание началось, значит кворум есть)
-    const hasQuorum = true;
+    // Кворум по правилу регистрации: «Зал» — карточка Televic, «Сайт» — сайт или карточка;
+    // доверенности, полученные зарегистрированными, прибавляются
+    const regularForQuorum = participants.filter(p => !isInvitedUser(p));
+    const registeredForQuorum = regularForQuorum.filter(p => (p.location === 'HALL' ? !!p.isBadgeInserted : (p.isOnline || p.isBadgeInserted)));
+    const proxiesForQuorum = registeredForQuorum.reduce((s, p) => s + (Array.isArray(p.receivedProxies) ? p.receivedProxies.length : 0), 0);
+    const presentForQuorum = registeredForQuorum.length + proxiesForQuorum;
+    const totalForQuorum = regularForQuorum.length;
+    const requiredForQuorum = meeting?.quorumType === 'MORE_THAN_ONE' ? 2
+      : meeting?.quorumType === 'HALF_PLUS_ONE' ? Math.floor(totalForQuorum / 2) + 1
+      : meeting?.quorumType === 'TWO_THIRDS_OF_TOTAL' ? Math.ceil((2 * totalForQuorum) / 3)
+      : null; // кворум не задан — не проверяем
+    const hasQuorum = requiredForQuorum === null ? true : presentForQuorum >= requiredForQuorum;
 
     // Determine result
     const getResultTitle = () => {

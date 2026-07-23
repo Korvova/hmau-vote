@@ -850,14 +850,61 @@ router.post('/start-vote', async (req, res) => {
 
     const agendaItem = await prisma.agendaItem.findUnique({
       where: { id: Number(agendaItemId) },
-      include: { 
-        meeting: { 
+      include: {
+        meeting: {
           include: { divisions: true }
         }
       },
     });
     if (!agendaItem) {
       throw new Error('Agenda item not found');
+    }
+
+    // Кворум: если для заседания задан тип кворума — голосование можно запускать
+    // только при достаточном числе зарегистрированных.
+    // Зарегистрирован = «Зал» → карточка Televic; «Сайт» → вход на сайт или карточка.
+    // Полученные зарегистрированными доверенности прибавляются к счёту.
+    const meetingForQuorum = agendaItem.meeting;
+    if (meetingForQuorum && meetingForQuorum.quorumType) {
+      const isInvitedDivision = (name) => String(name || '').replace(/👥/g, '').trim().toLowerCase() === 'приглашенные';
+      const divIds = (meetingForQuorum.divisions || []).map(d => d.id);
+      const invitedDivIds = (meetingForQuorum.divisions || []).filter(d => isInvitedDivision(d.name)).map(d => d.id);
+      const allUsers = await prisma.user.findMany({
+        where: { divisionId: { in: divIds }, isAdmin: false },
+        select: { id: true, isOnline: true, isBadgeInserted: true, divisionId: true },
+      });
+      const delegates = allUsers.filter(u => !invitedDivIds.includes(u.divisionId));
+      const totalSeats = delegates.length;
+
+      let locations = [];
+      try {
+        locations = await prisma.$queryRaw`SELECT "userId", "location" FROM "ParticipantLocation" WHERE "meetingId" = ${meetingForQuorum.id}`;
+      } catch {}
+      const locationByUserId = new Map(locations.map(l => [l.userId, l.location]));
+      const isRegisteredForQuorum = (u) => (locationByUserId.get(u.id) === 'HALL'
+        ? !!u.isBadgeInserted
+        : (u.isOnline || u.isBadgeInserted));
+      const registered = delegates.filter(isRegisteredForQuorum);
+
+      let proxyCount = 0;
+      try {
+        const meetingProxies = await prisma.proxy.findMany({ where: { meetingId: meetingForQuorum.id } });
+        const registeredIds = new Set(registered.map(u => u.id));
+        proxyCount = meetingProxies.filter(p => registeredIds.has(p.toUserId)).length;
+      } catch {}
+
+      const present = registered.length + proxyCount;
+      const required = meetingForQuorum.quorumType === 'MORE_THAN_ONE' ? 2
+        : meetingForQuorum.quorumType === 'HALF_PLUS_ONE' ? Math.floor(totalSeats / 2) + 1
+        : Math.ceil((2 * totalSeats) / 3); // TWO_THIRDS_OF_TOTAL — округление вверх
+
+      console.log(`[Quorum] type=${meetingForQuorum.quorumType} present=${present} (live=${registered.length}, proxies=${proxyCount}) total=${totalSeats} required=${required}`);
+      if (present < required) {
+        return res.status(400).json({
+          error: `Кворума нет. Зарегистрировано ${present} из ${totalSeats}, требуется ${required}`,
+          quorum: { present, total: totalSeats, required, type: meetingForQuorum.quorumType },
+        });
+      }
     }
     if (!agendaItem.meeting) {
       throw new Error('Associated meeting not found for the agenda item');

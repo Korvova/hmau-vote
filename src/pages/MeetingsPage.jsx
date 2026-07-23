@@ -142,6 +142,7 @@ function MeetingsPage() {
         agendaItems: (formData.agenda || []).map(a => ({ number: a.number, title: a.title, speakerId: a.speakerId ?? null, speakerName: a.speakerName ?? null, link: a.link ?? null })),
         voteProcedureId: formData.voteProcedureId ?? null,
         createInTelevic: formData.createInTelevic ?? false,
+        quorumType: formData.quorumType ?? null,
       };
 
       let createdId = null;
