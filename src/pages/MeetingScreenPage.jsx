@@ -175,6 +175,18 @@ function MeetingScreenPage() {
               if (prevVote && (prevVote.voteStatus === 'ENDED' || prevVote.voteStatus === 'APPLIED')) {
                 return prevVote;
               }
+              // The vote we were showing as PENDING has just finished — switch
+              // straight to its final result instead of flashing the agenda screen
+              // (the vote-ended socket event may arrive a moment later)
+              if (prevVote && prevVote.voteStatus === 'PENDING') {
+                const finished = voteResults.find((r) => r.id === prevVote.id);
+                if (finished && (finished.voteStatus === 'ENDED' || finished.voteStatus === 'APPLIED')) {
+                  return finished;
+                }
+                if (finished && finished.voteStatus === 'PENDING') {
+                  return finished;
+                }
+              }
               // Otherwise clear (e.g., no vote was ever shown)
               return null;
             });
