@@ -754,13 +754,14 @@ function MeetingScreenPage() {
     );
   }
 
-  // If there's an active agenda item (but no vote), show agenda screen
-  if (activeItem) {
-    const config = screenConfig?.agenda || {};
+  // Кворум для повестки и экрана регистрации (общая формула)
+  const screenQuorum = computeQuorum(participants, meeting);
 
-    // Без кворума вопрос на трансляции не показываем — вместо него надпись.
-    // Обновляется само: регистрация идёт, кворум набрался — появился вопрос.
-    const agendaQuorum = computeQuorum(participants, meeting);
+  // If there's an active agenda item (but no vote), show agenda screen.
+  // Без кворума вопрос не показываем — остаётся экран регистрации со строкой КВОРУМ;
+  // как только кворум набран, вопрос появляется сам.
+  if (activeItem && screenQuorum.has) {
+    const config = screenConfig?.agenda || {};
 
     // Filter queues by status; show at most 4 entries, the rest is collapsed into "..."
     const QUEUE_LIMIT = 4;
@@ -824,19 +825,6 @@ function MeetingScreenPage() {
           </div>
         </div>
 
-        {/* Нет кворума — вместо вопроса и очередей показываем надпись */}
-        {!agendaQuorum.has && (
-          <div style={{ marginTop: '135px', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', minHeight: '500px', gap: '30px' }}>
-            <div style={{ fontSize: '72px', color: '#f44336', fontWeight: 'bold', letterSpacing: '2px' }}>
-              КВОРУМА НЕТ
-            </div>
-            <div style={{ fontSize: '32px', color: config.currentQuestionColor || '#ffffff' }}>
-              Зарегистрировано {agendaQuorum.present} из {agendaQuorum.total}, требуется {agendaQuorum.required}
-            </div>
-          </div>
-        )}
-
-        {agendaQuorum.has && (<>
         {/* Main Content — minHeight keeps the queue block at a stable spot;
             a longer question simply pushes it further down */}
         <div style={{ marginTop: '135px', display: 'flex', justifyContent: 'center', minHeight: '595px' }}>
@@ -997,7 +985,6 @@ function MeetingScreenPage() {
           </div>
           </div>
         </div>
-        </>)}
 
         <TimerOverlay />
       </div>
@@ -1100,6 +1087,14 @@ function MeetingScreenPage() {
               {onlineCount} {proxyCount > 0 ? `(${proxyCount})` : ''}
             </span>
           </div>
+          {screenQuorum.required !== null && (
+            <div style={{ marginBottom: '10px' }}>
+              <span style={{ display: 'inline-block', width: '300px' }}>КВОРУМ:</span>
+              <span style={{ fontSize: '42px', fontWeight: 'bold', color: screenQuorum.has ? '#4caf50' : '#f44336' }}>
+                {screenQuorum.has ? 'ЕСТЬ' : `НЕТ (требуется ${screenQuorum.required})`}
+              </span>
+            </div>
+          )}
           <div style={{ marginBottom: '20px' }}>
             <span style={{ display: 'inline-block', width: '300px' }}>ОТСУТСТВУЮТ:</span>
           </div>
