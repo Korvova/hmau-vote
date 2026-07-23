@@ -15,6 +15,7 @@ function RegistrationScreenEditor() {
     subtitleFontSize: '36px',
     textColor: '#ffffff',
     textFontSize: '24px',
+    namesFontSize: '20px',
     lineColor: '#2196f3',
     showDate: true,
     showLogo: true,
@@ -317,6 +318,18 @@ function RegistrationScreenEditor() {
           </div>
         </div>
 
+        {/* Absent Names Font Size */}
+        <div style={{ marginBottom: '20px' }}>
+          <label style={{ display: 'block', marginBottom: '8px', fontWeight: 'bold' }}>Список отсутствующих — размер шрифта</label>
+          <input
+            type="number"
+            value={parseInt(config.namesFontSize) || 20}
+            onChange={(e) => setConfig({ ...config, namesFontSize: e.target.value + 'px' })}
+            placeholder="Размер"
+            style={{ width: '100%', padding: '8px', border: '1px solid #ddd', borderRadius: '4px' }}
+          />
+        </div>
+
         {/* Line Color */}
         <div style={{ marginBottom: '20px' }}>
           <label style={{ display: 'block', marginBottom: '8px', fontWeight: 'bold' }}>Цвет синей линии</label>
@@ -390,7 +403,7 @@ function RegistrationScreenEditor() {
             </div>
 
             {/* Names List */}
-            <div style={{ fontSize: '18px', color: config.textColor, lineHeight: '1.6' }}>
+            <div style={{ fontSize: config.namesFontSize || '18px', color: config.textColor, lineHeight: '1.6' }}>
               ГЛОТОВА А.И., ОСАДЧУК А.М., СЕРДЮК М.И., ЖУКОВ В.М., ВАКАНТНЫЙ МАНДАТ, АЙПИН Е.Д., СЕМЕНОВ В.Н., ПЫТЯЛЕВ С.В., ЗАБОЛОТНЕВ Н.Н., ДУБОВ В.В.
             </div>
           </div>
