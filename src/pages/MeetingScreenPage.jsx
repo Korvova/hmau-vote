@@ -809,9 +809,9 @@ function MeetingScreenPage() {
 
             {/* Agenda Content - Right Side */}
             <div style={{ flex: 1 }}>
-              {/* Current Question Title — fixed-height zone sized for the 699-char
-                  maximum, so ДОКЛАДЫВАЮТ and the queues below never jump */}
-              <div style={{ fontSize: '28px', color: config.currentQuestionColor || '#ffffff', textAlign: 'left', marginBottom: '24px', fontWeight: 'bold', minHeight: '465px' }}>
+              {/* Current Question Title — ДОКЛАДЫВАЮТ follows right below the text;
+                  only the queue block position is fixed (min-height on the wrapper) */}
+              <div style={{ fontSize: '28px', color: config.currentQuestionColor || '#ffffff', textAlign: 'left', marginBottom: '24px', fontWeight: 'bold' }}>
                 {truncateQuestion(activeItem.title)}
               </div>
 
