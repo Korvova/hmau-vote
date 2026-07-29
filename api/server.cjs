@@ -740,7 +740,7 @@ coconNS.on('connection', (socket) => {
         orderBy: { createdAt: 'desc' }, // Most recent vote result
         include: {
           agendaItem: true,
-          meeting: true
+          meeting: { include: { divisions: true } }
         }
       });
 
@@ -754,7 +754,17 @@ coconNS.on('connection', (socket) => {
       // Process votes: either individual or aggregated
       let successCount = 0;
       let errorCount = 0;
-      let votesFor, votesAgainst, votesAbstain;
+      let votesFor, votesAgainst, votesAbstain, votesAbsent;
+
+      // «Не голосовали» пересчитывается с учётом голосов Televic:
+      // участники подразделений заседания минус проголосовавшие минус отдавшие доверенность
+      const divisionIdsForAbsent = (activeVoteResult.meeting?.divisions || []).map(d => d.id);
+      const participantsForAbsent = await prisma.user.findMany({
+        where: { divisionId: { in: divisionIdsForAbsent }, isAdmin: false },
+        select: { id: true },
+      });
+      const proxiesForAbsent = await prisma.proxy.findMany({ where: { meetingId: activeVoteResult.meeting.id } });
+      const gaveProxy = new Set(proxiesForAbsent.map(p => p.fromUserId));
 
       if (hasIndividualVotes) {
         // Process individual votes
@@ -845,12 +855,18 @@ coconNS.on('connection', (socket) => {
         votesAbstain = allVotes.filter(v => v.choice === 'ABSTAIN')
           .reduce((sum, v) => sum + (voteWeights.get(v.userId) || 1), 0);
 
+        // Absent: как в vote-by-result — не голосовал и не отдал доверенность
+        const votedIds = new Set(allVotes.map(v => v.userId));
+        votesAbsent = participantsForAbsent.filter(p => !votedIds.has(p.id) && !gaveProxy.has(p.id)).length;
+
         console.log(`[VotingResults] ✅ Processed ${successCount} individual votes, ${errorCount} errors`);
       } else if (hasAggregatedResults) {
         // Use aggregated results directly (no individual vote records)
         votesFor = aggregated.votesFor || 0;
         votesAgainst = aggregated.votesAgainst || 0;
         votesAbstain = aggregated.votesAbstain || 0;
+        // Absent по агрегированным: каждый голос с пульта = один человек
+        votesAbsent = Math.max(0, participantsForAbsent.length - gaveProxy.size - (votesFor + votesAgainst + votesAbstain));
 
         console.log(`[VotingResults] ✅ Using aggregated results: FOR=${votesFor}, AGAINST=${votesAgainst}, ABSTAIN=${votesAbstain}`);
       }
@@ -861,13 +877,14 @@ coconNS.on('connection', (socket) => {
           votesFor,
           votesAgainst,
           votesAbstain,
+          votesAbsent,
           // IMPORTANT: Clear televicResultsPending flag when results arrive from connector
           // This unblocks the "Finish" button on the frontend
           televicResultsPending: false
         }
       });
 
-      console.log(`[VotingResults] Updated counters: FOR=${votesFor}, AGAINST=${votesAgainst}, ABSTAIN=${votesAbstain}`);
+      console.log(`[VotingResults] Updated counters: FOR=${votesFor}, AGAINST=${votesAgainst}, ABSTAIN=${votesAbstain}, ABSENT=${votesAbsent}`);
 
       // Send NOTIFY to update clients
       const payload = {
@@ -875,6 +892,7 @@ coconNS.on('connection', (socket) => {
         votesFor,
         votesAgainst,
         votesAbstain,
+        votesAbsent,
         voteStatus: 'PENDING',
         createdAt: updatedVoteResult.createdAt instanceof Date ? updatedVoteResult.createdAt.toISOString() : updatedVoteResult.createdAt
       };
@@ -888,6 +906,7 @@ coconNS.on('connection', (socket) => {
         votesFor,
         votesAgainst,
         votesAbstain,
+        votesAbsent,
         totalVotes: votesFor + votesAgainst + votesAbstain,
         timestamp: new Date().toISOString()
       });
