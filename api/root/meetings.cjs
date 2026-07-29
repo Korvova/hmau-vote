@@ -30,7 +30,7 @@ module.exports = (prisma, pgClient, io) => {
         where: { isArchived: false },
         include: { divisions: true, agendaItems: true },
       });
-      console.log('Fetched meetings on frontend:', meetings);
+      console.log(`GET /api/meetings: ${meetings.length} meetings`);
 
       // Helper function to check if division is system "Приглашенные"
       const isReservedName = (name) => {
@@ -88,7 +88,7 @@ module.exports = (prisma, pgClient, io) => {
         where: { isArchived: true },
         include: { divisions: true, agendaItems: true },
       });
-      console.log('Fetched archived meetings:', meetings);
+      console.log(`GET /api/meetings/archived: ${meetings.length} meetings`);
 
       // Helper function to check if division is system "Приглашенные"
       const isReservedName = (name) => {
@@ -214,7 +214,7 @@ module.exports = (prisma, pgClient, io) => {
         })
       );
 
-      console.log('Agenda items response:', JSON.stringify(meetingsWithAgenda, null, 2));
+      console.log(`GET agenda items: ${meetingsWithAgenda.length} meetings`);
       res.json(meetingsWithAgenda);
     } catch (error) {
       console.error('РћС€РёР±РєР° РїСЂРё РїРѕР»СѓС‡РµРЅРёРё Р°РєС‚РёРІРЅС‹С… Р·Р°СЃРµРґР°РЅРёР№ РґР»СЏ РїРѕР»СЊР·РѕРІР°С‚РµР»СЏ:', error);
