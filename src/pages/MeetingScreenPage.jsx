@@ -725,28 +725,26 @@ function MeetingScreenPage() {
             {resultTitle}
           </div>
 
-          {/* Vote Results — во время голосования счётчики скрыты, чтобы промежуточные
-              голоса с сайта не светились; общие результаты (сайт + Televic)
-              показываются после завершения таймера */}
+          {/* Vote Results — во время голосования строки видны, но с нулями,
+              чтобы промежуточные голоса с сайта не светились; реальные общие
+              цифры (сайт + Televic) появляются после завершения таймера */}
           <div style={{ textAlign: 'right', maxWidth: '400px', margin: '0 auto' }}>
-            {!isVoting && (<>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '15px' }}>
               <span style={{ fontSize: config.voteLabelFontSize || '32px', color: config.voteLabelColor || '#ffffff' }}>ЗА</span>
-              <span style={{ fontSize: config.voteNumberFontSize || '32px', color: config.voteNumberColor || '#ffffff', fontWeight: 'bold' }}>{vote.votesFor}</span>
+              <span style={{ fontSize: config.voteNumberFontSize || '32px', color: config.voteNumberColor || '#ffffff', fontWeight: 'bold' }}>{isVoting ? 0 : vote.votesFor}</span>
             </div>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '15px' }}>
               <span style={{ fontSize: config.voteLabelFontSize || '32px', color: config.voteLabelColor || '#ffffff' }}>ПРОТИВ</span>
-              <span style={{ fontSize: config.voteNumberFontSize || '32px', color: config.voteNumberColor || '#ffffff', fontWeight: 'bold' }}>{vote.votesAgainst}</span>
+              <span style={{ fontSize: config.voteNumberFontSize || '32px', color: config.voteNumberColor || '#ffffff', fontWeight: 'bold' }}>{isVoting ? 0 : vote.votesAgainst}</span>
             </div>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '15px' }}>
               <span style={{ fontSize: config.voteLabelFontSize || '32px', color: config.voteLabelColor || '#ffffff' }}>ВОЗДЕРЖАЛОСЬ</span>
-              <span style={{ fontSize: config.voteNumberFontSize || '32px', color: config.voteNumberColor || '#ffffff', fontWeight: 'bold' }}>{vote.votesAbstain}</span>
+              <span style={{ fontSize: config.voteNumberFontSize || '32px', color: config.voteNumberColor || '#ffffff', fontWeight: 'bold' }}>{isVoting ? 0 : vote.votesAbstain}</span>
             </div>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '15px' }}>
               <span style={{ fontSize: config.voteLabelFontSize || '32px', color: config.voteLabelColor || '#ffffff' }}>НЕ ГОЛОСОВАЛИ</span>
-              <span style={{ fontSize: config.voteNumberFontSize || '32px', color: config.voteNumberColor || '#ffffff', fontWeight: 'bold' }}>{vote.votesAbsent}</span>
+              <span style={{ fontSize: config.voteNumberFontSize || '32px', color: config.voteNumberColor || '#ffffff', fontWeight: 'bold' }}>{isVoting ? 0 : vote.votesAbsent}</span>
             </div>
-            </>)}
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '30px' }}>
               <span style={{ fontSize: config.quorumFontSize || '28px', color: config.quorumColor || '#ffffff', fontWeight: 'bold' }}>КВОРУМ</span>
               <span style={{ fontSize: config.quorumFontSize || '28px', color: config.quorumColor || '#ffffff', fontWeight: 'bold' }}>{hasQuorum ? 'ЕСТЬ' : 'НЕТ'}</span>
