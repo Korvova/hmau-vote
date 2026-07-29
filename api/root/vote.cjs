@@ -1080,7 +1080,7 @@ router.post('/start-vote', async (req, res) => {
             } catch (e) {
               console.error('[Vote] Televic wait fallback error:', e.message);
             }
-          }, 20000);
+          }, 12000);
         }
 
         await prisma.agendaItem.update({
