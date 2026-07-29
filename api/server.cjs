@@ -757,8 +757,12 @@ coconNS.on('connection', (socket) => {
       let votesFor, votesAgainst, votesAbstain, votesAbsent;
 
       // «Не голосовали» пересчитывается с учётом голосов Televic:
-      // участники подразделений заседания минус проголосовавшие минус отдавшие доверенность
-      const divisionIdsForAbsent = (activeVoteResult.meeting?.divisions || []).map(d => d.id);
+      // участники подразделений заседания минус проголосовавшие минус отдавшие доверенность.
+      // Гости («Приглашённые») в подсчётах не участвуют.
+      const isInvitedDivisionName = (name) => String(name || '').replace(/👥/g, '').trim().toLowerCase() === 'приглашенные';
+      const divisionIdsForAbsent = (activeVoteResult.meeting?.divisions || [])
+        .filter(d => !isInvitedDivisionName(d.name))
+        .map(d => d.id);
       const participantsForAbsent = await prisma.user.findMany({
         where: { divisionId: { in: divisionIdsForAbsent }, isAdmin: false },
         select: { id: true },

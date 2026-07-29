@@ -1,6 +1,10 @@
 const express = require('express');
 const router = express.Router();
 
+// Системное подразделение «Приглашённые» (гости): не голосуют и не участвуют в подсчётах
+const isInvitedDivisionName = (name) => String(name || '').replace(/👥/g, '').trim().toLowerCase() === 'приглашенные';
+const regularDivisionIds = (divisions) => (divisions || []).filter(d => !isInvitedDivisionName(d.name)).map(d => d.id);
+
 // Calculate decision function
 /**
  * Вычисляет решение для результата голосования на основе процедуры голосования.
@@ -30,7 +34,7 @@ const calculateDecision = async (prisma, voteResultId) => {
 
     const participants = await prisma.user.findMany({
       where: {
-        divisionId: { in: voteResult.meeting.divisions ? voteResult.meeting.divisions.map(d => d.id) : [] },
+        divisionId: { in: regularDivisionIds(voteResult.meeting.divisions) },
         isAdmin: false,
       },
     });
@@ -433,10 +437,15 @@ module.exports = (prisma, pgClient, io) => {
 
       // Support both email and numeric ID
       const user = typeof userId === 'number' || !isNaN(userId)
-        ? await prisma.user.findUnique({ where: { id: parseInt(userId) } })
-        : await prisma.user.findUnique({ where: { email: userId } });
+        ? await prisma.user.findUnique({ where: { id: parseInt(userId) }, include: { division: true } })
+        : await prisma.user.findUnique({ where: { email: userId }, include: { division: true } });
       if (!user) {
         return res.status(404).json({ error: 'User not found' });
+      }
+
+      // Гости («Приглашённые») не участвуют в голосовании
+      if (user.division && isInvitedDivisionName(user.division.name)) {
+        return res.status(403).json({ error: 'Гости не участвуют в голосовании' });
       }
 
       const voteResult = await prisma.voteResult.findUnique({
@@ -500,7 +509,7 @@ module.exports = (prisma, pgClient, io) => {
 
         const participants = await tx.user.findMany({
           where: {
-            divisionId: { in: voteResult.agendaItem.meeting.divisions.map(d => d.id) },
+            divisionId: { in: regularDivisionIds(voteResult.agendaItem.meeting.divisions) },
             isAdmin: false,
           },
         });
