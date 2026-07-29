@@ -882,7 +882,8 @@ function MeetingScreenPage() {
             width: '80%'
           }}>
           <div style={{ display: 'flex', gap: '30px', marginBottom: '15px', justifyContent: 'flex-start' }}>
-            {/* Question Section */}
+            {/* Question Section — скрыт, если очередь вопросов отключена */}
+            {meeting?.questionQueueEnabled !== false && (
             <div style={{ minWidth: '500px' }}>
               <div style={{ fontSize: config.questionNumberFontSize || '24px', color: config.questionNumberColor || '#ffffff', marginBottom: '10px' }}>
                 ВОПРОС <span style={{
@@ -936,8 +937,10 @@ function MeetingScreenPage() {
                 )}
               </div>
             </div>
+            )}
 
-            {/* Speech Section */}
+            {/* Speech Section — скрыт, если очередь выступлений отключена */}
+            {meeting?.speechQueueEnabled !== false && (
             <div style={{ minWidth: '250px' }}>
               <div style={{ fontSize: config.questionNumberFontSize || '24px', color: config.speechNumberColor || '#ffffff', marginBottom: '10px' }}>
                 ВЫСТУПЛЕНИЕ <span style={{
@@ -991,6 +994,7 @@ function MeetingScreenPage() {
                 )}
               </div>
             </div>
+            )}
           </div>
           </div>
         </div>

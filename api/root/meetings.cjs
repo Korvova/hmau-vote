@@ -298,6 +298,8 @@ module.exports = (prisma, pgClient, io) => {
         timerActive: meeting.timerActive || false,
         timerDuration: meeting.timerDuration || null,
         timerStartedAt: meeting.timerStartedAt ? meeting.timerStartedAt.toISOString() : null,
+        questionQueueEnabled: meeting.questionQueueEnabled ?? true,
+        speechQueueEnabled: meeting.speechQueueEnabled ?? true,
         agendaItems: meeting.agendaItems.map(item => ({ id: item.id, number: item.number, title: item.title, speakerId: item.speakerId, speakerName: item.speakerName || null, link: item.link, voting: item.voting, completed: item.completed, activeIssue: item.activeIssue })),
       };
 
@@ -1507,6 +1509,32 @@ router.get('/:id/absent-users', async (req, res) => {
     } catch (error) {
       console.error('Error updating showVoteOnBroadcast:', error);
       res.status(500).json({ error: error.message });
+    }
+  });
+
+  // Настройки очередей (вкл/выкл очереди вопросов и выступлений)
+  router.put('/:id/queue-settings', async (req, res) => {
+    const { id } = req.params;
+    const data = {};
+    if (typeof req.body?.questionQueueEnabled === 'boolean') data.questionQueueEnabled = req.body.questionQueueEnabled;
+    if (typeof req.body?.speechQueueEnabled === 'boolean') data.speechQueueEnabled = req.body.speechQueueEnabled;
+    if (!Object.keys(data).length) {
+      return res.status(400).json({ error: 'Нет полей для обновления (questionQueueEnabled / speechQueueEnabled)' });
+    }
+    try {
+      const meeting = await prisma.meeting.update({ where: { id: parseInt(id) }, data });
+      if (io) {
+        io.emit('queue-settings-updated', {
+          meetingId: meeting.id,
+          questionQueueEnabled: meeting.questionQueueEnabled,
+          speechQueueEnabled: meeting.speechQueueEnabled,
+        });
+      }
+      console.log(`[QueueSettings] Meeting ${meeting.id}: question=${meeting.questionQueueEnabled}, speech=${meeting.speechQueueEnabled}`);
+      res.json({ success: true, questionQueueEnabled: meeting.questionQueueEnabled, speechQueueEnabled: meeting.speechQueueEnabled });
+    } catch (error) {
+      console.error('[QueueSettings] error:', error.message);
+      res.status(400).json({ error: error.message });
     }
   });
 

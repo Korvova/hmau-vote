@@ -67,7 +67,14 @@ module.exports = (prisma, io) => {
       if (!['QUESTION', 'SPEECH'].includes(type)) {
         return res.status(400).json({ error: 'Invalid queue type' });
       }
-  
+
+      // Очередь отключена администратором — вставать нельзя
+      const meetingForQueue = await req.prisma.meeting.findUnique({ where: { id: parseInt(id) } });
+      const queueEnabled = type === 'QUESTION' ? meetingForQueue?.questionQueueEnabled : meetingForQueue?.speechQueueEnabled;
+      if (queueEnabled === false) {
+        return res.status(403).json({ error: 'Очередь отключена' });
+      }
+
       // Check if user already in queue
       const existing = await req.prisma.queue.findUnique({
         where: {
