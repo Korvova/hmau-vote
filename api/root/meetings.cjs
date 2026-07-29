@@ -295,6 +295,9 @@ module.exports = (prisma, pgClient, io) => {
         isArchived: meeting.isArchived,
         televicMeetingId: meeting.televicMeetingId || null,
         quorumType: meeting.quorumType || null,
+        timerActive: meeting.timerActive || false,
+        timerDuration: meeting.timerDuration || null,
+        timerStartedAt: meeting.timerStartedAt ? meeting.timerStartedAt.toISOString() : null,
         agendaItems: meeting.agendaItems.map(item => ({ id: item.id, number: item.number, title: item.title, speakerId: item.speakerId, speakerName: item.speakerName || null, link: item.link, voting: item.voting, completed: item.completed, activeIssue: item.activeIssue })),
       };
 

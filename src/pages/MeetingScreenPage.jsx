@@ -481,29 +481,25 @@ function MeetingScreenPage() {
         position: 'fixed',
         bottom: '40px',
         right: '40px',
-        backgroundColor: '#ffffff',
-        border: '3px solid #2196f3',
-        borderRadius: '16px',
         padding: '24px 36px',
         minWidth: '220px',
-        boxShadow: '0 8px 24px rgba(0, 0, 0, 0.4)',
         zIndex: 9999,
       }}>
         <div style={{
           fontSize: '56px',
-          color: remaining <= 10 ? '#f44336' : '#2196f3',
+          color: remaining <= 10 ? '#f44336' : '#ffffff',
           fontWeight: 'bold',
           textAlign: 'center',
           marginBottom: '16px',
           fontFamily: 'monospace',
-          textShadow: '0 2px 4px rgba(0,0,0,0.1)',
+          textShadow: '0 2px 6px rgba(0,0,0,0.6)',
         }}>
           {timeStr}
         </div>
         <div style={{
           width: '100%',
           height: '12px',
-          backgroundColor: '#e0e0e0',
+          backgroundColor: 'rgba(255, 255, 255, 0.25)',
           borderRadius: '6px',
           overflow: 'hidden',
         }}>
@@ -1127,61 +1123,7 @@ function MeetingScreenPage() {
         </div>
       </div>
 
-      {/* Independent Meeting Timer - Bottom Right */}
-      {meetingTimer && (() => {
-        const elapsed = Math.floor((new Date() - meetingTimer.startedAt) / 1000);
-        const remaining = Math.max(0, meetingTimer.duration - elapsed);
-        const minutes = Math.floor(remaining / 60);
-        const seconds = remaining % 60;
-        const timeStr = `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
-        const progress = Math.max(0, 100 - (elapsed / meetingTimer.duration) * 100);
-
-        // Auto-hide when timer ends
-        if (remaining <= 0) {
-          setTimeout(() => setMeetingTimer(null), 2000);
-        }
-
-        return (
-          <div style={{
-            position: 'fixed',
-            bottom: '40px',
-            right: '40px',
-            backgroundColor: '#ffffff',
-            border: '3px solid #2196f3',
-            borderRadius: '16px',
-            padding: '24px 36px',
-            minWidth: '220px',
-            boxShadow: '0 8px 24px rgba(0, 0, 0, 0.4)',
-            zIndex: 9999,
-          }}>
-            <div style={{
-              fontSize: '56px',
-              color: remaining <= 10 ? '#f44336' : '#2196f3',
-              fontWeight: 'bold',
-              textAlign: 'center',
-              marginBottom: '16px',
-              fontFamily: 'monospace',
-              textShadow: '0 2px 4px rgba(0,0,0,0.1)',
-            }}>
-              {timeStr}
-            </div>
-            <div style={{
-              width: '100%',
-              height: '12px',
-              backgroundColor: '#e0e0e0',
-              borderRadius: '6px',
-              overflow: 'hidden',
-            }}>
-              <div style={{
-                width: `${progress}%`,
-                height: '100%',
-                backgroundColor: remaining <= 10 ? '#f44336' : '#2196f3',
-                transition: 'width 1s linear, background-color 0.3s ease',
-              }} />
-            </div>
-          </div>
-        );
-      })()}
+      {/* Единый таймер заседания (TimerOverlay) — без дубля со старым стилем */}
       <TimerOverlay />
     </div>
   );
