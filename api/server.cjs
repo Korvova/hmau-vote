@@ -717,6 +717,30 @@ coconNS.on('connection', (socket) => {
 
       if (!hasIndividualVotes && !hasAggregatedResults) {
         console.log('[VotingResults] No votes to process (neither individual nor aggregated)');
+        // Пультовых голосов нет — но подсчёт надо завершить сразу, не дожидаясь 20с fallback
+        try {
+          const pendingVR = await prisma.voteResult.findFirst({
+            where: {
+              televicResultsPending: true,
+              meeting: { televicMeetingId: { not: null }, status: { in: ['WAITING', 'IN_PROGRESS'] } },
+            },
+            orderBy: { createdAt: 'desc' },
+          });
+          if (pendingVR) {
+            const cleared = await prisma.voteResult.update({
+              where: { id: pendingVR.id },
+              data: { televicResultsPending: false },
+            });
+            const p = {
+              ...cleared,
+              createdAt: cleared.createdAt instanceof Date ? cleared.createdAt.toISOString() : cleared.createdAt,
+            };
+            await pgClient.query(`NOTIFY vote_result_channel, '${JSON.stringify(p)}'`);
+            console.log(`[VotingResults] Cleared televicResultsPending for vote ${pendingVR.id} (empty pult results)`);
+          }
+        } catch (e) {
+          console.error('[VotingResults] Failed to clear pending on empty results:', e.message);
+        }
         return;
       }
 

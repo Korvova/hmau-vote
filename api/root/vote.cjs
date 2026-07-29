@@ -1003,8 +1003,11 @@ router.post('/start-vote', async (req, res) => {
         include: { meeting: { include: { divisions: true } } },
       });
       if (finalVoteResult) {
+        // ВАЖНО: считаем только голоса ТЕКУЩЕГО голосования (voteResultId),
+        // а не все голоса пункта повестки за историю — иначе повторное
+        // голосование по тому же вопросу даёт неверное «не голосовали»
         const votes = await prisma.vote.findMany({
-          where: { agendaItemId: Number(agendaItemId) },
+          where: { voteResultId: finalVoteResult.id },
         });
         const votedUserIds = [...new Set(votes.map(vote => vote.userId))];
 
@@ -1023,9 +1026,13 @@ router.post('/start-vote', async (req, res) => {
           },
         });
 
+        // Отдавшие доверенность не считаются «не голосовавшими» (как в vote-by-result)
+        const meetingProxies = await prisma.proxy.findMany({ where: { meetingId: finalVoteResult.meetingId } });
+        const gaveProxySet = new Set(meetingProxies.map(p => p.fromUserId));
+
         let notVotedCount = 0;
         for (const participant of participants) {
-          if (!votedUserIds.includes(participant.id)) {
+          if (!votedUserIds.includes(participant.id) && !gaveProxySet.has(participant.id)) {
             notVotedCount += 1;
           }
         }
