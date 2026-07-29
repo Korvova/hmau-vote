@@ -206,6 +206,20 @@ router.put('/meetings/:id/agenda-items/:itemId', async (req, res) => {
       }),
     ]);
 
+    // При смене активного вопроса обнуляются ОБЕ очереди (вопросы и выступления)
+    if (activeIssue === true) {
+      try {
+        const clearedQueues = await req.prisma.queue.deleteMany({ where: { meetingId: parseInt(id) } });
+        if (router.io && clearedQueues.count > 0) {
+          router.io.emit('queue-updated', { meetingId: parseInt(id), type: 'QUESTION', action: 'cleared' });
+          router.io.emit('queue-updated', { meetingId: parseInt(id), type: 'SPEECH', action: 'cleared' });
+          console.log(`[Agenda] Cleared ${clearedQueues.count} queue entries on active question change`);
+        }
+      } catch (e) {
+        console.error('[Agenda] Failed to clear queues on question change:', e.message);
+      }
+    }
+
     // Если устанавливается активный вопрос - отправить команду в CoCon через коннектор
     if (activeIssue === true && router.io) {
       try {

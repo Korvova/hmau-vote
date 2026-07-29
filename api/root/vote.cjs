@@ -971,6 +971,18 @@ router.post('/start-vote', async (req, res) => {
     };
     await pgClient.query(`NOTIFY vote_result_channel, '${JSON.stringify(payload)}'`);
 
+    // При запуске голосования обнуляются ОБЕ очереди (вопросы и выступления)
+    try {
+      const clearedQueues = await prisma.queue.deleteMany({ where: { meetingId: agendaItem.meetingId } });
+      if (io && clearedQueues.count > 0) {
+        io.emit('queue-updated', { meetingId: agendaItem.meetingId, type: 'QUESTION', action: 'cleared' });
+        io.emit('queue-updated', { meetingId: agendaItem.meetingId, type: 'SPEECH', action: 'cleared' });
+        console.log(`[Vote] Cleared ${clearedQueues.count} queue entries on vote start`);
+      }
+    } catch (e) {
+      console.error('[Vote] Failed to clear queues on vote start:', e.message);
+    }
+
     // Start voting in CoCon in background (fire and forget - website is master of data)
     let connectorWarning = null;
     if (agendaItem.meeting?.televicMeetingId && io) {
