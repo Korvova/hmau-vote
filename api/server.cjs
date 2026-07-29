@@ -883,9 +883,11 @@ coconNS.on('connection', (socket) => {
         votesAbstain = allVotes.filter(v => v.choice === 'ABSTAIN')
           .reduce((sum, v) => sum + (voteWeights.get(v.userId) || 1), 0);
 
-        // Absent: как в vote-by-result — не голосовал и не отдал доверенность
+        // Absent: не голосовал сам и его доверенность не использована
+        // (получатель проголосовал — голос отдавшего учтён весом получателя)
         const votedIds = new Set(allVotes.map(v => v.userId));
-        votesAbsent = participantsForAbsent.filter(p => !votedIds.has(p.id) && !gaveProxy.has(p.id)).length;
+        const exercisedGivers = new Set(proxiesForAbsent.filter(p => votedIds.has(p.toUserId)).map(p => p.fromUserId));
+        votesAbsent = participantsForAbsent.filter(p => !votedIds.has(p.id) && !exercisedGivers.has(p.id)).length;
 
         console.log(`[VotingResults] ✅ Processed ${successCount} individual votes, ${errorCount} errors`);
       } else if (hasAggregatedResults) {
@@ -893,8 +895,10 @@ coconNS.on('connection', (socket) => {
         votesFor = aggregated.votesFor || 0;
         votesAgainst = aggregated.votesAgainst || 0;
         votesAbstain = aggregated.votesAbstain || 0;
-        // Absent по агрегированным: каждый голос с пульта = один человек
-        votesAbsent = Math.max(0, participantsForAbsent.length - gaveProxy.size - (votesFor + votesAgainst + votesAbstain));
+        // Absent по агрегированным: каждый голос с пульта = один человек;
+        // судьба доверенностей в агрегированном режиме неизвестна — не вычитаем,
+        // чтобы сумма голосов и «не голосовали» сходилась с числом делегатов
+        votesAbsent = Math.max(0, participantsForAbsent.length - (votesFor + votesAgainst + votesAbstain));
 
         console.log(`[VotingResults] ✅ Using aggregated results: FOR=${votesFor}, AGAINST=${votesAgainst}, ABSTAIN=${votesAbstain}`);
       }

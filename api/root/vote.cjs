@@ -534,11 +534,15 @@ module.exports = (prisma, pgClient, io) => {
         const votesAbstain = votes.filter(v => v.choice === 'ABSTAIN')
           .reduce((sum, v) => sum + (voteWeights.get(v.userId) || 1), 0);
 
-        // Absent calculation: exclude both voters AND those who gave proxies
+        // Absent: не голосовал сам И его доверенность не использована.
+        // Отдавший доверенность выпадает из «не голосовавших» только если
+        // получатель реально проголосовал (голос учтён весом получателя) —
+        // иначе сумма голосов + «не голосовали» не сходится с числом делегатов.
         const votedUserIds = [...new Set(votes.map(v => v.userId))];
-        const usersWhoGaveProxy = new Set(proxies.map(p => p.fromUserId));
+        const votedSetForAbsent = new Set(votedUserIds);
+        const exercisedGivers = new Set(proxies.filter(p => votedSetForAbsent.has(p.toUserId)).map(p => p.fromUserId));
         const votesAbsent = participants.filter(p =>
-          !votedUserIds.includes(p.id) && !usersWhoGaveProxy.has(p.id)
+          !votedSetForAbsent.has(p.id) && !exercisedGivers.has(p.id)
         ).length;
 
         const updatedVoteResult = await tx.voteResult.update({
@@ -1026,13 +1030,15 @@ router.post('/start-vote', async (req, res) => {
           },
         });
 
-        // Отдавшие доверенность не считаются «не голосовавшими» (как в vote-by-result)
+        // Отдавший доверенность не «не голосовал», только если она использована
+        // (получатель проголосовал в этом голосовании)
         const meetingProxies = await prisma.proxy.findMany({ where: { meetingId: finalVoteResult.meetingId } });
-        const gaveProxySet = new Set(meetingProxies.map(p => p.fromUserId));
+        const votedSetTimer = new Set(votedUserIds);
+        const exercisedGiversTimer = new Set(meetingProxies.filter(p => votedSetTimer.has(p.toUserId)).map(p => p.fromUserId));
 
         let notVotedCount = 0;
         for (const participant of participants) {
-          if (!votedUserIds.includes(participant.id) && !gaveProxySet.has(participant.id)) {
+          if (!votedSetTimer.has(participant.id) && !exercisedGiversTimer.has(participant.id)) {
             notVotedCount += 1;
           }
         }
