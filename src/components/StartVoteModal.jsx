@@ -57,7 +57,7 @@ function StartVoteModal({ open, agendaItemId, defaultProcedureId, onClose, onSta
     e.preventDefault();
     try {
       setLoading(true);
-      await startVote({
+      const resp = await startVote({
         agendaItemId,
         question,
         duration: Number(duration) || null,
@@ -65,7 +65,11 @@ function StartVoteModal({ open, agendaItemId, defaultProcedureId, onClose, onSta
         procedureId: Number(procedureId),
         voteType,
       });
-      alert('Голосование запущено');
+      if (resp?.connectorWarning) {
+        alert('Голосование запущено!\n\n⚠️ ' + resp.connectorWarning);
+      } else {
+        alert('Голосование запущено');
+      }
       onStarted?.(agendaItemId);
       onClose(true);
     } catch (err) {

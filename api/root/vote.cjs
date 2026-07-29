@@ -959,6 +959,7 @@ router.post('/start-vote', async (req, res) => {
     await pgClient.query(`NOTIFY vote_result_channel, '${JSON.stringify(payload)}'`);
 
     // Start voting in CoCon in background (fire and forget - website is master of data)
+    let connectorWarning = null;
     if (agendaItem.meeting?.televicMeetingId && io) {
       try {
         console.log(`[Vote] Starting voting in CoCon for agenda item ${agendaItem.number}: "${question}"`);
@@ -978,9 +979,11 @@ router.post('/start-vote', async (req, res) => {
           console.log(`[Vote] Voting start command sent to CoCon connector (background)`);
         } else {
           console.log(`[Vote] No CoCon connector online - skipping voting start in CoCon`);
+          connectorWarning = 'Коннектор Televic не подключён — пульты в этом голосовании работать не будут. Голосование идёт только на сайте.';
         }
       } catch (e) {
         console.error('[Vote] Failed to send voting start to CoCon:', e.message);
+        connectorWarning = 'Не удалось отправить команду в Televic: ' + e.message;
       }
     }
 
@@ -1079,7 +1082,7 @@ router.post('/start-vote', async (req, res) => {
       }
     }, durationInMs);
 
-    res.json({ success: true, voteResult });
+    res.json({ success: true, voteResult, connectorWarning });
   } catch (error) {
     console.error('Ошибка при запуске голосования:', error.message);
     res.status(400).json({ success: false, error: error.message });
