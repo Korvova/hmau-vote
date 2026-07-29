@@ -1026,17 +1026,40 @@ router.post('/start-vote', async (req, res) => {
         const decision = await calculateDecision(prisma, finalVoteResult.id);
         console.log('Decision calculated:', decision);
 
+        // Если заседание зеркалится в Televic и коннектор в сети — итоги пока
+        // «в подсчёте»: экран не показывает промежуточные (сайтовые) цифры,
+        // ждём результаты с пультов. Флаг снимет обработчик результатов,
+        // а страховочный таймер ниже — если результаты так и не пришли.
+        const waitTelevicResults = !!(agendaItem.meeting?.televicMeetingId && io && findConnectorSocket());
+
         const updatedVoteResult = await prisma.voteResult.update({
           where: { id: finalVoteResult.id },
           data: {
             voteStatus: 'ENDED',
             votesAbsent: notVotedCount,
             decision,
-            // IMPORTANT: Clear televicResultsPending when vote ends by timer
-            // This ensures indicator disappears even if connector didn't send results (e.g. 0 votes)
-            televicResultsPending: false,
+            televicResultsPending: waitTelevicResults,
           },
         });
+
+        if (waitTelevicResults) {
+          setTimeout(async () => {
+            try {
+              const cur = await prisma.voteResult.findUnique({ where: { id: finalVoteResult.id } });
+              if (cur && cur.televicResultsPending) {
+                const cleared = await prisma.voteResult.update({
+                  where: { id: cur.id },
+                  data: { televicResultsPending: false },
+                });
+                console.log('[Vote] ⏱️ Televic results wait timed out — showing site-only results');
+                const p = { ...cleared, createdAt: cleared.createdAt.toISOString() };
+                await pgClient.query(`NOTIFY vote_result_channel, '${JSON.stringify(p)}'`);
+              }
+            } catch (e) {
+              console.error('[Vote] Televic wait fallback error:', e.message);
+            }
+          }, 20000);
+        }
 
         await prisma.agendaItem.update({
           where: { id: Number(agendaItemId) },

@@ -886,14 +886,33 @@ coconNS.on('connection', (socket) => {
 
       console.log(`[VotingResults] Updated counters: FOR=${votesFor}, AGAINST=${votesAgainst}, ABSTAIN=${votesAbstain}, ABSENT=${votesAbsent}`);
 
-      // Send NOTIFY to update clients
+      // Если голосование уже завершено — пересчитать решение с учётом голосов Televic
+      // (оно было вычислено в момент таймера только по сайтовым голосам)
+      let finalDecision = updatedVoteResult.decision;
+      if (activeVoteResult.voteStatus !== 'PENDING') {
+        try {
+          const dRes = await require('axios').post(`http://127.0.0.1:${port}/api/calculate-decision`, {
+            voteResultId: activeVoteResult.id,
+          });
+          if (dRes.data && dRes.data.decision) {
+            finalDecision = dRes.data.decision;
+            await prisma.voteResult.update({
+              where: { id: activeVoteResult.id },
+              data: { decision: finalDecision },
+            });
+            console.log(`[VotingResults] Decision recomputed after Televic results: ${finalDecision}`);
+          }
+        } catch (e) {
+          console.error('[VotingResults] Decision recompute failed:', e.message);
+        }
+      }
+
+      // Send NOTIFY to update clients — полная запись (обязательно с meetingId,
+      // иначе экраны отбросят событие как чужое)
       const payload = {
-        id: activeVoteResult.id,
-        votesFor,
-        votesAgainst,
-        votesAbstain,
-        votesAbsent,
-        voteStatus: 'PENDING',
+        ...updatedVoteResult,
+        decision: finalDecision,
+        televicResultsPending: false,
         createdAt: updatedVoteResult.createdAt instanceof Date ? updatedVoteResult.createdAt.toISOString() : updatedVoteResult.createdAt
       };
       await pgClient.query(`NOTIFY vote_result_channel, '${JSON.stringify(payload)}'`);

@@ -186,9 +186,12 @@ function MeetingScreenPage() {
             // keep them displayed until explicitly hidden by user action
             // Only clear if there's no current vote or it's a new pending vote starting
             setVote((prevVote) => {
-              // If we have vote results showing (ENDED/APPLIED), keep showing them
+              // If we have vote results showing (ENDED/APPLIED), keep showing them —
+              // but refresh the data from the fresh poll (Televic results may have
+              // arrived and updated the counters/decision/pending flag)
               if (prevVote && (prevVote.voteStatus === 'ENDED' || prevVote.voteStatus === 'APPLIED')) {
-                return prevVote;
+                const fresh = voteResults.find((r) => r.id === prevVote.id);
+                return fresh || prevVote;
               }
               // The vote we were showing as PENDING has just finished — switch
               // straight to its final result instead of flashing the agenda screen
@@ -258,7 +261,9 @@ function MeetingScreenPage() {
 
     const handleVoteEnded = (data) => {
       if (String(data.meetingId) !== strId) return;
-      const eventKey = `vote-ended-${data?.id}`;
+      // Ключ учитывает фазу подсчёта: событие «таймер кончился» (подсчёт идёт)
+      // и событие «результаты пультов пришли» не должны дедуплицироваться
+      const eventKey = `vote-ended-${data?.id}-${data?.televicResultsPending ? 'pending' : 'final'}`;
       if (processedEvents.has(eventKey)) return;
       processedEvents.add(eventKey);
       setTimeout(() => processedEvents.delete(eventKey), 5000);
@@ -600,10 +605,16 @@ function MeetingScreenPage() {
     // Кворум по правилу регистрации (общая формула для всех экранов)
     const hasQuorum = computeQuorum(participants, meeting).has;
 
+    // После таймера, пока не пришли результаты с пультов Televic, — «подсчёт»
+    const isCountingVotes = vote.voteStatus !== 'PENDING' && !!vote.televicResultsPending;
+
     // Determine result
     const getResultTitle = () => {
       if (vote.voteStatus === 'PENDING') {
         return 'ИДЕТ ГОЛОСОВАНИЕ';
+      }
+      if (isCountingVotes) {
+        return 'ИДЕТ ПОДСЧЕТ ГОЛОСОВ';
       }
       if (vote.decision) {
         const decision = vote.decision.toLowerCase();
@@ -623,7 +634,7 @@ function MeetingScreenPage() {
     };
 
     const getResultColor = () => {
-      if (vote.voteStatus === 'PENDING') {
+      if (vote.voteStatus === 'PENDING' || isCountingVotes) {
         return config.resultTitleColor || '#ffffff';
       }
       const decision = vote.decision ? vote.decision.toLowerCase() : '';
@@ -633,7 +644,7 @@ function MeetingScreenPage() {
       return '#f44336'; // Red
     };
 
-    const isVoting = vote.voteStatus === 'PENDING';
+    const isVoting = vote.voteStatus === 'PENDING' || isCountingVotes;
     const timer = getVoteTimer();
     const progress = getProgressPercent();
     const resultTitle = getResultTitle();
