@@ -1507,6 +1507,52 @@ router.get('/:id/absent-users', async (req, res) => {
     }
   });
 
+  // Независимый таймер заседания (обратный отсчёт на экране трансляции)
+  router.post('/:id/timer', async (req, res) => {
+    const { id } = req.params;
+    const duration = parseInt(req.body?.duration, 10);
+    if (!duration || duration <= 0) {
+      return res.status(400).json({ error: 'Требуется duration (секунды, положительное число)' });
+    }
+    try {
+      const startedAt = new Date();
+      const meeting = await prisma.meeting.update({
+        where: { id: parseInt(id) },
+        data: { timerDuration: duration, timerStartedAt: startedAt, timerActive: true },
+      });
+      if (io) {
+        io.emit('meeting-timer-started', {
+          meetingId: meeting.id,
+          duration,
+          startedAt: startedAt.toISOString(),
+        });
+      }
+      console.log(`[Timer] Meeting ${meeting.id}: timer started for ${duration}s`);
+      res.json({ success: true, duration, startedAt: startedAt.toISOString() });
+    } catch (error) {
+      console.error('[Timer] start error:', error.message);
+      res.status(400).json({ error: error.message });
+    }
+  });
+
+  router.delete('/:id/timer', async (req, res) => {
+    const { id } = req.params;
+    try {
+      const meeting = await prisma.meeting.update({
+        where: { id: parseInt(id) },
+        data: { timerActive: false, timerStartedAt: null, timerDuration: null },
+      });
+      if (io) {
+        io.emit('meeting-timer-stopped', { meetingId: meeting.id });
+      }
+      console.log(`[Timer] Meeting ${meeting.id}: timer stopped`);
+      res.json({ success: true });
+    } catch (error) {
+      console.error('[Timer] stop error:', error.message);
+      res.status(400).json({ error: error.message });
+    }
+  });
+
   // Mount queue router as nested router (supports /api/meetings/:id/queue routes)
   router.use('/:id/queue', require('./queue.cjs')(prisma, io));
 
