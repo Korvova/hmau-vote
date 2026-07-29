@@ -298,7 +298,8 @@ module.exports = (prisma, pgClient, io) => {
         agendaItems: meeting.agendaItems.map(item => ({ id: item.id, number: item.number, title: item.title, speakerId: item.speakerId, speakerName: item.speakerName || null, link: item.link, voting: item.voting, completed: item.completed, activeIssue: item.activeIssue })),
       };
 
-      console.log('🔥 GET /api/meetings/:id response:', JSON.stringify(response, null, 2));
+      // NOTE: не логируем полный ответ — он огромный и содержит пароли пользователей
+      console.log(`GET /api/meetings/${id}: status=${response.status}, agendaItems=${response.agendaItems.length}`);
       res.json(response);
     } catch (error) {
       console.error('РћС€РёР±РєР° РїСЂРё РїРѕР»СѓС‡РµРЅРёРё Р·Р°СЃРµРґР°РЅРёСЏ:', error);
