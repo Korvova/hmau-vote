@@ -1164,6 +1164,26 @@ router.get('/:id/absent-users', async (req, res) => {
         return res.status(404).json({ error: 'Заседание не найдено' });
       }
 
+      // При СТАРТЕ заседания сбрасываем «залипшие» флаги карточек участникам:
+      // isBadgeInserted — глобальный флаг, и если коннектор пропустил вытаскивание
+      // карточек на прошлом заседании, люди выглядели бы зарегистрированными.
+      // Регистрация начинается с чистого листа — карточки вставят заново.
+      if (status === 'IN_PROGRESS') {
+        try {
+          const divIds = (existingMeeting.divisions || []).map(d => d.id);
+          const resetBadges = await prisma.user.updateMany({
+            where: { divisionId: { in: divIds }, isBadgeInserted: true },
+            data: { isBadgeInserted: false },
+          });
+          if (resetBadges.count > 0) {
+            console.log(`[Meeting] Start: reset stale isBadgeInserted for ${resetBadges.count} users`);
+            if (io) io.emit('badge-status-reset', { meetingId: existingMeeting.id });
+          }
+        } catch (e) {
+          console.error('[Meeting] Failed to reset badges on start:', e.message);
+        }
+      }
+
       // If status is changing to IN_PROGRESS and createInTelevic is true, create in Televic first
       if (status === 'IN_PROGRESS' && existingMeeting.createInTelevic && !existingMeeting.televicMeetingId && io) {
         console.log('[Televic] Starting meeting, need to create in Televic first...');
