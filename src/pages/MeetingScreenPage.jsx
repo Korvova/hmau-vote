@@ -1020,14 +1020,9 @@ function MeetingScreenPage() {
   const offlineParticipants = regularParticipants.filter(p => !isRegistered(p));
 
   // Count total present: online participants + all received proxies by online participants
-  const totalReceivedProxies = onlineParticipants.reduce((sum, p) => {
-    return sum + (Array.isArray(p.receivedProxies) ? p.receivedProxies.length : 0);
-  }, 0);
-
-  const onlineCount = onlineParticipants.length + totalReceivedProxies;
-
-  // Count how many participants gave proxy (shown in brackets)
-  const proxyCount = totalReceivedProxies;
+  // «ПРИСУТСТВУЮТ» — только реально подключённые (Зал по карточке, Сайт по входу);
+  // доверенности не прибавляются, а передавшие доверенность не считаются
+  const onlineCount = onlineParticipants.filter(p => !p.proxy).length;
 
   const offlineNames = offlineParticipants.map(p => p.name).join(', ');
 
@@ -1097,7 +1092,7 @@ function MeetingScreenPage() {
           <div style={{ marginBottom: '10px' }}>
             <span style={{ display: 'inline-block', width: '300px' }}>ПРИСУТСТВУЮТ:</span>
             <span style={{ fontSize: '42px', fontWeight: 'bold' }}>
-              {onlineCount} {proxyCount > 0 ? `(${proxyCount})` : ''}
+              {onlineCount}
             </span>
           </div>
           {screenQuorum.required !== null && (

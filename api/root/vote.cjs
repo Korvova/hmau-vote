@@ -44,10 +44,10 @@ const calculateDecision = async (prisma, voteResultId) => {
       where: { meetingId: voteResult.meetingId }
     });
 
-    // Calculate total participants including proxy weights
-    // Formula: count of regular participants + count of proxies
-    const totalProxies = proxies.length;
-    const totalParticipants = participants.length + totalProxies;
+    // «Все пользователи заседания» = установленное число депутатов.
+    // Доверенности НЕ прибавляются: голос передаётся внутри этого же числа
+    // (иначе «половина+1» от 38 превращалась в 21 вместо 20)
+    const totalParticipants = participants.length;
 
     // «Зарегистрировавшиеся»: место «Зал» (HALL) — только по карточке Televic,
     // «Сайт» (SITE, по умолчанию) — вход на сайт или карточка
@@ -1149,3 +1149,7 @@ router.post('/start-vote', async (req, res) => {
   router.prisma = prisma;
   return router;
 };
+
+// Экспорт для server.cjs: ручное завершение голосования должно считать решение
+// той же функцией, что и завершение по таймеру
+module.exports.calculateDecision = calculateDecision;

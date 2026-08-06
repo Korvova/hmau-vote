@@ -500,8 +500,8 @@ app.post('/api/vote-results/:agendaItemId/end', async (req, res) => {
     });
     if (!finalVoteResult) return res.status(404).json({ error: 'Vote result not found' });
 
-    // Gather votes and participants
-    const votes = await prisma.vote.findMany({ where: { agendaItemId: agendaId } });
+    // Gather votes and participants — только голоса ТЕКУЩЕГО голосования
+    const votes = await prisma.vote.findMany({ where: { voteResultId: finalVoteResult.id } });
     const votedUserIds = [...new Set(votes.map(v => v.userId))];
 
     // FIXED: Get all divisions and filter out "Приглашенные" (invited guests)
@@ -519,8 +519,12 @@ app.post('/api/vote-results/:agendaItemId/end', async (req, res) => {
       },
     });
 
+    // «Не голосовали»: не голосовал сам и его доверенность не использована
+    const proxiesForEnd = await prisma.proxy.findMany({ where: { meetingId: finalVoteResult.meetingId } });
+    const votedSetEnd = new Set(votedUserIds);
+    const exercisedGiversEnd = new Set(proxiesForEnd.filter(p => votedSetEnd.has(p.toUserId)).map(p => p.fromUserId));
     let notVotedCount = 0;
-    for (const p of participants) if (!votedUserIds.includes(p.id)) notVotedCount += 1;
+    for (const p of participants) if (!votedSetEnd.has(p.id) && !exercisedGiversEnd.has(p.id)) notVotedCount += 1;
 
     const ctx = {
       totalParticipants: participants.length,
@@ -533,15 +537,29 @@ app.post('/api/vote-results/:agendaItemId/end', async (req, res) => {
       votesAbsent: notVotedCount,
     };
 
+    // Решение считаем ТОЙ ЖЕ функцией, что и при завершении по таймеру
+    // (собственный распознаватель ниже — только запасной вариант: его regex
+    // \bза\b не работал с кириллицей и «За» всегда давал 0)
+    let decision = null;
+    try {
+      const { calculateDecision } = require('./root/vote.cjs');
+      if (typeof calculateDecision === 'function') {
+        decision = await calculateDecision(prisma, finalVoteResult.id);
+        console.log(`[EndVote] Decision via calculateDecision: ${decision}`);
+      }
+    } catch (e) {
+      console.error('[EndVote] calculateDecision failed, falling back:', e.message);
+      decision = null;
+    }
+
     // Load procedure and evaluate with backward compatibility
     const procedure = await prisma.voteProcedure.findUnique({ where: { id: finalVoteResult.procedureId } });
-    let decision = null;
 
     // Hard safety: if все воздержались или нет ни одного голоса «за/против» — решение не принято
-    if ((finalVoteResult.votesFor === 0 && finalVoteResult.votesAgainst === 0) && (finalVoteResult.votesAbstain > 0 || ctx.totalVotes === 0)) {
+    if (decision === null && (finalVoteResult.votesFor === 0 && finalVoteResult.votesAgainst === 0) && (finalVoteResult.votesAbstain > 0 || ctx.totalVotes === 0)) {
       decision = 'Не принято';
     }
-    if (procedure && Array.isArray(procedure.conditions) && procedure.conditions.length) {
+    if (decision === null && procedure && Array.isArray(procedure.conditions) && procedure.conditions.length) {
       const blocks = procedure.conditions.map((b) => {
         if (Array.isArray(b.elements)) return { elements: b.elements, operator: b.operator || b.op || null };
         if (Array.isArray(b.tokens)) return { elements: tokensToElements(b.tokens), operator: b.operator || b.op || null };
