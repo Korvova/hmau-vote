@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useState } from 'react';
 import { PDFDownloadLink } from '@react-pdf/renderer';
 import axios from 'axios';
 import { getVoteResults } from '../utils/api.js';
@@ -13,24 +13,30 @@ function MeetingResultsPDFButton({ meeting, agenda }) {
   const [showPdfDownload, setShowPdfDownload] = useState(false);
   const [allVoteResults, setAllVoteResults] = useState([]);
   const [participants, setParticipants] = useState([]);
+  const [loadingData, setLoadingData] = useState(false);
 
-  useEffect(() => {
-    // Load all vote results and participants when meeting is completed
-    if (meeting?.status === 'COMPLETED' && meeting?.id) {
-      (async () => {
-        try {
-          const voteRes = await getVoteResults(meeting.id);
-          setAllVoteResults(Array.isArray(voteRes) ? voteRes : []);
+  // Данные грузятся ПРИ КЛИКЕ (а не заранее): PDFDownloadLink кэширует документ,
+  // и PDF, срендеренный до загрузки данных, оставался с прочерками
+  const openPdfModal = async () => {
+    setLoadingData(true);
+    try {
+      const voteRes = await getVoteResults(meeting.id);
+      setAllVoteResults(Array.isArray(voteRes) ? voteRes : []);
 
-          // Load participants
-          const partRes = await axios.get(`/api/meetings/${meeting.id}/participants`);
-          setParticipants(Array.isArray(partRes.data) ? partRes.data : []);
-        } catch (err) {
-          console.error('Failed to load vote results or participants:', err);
-        }
-      })();
+      // Load participants (эндпоинт возвращает объект { participants: [...] })
+      const partRes = await axios.get(`/api/meetings/${meeting.id}/participants`);
+      const parts = Array.isArray(partRes.data) ? partRes.data : (partRes.data?.participants || []);
+      setParticipants(parts);
+      console.log(`[ResultsPDF] loaded: voteResults=${Array.isArray(voteRes) ? voteRes.length : 0}, participants=${parts.length}`);
+    } catch (err) {
+      console.error('Failed to load vote results or participants:', err);
+      alert('Не удалось загрузить результаты для PDF: ' + (err?.message || err));
+      setLoadingData(false);
+      return;
     }
-  }, [meeting?.id, meeting?.status]);
+    setLoadingData(false);
+    setShowPdfDownload(true);
+  };
 
   // Only show button if meeting is completed
   if (meeting?.status !== 'COMPLETED') {
@@ -42,7 +48,8 @@ function MeetingResultsPDFButton({ meeting, agenda }) {
       <button
         type="button"
         className="btn btn-add"
-        onClick={() => setShowPdfDownload(true)}
+        onClick={openPdfModal}
+        disabled={loadingData}
         title="Скачать результаты в PDF"
         style={{
           display: 'inline-flex',
@@ -51,9 +58,10 @@ function MeetingResultsPDFButton({ meeting, agenda }) {
           padding: '8px 16px',
           fontSize: '14px',
           whiteSpace: 'nowrap',
+          opacity: loadingData ? 0.6 : 1,
         }}
       >
-        <span>Результаты PDF</span>
+        <span>{loadingData ? 'Загрузка…' : 'Результаты PDF'}</span>
       </button>
 
       {/* PDF Download Modal */}
@@ -97,6 +105,7 @@ function MeetingResultsPDFButton({ meeting, agenda }) {
                 Отмена
               </button>
               <PDFDownloadLink
+                key={`pdf-${meeting?.id}-${allVoteResults.length}-${participants.length}`}
                 document={
                   <VoteResultsPDF
                     meeting={meeting}
