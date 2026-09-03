@@ -1209,20 +1209,29 @@ header .header__top {
   background-color: #dfeef5;
   background-image: url(/hmau-vote/img/header/gerb2.png), url(/hmau-vote/img/header/header-bg.jpg);
   background-repeat: no-repeat, repeat-x;
-  background-position: right top, left top;
+  /* герб чуть правее (обрезаем его прозрачное поле), градиент на всю высоту полосы */
+  background-position: calc(100% + 14px) top, left top;
+  background-size: auto 100%, auto 100%;
   padding-top: 0;
   padding-bottom: 0;
-  height: 157px;
+  height: auto;
+  min-height: 0;
   margin-bottom: 10px;
+  overflow: hidden;
 }
 header .header__top .container,
 header .header__top .wrapper {
-  height: 157px;
+  height: auto;
+  padding-top: 0;
+  padding-bottom: 0;
+}
+header .header__top .wrapper {
+  align-items: center;
 }
 header .header__top .header__logo img {
   display: block;
   width: auto;
-  height: 157px;
+  height: 157px;   /* высота полосы = высоте баннера, фон растягивается под неё */
   max-width: none;
 }
 header .header__top .header__logo .logo__inner a {
@@ -1247,8 +1256,7 @@ header .header__top .header__user .user__inner ul li.menu-children .sub-menu {
   background-color: #ffffff;
 }
 @media (max-width: 900px) {
-  header .header__top { background-image: url(/hmau-vote/img/header/header-bg.jpg); background-repeat: repeat-x; }
+  header .header__top { background-image: url(/hmau-vote/img/header/header-bg.jpg); background-repeat: repeat-x; background-size: auto 100%; }
   header .header__top .header__user { margin-right: 0; }
   header .header__top .header__logo img { height: 100px; }
-  header .header__top, header .header__top .container, header .header__top .wrapper { height: 100px; }
 }
