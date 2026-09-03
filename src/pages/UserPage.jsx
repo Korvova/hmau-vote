@@ -717,7 +717,7 @@ function UserPage() {
                 }}>{r.decision}</span>
               </div>
             ) : null}
-            {(r.voteStatus || r.status) ? (<div className="vri-status">Статус: {statusLabel(r.voteStatus || r.status)}</div>) : null}
+            {/* Строка «Статус: Применено» на рабочем месте делегата не показывается (по просьбе операторов) */}
           </div>
         ))}
       </div>
