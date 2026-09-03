@@ -1226,8 +1226,10 @@ header .header__top .wrapper {
 }
 header .header__top .container {
   /* герб: в правом краю контентной области, поменьше баннера */
-  background: url(/hmau-vote/img/header/gerb2.png) no-repeat right center;
-  background-size: auto 118px;
+  /* герб в исходном размере 225x157 и по верхнему краю — его встроенный фон
+     (полосы) тогда точно совпадает с полосами градиента шапки */
+  background: url(/hmau-vote/img/header/gerb2.png) no-repeat right top;
+  background-size: auto 157px;
 }
 header .header__top .wrapper {
   align-items: center;
@@ -1243,7 +1245,7 @@ header .header__top .header__logo .logo__inner a {
   line-height: 0;
 }
 header .header__top .header__user {
-  margin-right: 200px; /* не наезжать на герб справа */
+  margin-right: 240px; /* не наезжать на герб справа */
 }
 header .header__top .header__user .user__inner ul li a,
 header .header__top .header__user .user__inner ul li button,
