@@ -206,6 +206,18 @@ router.put('/meetings/:id/agenda-items/:itemId', async (req, res) => {
       }),
     ]);
 
+    // Сообщаем всем клиентам (экраны, кабинеты, консоль) о смене состояния вопроса
+    if (router.io && (activeIssue !== undefined || completed !== undefined)) {
+      const updatedItem = result[1];
+      router.io.emit('agenda-item-updated', {
+        id: updatedItem.id,
+        agendaItemId: updatedItem.id,
+        meetingId: parseInt(id),
+        activeIssue: updatedItem.activeIssue,
+        completed: updatedItem.completed,
+      });
+    }
+
     // При смене активного вопроса обнуляются ОБЕ очереди (вопросы и выступления)
     if (activeIssue === true) {
       try {

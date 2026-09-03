@@ -584,13 +584,22 @@ function UserPage() {
       if (meetingId && data?.meetingId && String(data.meetingId) !== meetingId) return;
 
       // Update agenda to reflect activeIssue change
+      // (сервер шлёт id вопроса в поле id; agendaItemId — на всякий случай)
+      const changedId = data?.agendaItemId ?? data?.id;
+      if (changedId === undefined) return;
       setAgenda((prev) =>
         Array.isArray(prev)
-          ? prev.map((item) =>
-              item.id === data.agendaItemId
-                ? { ...item, activeIssue: data.activeIssue, completed: data.completed }
-                : { ...item, activeIssue: false }
-            )
+          ? prev.map((item) => {
+              if (item.id === changedId) {
+                return {
+                  ...item,
+                  activeIssue: data.activeIssue !== undefined ? Boolean(data.activeIssue) : item.activeIssue,
+                  completed: data.completed !== undefined ? Boolean(data.completed) : item.completed,
+                };
+              }
+              // Активным может быть только один вопрос
+              return data.activeIssue ? { ...item, activeIssue: false } : item;
+            })
           : prev
       );
     };
