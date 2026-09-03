@@ -1207,11 +1207,10 @@ table tr td.input-id input {
 /* ===== Шапка сайта: Дума ХМАО-Югры (баннер слева, градиент, герб справа) ===== */
 header .header__top {
   background-color: #dfeef5;
-  background-image: url(/hmau-vote/img/header/gerb2.png), url(/hmau-vote/img/header/header-bg.jpg);
-  background-repeat: no-repeat, repeat-x;
-  /* герб чуть правее (обрезаем его прозрачное поле), градиент на всю высоту полосы */
-  background-position: calc(100% + 14px) top, left top;
-  background-size: auto 100%, auto 100%;
+  background-image: url(/hmau-vote/img/header/header-bg.jpg);
+  background-repeat: repeat-x;
+  background-position: left top;
+  background-size: auto 100%;
   padding-top: 0;
   padding-bottom: 0;
   height: auto;
@@ -1224,6 +1223,11 @@ header .header__top .wrapper {
   height: auto;
   padding-top: 0;
   padding-bottom: 0;
+}
+header .header__top .container {
+  /* герб: в правом краю контентной области, поменьше баннера */
+  background: url(/hmau-vote/img/header/gerb2.png) no-repeat right center;
+  background-size: auto 118px;
 }
 header .header__top .wrapper {
   align-items: center;
@@ -1239,7 +1243,7 @@ header .header__top .header__logo .logo__inner a {
   line-height: 0;
 }
 header .header__top .header__user {
-  margin-right: 240px; /* не наезжать на герб справа */
+  margin-right: 200px; /* не наезжать на герб справа */
 }
 header .header__top .header__user .user__inner ul li a,
 header .header__top .header__user .user__inner ul li button,
@@ -1256,7 +1260,7 @@ header .header__top .header__user .user__inner ul li.menu-children .sub-menu {
   background-color: #ffffff;
 }
 @media (max-width: 900px) {
-  header .header__top { background-image: url(/hmau-vote/img/header/header-bg.jpg); background-repeat: repeat-x; background-size: auto 100%; }
+  header .header__top .container { background: none; }
   header .header__top .header__user { margin-right: 0; }
   header .header__top .header__logo img { height: 100px; }
 }
