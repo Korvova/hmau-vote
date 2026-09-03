@@ -603,6 +603,55 @@ module.exports = (prisma, pgClient, io) => {
    * @apiExample {curl} Пример запроса:
    *     curl http://217.114.10.226:5000/api/vote-results/576
    */
+  /**
+   * @api {get} /api/vote-state Идёт ли сейчас голосование
+   * @apiName СостояниеГолосования
+   * @apiGroup Голосование
+   * @apiDescription Лёгкий открытый эндпоинт для внешних агентов (мостик Veyon на ПК оператора зала опрашивает его раз в секунду).
+   * Голосование «идёт», если есть VoteResult со статусом PENDING по вопросу с voting=true, созданный не старше суток.
+   * @apiSuccess {Boolean} voting Идёт ли голосование.
+   * @apiSuccess {Number} [voteResultId] Id текущего голосования — по нему агент понимает, что это НОВОЕ голосование.
+   */
+  router.get('/vote-state', async (req, res) => {
+    res.set('Cache-Control', 'no-store');
+    try {
+      const vr = await prisma.voteResult.findFirst({
+        where: {
+          voteStatus: 'PENDING',
+          agendaItem: { voting: true },
+          createdAt: { gte: new Date(Date.now() - 24 * 3600 * 1000) },
+        },
+        orderBy: { createdAt: 'desc' },
+        include: {
+          agendaItem: { select: { id: true, number: true, title: true, meetingId: true } },
+          meeting: { select: { id: true, name: true } },
+        },
+      });
+      if (!vr) return res.json({ voting: false });
+      const meetingId = vr.meetingId || vr.agendaItem.meetingId;
+      let meetingName = vr.meeting ? vr.meeting.name : null;
+      if (!meetingName && meetingId) {
+        const m = await prisma.meeting.findUnique({ where: { id: meetingId }, select: { name: true } });
+        meetingName = m ? m.name : null;
+      }
+      res.json({
+        voting: true,
+        voteResultId: vr.id,
+        question: vr.question,
+        startedAt: vr.createdAt,
+        duration: vr.duration,
+        agendaItemId: vr.agendaItem.id,
+        agendaNumber: vr.agendaItem.number,
+        agendaTitle: vr.agendaItem.title,
+        meetingId,
+        meetingName,
+      });
+    } catch (e) {
+      console.error('[vote-state]', e.message);
+      res.status(500).json({ error: e.message });
+    }
+  });
+
   router.get('/vote-results/:agendaItemId', async (req, res) => {
     const { agendaItemId } = req.params;
     try {

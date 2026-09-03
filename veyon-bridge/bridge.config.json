@@ -1,0 +1,7 @@
+{
+  "site": "http://10.10.200.27:8090",
+  "page": "/hmau-vote/user",
+  "veyonCli": "C:\\Program Files\\Veyon\\veyon-cli.exe",
+  "pollSeconds": 1,
+  "openOnVoteEnd": false
+}
