@@ -790,7 +790,7 @@ function UserPage() {
             <div className="wrapper">
               <div className="header__logo">
                 <div className="logo__inner">
-                  <img src="/hmau-vote/img/logo.png" alt="" style={{ cursor: 'default' }} />
+                  <img src="/hmau-vote/img/header/header-left.jpg" alt="" style={{ cursor: 'default' }} />
                 </div>
               </div>
               <div className="header__user">

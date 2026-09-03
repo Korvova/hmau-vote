@@ -131,7 +131,7 @@ function ProtocolMeetingPage() {
             <div className="wrapper">
               <div className="header__logo">
                 <div className="logo__inner">
-                  <a href="/hmau-vote/"><img src="/hmau-vote/img/logo.png" alt="" /></a>
+                  <a href="/hmau-vote/"><img src="/hmau-vote/img/header/header-left.jpg" alt="" /></a>
                 </div>
               </div>
               <div className="header__user">
