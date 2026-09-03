@@ -926,6 +926,7 @@ function ControlMeetingPage() {
 
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 400px', gap: 20 }}>
                 <div className="page__table">
+                  <div className="agenda-table-wrapper">
                   <table>
                     <thead>
                       <tr>
@@ -1054,6 +1055,7 @@ function ControlMeetingPage() {
                       ))}
                     </tbody>
                   </table>
+                  </div>
                   {meeting?.status !== 'COMPLETED' && (
                     <div style={{ marginTop: 16, textAlign: 'center' }}>
                       <button
@@ -1077,6 +1079,10 @@ function ControlMeetingPage() {
                     >
                       <span>⏱ Запустить таймер</span>
                     </button>
+                  </div>
+                  {/* Queue Block — над списком участников */}
+                  <div style={{ marginBottom: '2rem' }}>
+                    <QueueBlock meetingId={id} durationTemplates={durationTemplates} />
                   </div>
                   <h2 style={{ margin: '0 0 12px' }}>Список участников</h2>
                   <div style={{ marginBottom: '12px', fontSize: '14px', color: '#666' }}>
@@ -1152,10 +1158,6 @@ function ControlMeetingPage() {
                         </tbody>
                       </table>
                     </div>
-                  </div>
-                  {/* Queue Block */}
-                  <div style={{ marginTop: '2rem' }}>
-                    <QueueBlock meetingId={id} durationTemplates={durationTemplates} />
                   </div>
                 </div>
               </div>
