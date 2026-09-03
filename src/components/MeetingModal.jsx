@@ -2,6 +2,7 @@ import React, { useEffect, useMemo, useState } from 'react';
 import './ModalHeader.css';
 import ChipMultiSelect from './ChipMultiSelect.jsx';
 import ParticipantsModal from './ParticipantsModal.jsx';
+import MaterialsField from './MaterialsField.jsx';
 import { getVoteProcedures } from '../utils/api.js';
 
 function MeetingModal({ open, data, divisions = [], users = [], title = 'Редактировать заседание', onClose, onSubmit }) {
@@ -428,11 +429,11 @@ function MeetingModal({ open, data, divisions = [], users = [], title = 'Ред�
                     value={item.speakerName || ''}
                     onChange={(e) => handleAgendaChange(idx, { speakerName: e.target.value })}
                   />
-                  <input
-                    placeholder="Ссылка"
-                    style={{ ...inputStyle, width: '100%' }}
+                  <MaterialsField
                     value={item.link}
-                    onChange={(e) => handleAgendaChange(idx, { link: e.target.value })}
+                    onChange={(v) => handleAgendaChange(idx, { link: v })}
+                    inputStyle={inputStyle}
+                    placeholder="Ссылка или файл"
                   />
                 </div>
               </div>

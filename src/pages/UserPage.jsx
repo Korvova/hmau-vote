@@ -14,7 +14,8 @@ import {
   getVoteResults,
 } from '../utils/api.js';
 import HeaderDropdown from '../components/HeaderDropdown.jsx';
-import UserQueueButtons from '../components/UserQueueButtons.jsx'; // Temporarily disabled - backend not implemented
+import UserQueueButtons from '../components/UserQueueButtons.jsx';
+import { materialsHref } from '../utils/materials.js'; // Temporarily disabled - backend not implemented
 import MeetingResultsPDFButton from '../components/MeetingResultsPDFButton.jsx';
 function useAuth() {
   try { const raw = localStorage.getItem('authUser'); return raw ? JSON.parse(raw) : null; } catch { return null; }
@@ -886,7 +887,7 @@ function UserPage() {
                               <td>
                                 {a.link ? (
                                   <a
-                                    href={/^https?:\/\//i.test(a.link) ? a.link : `https://${a.link}`}
+                                    href={materialsHref(a.link)}
                                     target="_blank"
                                     rel="noopener noreferrer"
                                     title="Открыть материалы по вопросу"

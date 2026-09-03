@@ -37,6 +37,12 @@ export default defineConfig({
         secure: false,
         ws: true,
       },
+      // Загруженные файлы (материалы повестки, логотипы) отдаёт API
+      '/uploads': {
+        target: apiTarget,
+        changeOrigin: true,
+        secure: false,
+      },
       // Also proxy Socket.IO if used
       '/socket.io': {
         target: apiTarget,

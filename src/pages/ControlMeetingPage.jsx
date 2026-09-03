@@ -5,6 +5,8 @@ import { getMeeting, getAgendaItems, getUsers, startAgendaItem as startAgendaIte
 import StartVoteModal from '../components/StartVoteModal.jsx';
 import TimerModal from '../components/TimerModal.jsx';
 import QueueBlock from '../components/QueueBlock.jsx';
+import MaterialsField from '../components/MaterialsField.jsx';
+import { materialsHref } from '../utils/materials.js';
 import socket from '../utils/socket.js';
 import axios from 'axios';
 import { PDFDownloadLink } from '@react-pdf/renderer';
@@ -602,7 +604,7 @@ function ControlMeetingPage() {
           number: nextNumber,
           title: newQuestion.title.trim(),
           speakerName: newQuestion.speakerName.trim() || null,
-          link: null,
+          link: (newQuestion.link || '').trim() || null,
         }),
       });
 
@@ -980,7 +982,7 @@ function ControlMeetingPage() {
                           <td>
                             {a.link ? (
                               <a
-                                href={/^https?:\/\//i.test(a.link) ? a.link : `https://${a.link}`}
+                                href={materialsHref(a.link)}
                                 target="_blank"
                                 rel="noopener noreferrer"
                                 title="Открыть материалы по вопросу"
@@ -1325,6 +1327,18 @@ function ControlMeetingPage() {
                   borderRadius: 4,
                   fontSize: 14,
                 }}
+              />
+            </div>
+
+            <div style={{ marginBottom: 24 }}>
+              <label style={{ display: 'block', marginBottom: 8, fontWeight: 'bold' }}>
+                Материалы
+              </label>
+              <MaterialsField
+                value={newQuestion.link || ''}
+                onChange={(v) => setNewQuestion({ ...newQuestion, link: v })}
+                inputStyle={{ padding: '8px 12px', border: '1px solid #ddd', borderRadius: 4, fontSize: 14, height: 40, boxSizing: 'border-box' }}
+                placeholder="Ссылка или файл (необязательно)"
               />
             </div>
 

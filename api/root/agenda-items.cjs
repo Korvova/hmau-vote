@@ -1,5 +1,44 @@
 const express = require('express');
 const router = express.Router();
+const multer = require('multer');
+const path = require('path');
+const fs = require('fs');
+
+// Материалы к вопросам повестки: файлы кладутся в uploads/agenda и раздаются как /uploads/agenda/<file>
+// (папка uploads примонтирована в контейнер и отдаётся express.static('/uploads')).
+const agendaUploadsDir = path.join(__dirname, '../../uploads/agenda');
+try { fs.mkdirSync(agendaUploadsDir, { recursive: true }); } catch (e) { console.error('[agenda-upload] mkdir:', e.message); }
+const agendaUpload = multer({
+  storage: multer.diskStorage({
+    destination: (req, file, cb) => cb(null, agendaUploadsDir),
+    filename: (req, file, cb) => {
+      const ext = path.extname(file.originalname).toLowerCase().slice(0, 10);
+      cb(null, `${Date.now()}-${Math.round(Math.random() * 1e9)}${ext}`);
+    },
+  }),
+  limits: { fileSize: 100 * 1024 * 1024 },
+  fileFilter: (req, file, cb) => {
+    const ok = /\.(pdf|doc|docx|xls|xlsx|ppt|pptx|odt|ods|odp|rtf|txt|htm|html|zip|jpe?g|png|gif|webp)$/i.test(file.originalname);
+    if (ok) return cb(null, true);
+    cb(new Error('Недопустимый тип файла (разрешены pdf, doc/docx, xls/xlsx, ppt/pptx, odt, rtf, txt, html, zip, изображения)'));
+  },
+});
+
+/**
+ * @api {post} /api/agenda-items/upload Загрузить файл материалов к вопросу повестки
+ * @apiName ЗагрузкаМатериаловПовестки
+ * @apiGroup Повестка
+ * @apiDescription multipart/form-data, поле `file`. Возвращает `url` вида `/uploads/agenda/<file>` — его сохраняют в поле `link` вопроса.
+ */
+router.post('/agenda-items/upload', (req, res) => {
+  agendaUpload.single('file')(req, res, (err) => {
+    if (err) return res.status(400).json({ error: err.message || 'Ошибка загрузки' });
+    if (!req.file) return res.status(400).json({ error: 'Файл не загружен' });
+    const originalName = Buffer.from(req.file.originalname, 'latin1').toString('utf8');
+    console.log(`[agenda-upload] ${originalName} -> ${req.file.filename} (${req.file.size} bytes)`);
+    res.json({ success: true, url: `/uploads/agenda/${req.file.filename}`, filename: req.file.filename, originalName });
+  });
+});
 
 /**
  * @api {get} /api/meetings/:id/agenda-items Получение списка элементов повестки  для заседания
