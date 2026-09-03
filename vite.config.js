@@ -37,6 +37,13 @@ export default defineConfig({
         secure: false,
         ws: true,
       },
+      // Загруженные файлы под префиксом сайта (как на проде через nginx)
+      '/hmau-vote/uploads': {
+        target: apiTarget,
+        changeOrigin: true,
+        secure: false,
+        rewrite: (p) => p.replace(/^\/hmau-vote/, ''),
+      },
       // Загруженные файлы (материалы повестки, логотипы) отдаёт API
       '/uploads': {
         target: apiTarget,
