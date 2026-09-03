@@ -1,12 +1,22 @@
 import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
 
+// Статические css/js из public (main.css, libs.css, js/*) не хэшируются Vite и
+// кэшируются nginx на год — добавляем ?v=<время сборки>, чтобы обновления доезжали
+const cacheBustStatic = () => ({
+  name: 'cache-bust-static',
+  transformIndexHtml(html) {
+    const v = Date.now();
+    return html.replace(/(\/hmau-vote\/(?:css|js)\/[^"'?]+?\.(?:css|js))(["'])/g, `$1?v=${v}$2`);
+  },
+});
+
 // Dev API target: override with VITE_API_PORT when :5000 is taken locally
 const apiTarget = `http://localhost:${process.env.VITE_API_PORT || 5000}`
 
 // https://vite.dev/config/
 export default defineConfig({
-  plugins: [react()],
+  plugins: [react(), cacheBustStatic()],
   base: '/hmau-vote/',
   build: {
     rollupOptions: {
