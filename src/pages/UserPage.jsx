@@ -868,6 +868,7 @@ function UserPage() {
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 360px', gap: 20 }}>
                   <div>
                     <h2 style={{ margin: '0 0 12px' }}>Вопросы повестки:</h2>
+                    <div className="agenda-table-wrapper">
                     <div className="page__table">
                       <table>
                         <thead>
@@ -902,6 +903,7 @@ function UserPage() {
                         </tbody>
                       </table>
                     </div>
+                    </div>
 
                     {/* PDF Results Button - only shown when meeting is completed */}
                     <div style={{ marginTop: '20px', display: 'flex', justifyContent: 'flex-start' }}>
@@ -909,6 +911,10 @@ function UserPage() {
                     </div>
                   </div>
                   <div>
+                    {/* Queue Buttons — сверху и «прилипают» при прокрутке страницы */}
+                    <div className="user-queue-sticky">
+                      <UserQueueButtons meetingId={meeting?.id} userId={auth?.id} />
+                    </div>
                     <h2 style={{ margin: '0 0 12px' }}>Список участников</h2>
                     <div style={{ marginBottom: '12px', fontSize: '14px', color: '#666' }}>
                       Всего: {meetingUsers.length} | Делегатов: {meetingUsers.filter(u => !isInvitedUser(u)).length} | В сети: {meetingUsers.filter(u => u.isOnline).length} | Гостей: {meetingUsers.filter(u => isInvitedUser(u)).length}
@@ -947,10 +953,6 @@ function UserPage() {
                           </tbody>
                         </table>
                       </div>
-                    </div>
-                    {/* Queue Buttons */}
-                    <div style={{ marginTop: '2rem' }}>
-                      <UserQueueButtons meetingId={meeting?.id} userId={auth?.id} />
                     </div>
                   </div>
                 </div>

@@ -1395,3 +1395,31 @@ button.btn-play img[src*="icon_38.png"],
     transform: rotate(360deg);
   }
 }
+
+/* Кабинет делегата: повестка со своим скроллом (как список участников) */
+.agenda-table-wrapper {
+  max-height: calc(100vh - 340px);
+  min-height: 320px;
+  overflow-y: auto;
+  border: 1px solid #e0e0e0;
+  border-radius: 4px;
+}
+.agenda-table-wrapper thead th {
+  position: sticky;
+  top: 0;
+  background: #fff;
+  z-index: 1;
+}
+
+/* Кнопки «Вопрос» / «Выступление» закреплены вверху при прокрутке */
+.user-queue-sticky {
+  position: sticky;
+  top: 10px;
+  z-index: 5;
+  background: #fff;
+  padding-bottom: 12px;
+  margin-bottom: 8px;
+}
+.user-queue-sticky > div {
+  margin-top: 0 !important;
+}
