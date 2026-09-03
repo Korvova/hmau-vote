@@ -882,7 +882,19 @@ function UserPage() {
                           {(agenda || []).map((a, idx) => (
                             <tr key={a.id || idx} className={a.activeIssue ? 'agenda-active' : undefined}>
                               <td>{a.number ?? idx + 1}</td>
-                              <td>{a.title}</td>
+                              <td>
+                                {a.link ? (
+                                  <a
+                                    href={/^https?:\/\//i.test(a.link) ? a.link : `https://${a.link}`}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    title="Открыть материалы по вопросу"
+                                    style={{ color: '#1a73e8', textDecoration: 'underline' }}
+                                  >
+                                    {a.title}
+                                  </a>
+                                ) : a.title}
+                              </td>
                               <td>{a.speakerName || (a.speaker && a.speaker !== 'Нет' ? a.speaker : '') || '-'}</td>
                               <td>{renderResultsList(a)}</td>
                             </tr>
