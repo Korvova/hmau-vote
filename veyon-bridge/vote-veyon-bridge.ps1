@@ -56,12 +56,19 @@ function Open-OnAll([string]$reason) {
   $json = '{"websiteUrls":["' + $PageUrl + '"]}'
   $jsonArg = '"' + ($json -replace '"', '\"') + '"'     # экранирование кавычек для командной строки Windows
   Log "$reason -> открываю $PageUrl на $($hosts.Count) ПК"
+  $outDir = Join-Path $Here 'veyon-out'
+  New-Item -ItemType Directory -Force -Path $outDir | Out-Null
   foreach ($h in $hosts) {
-    $args = "feature start OpenWebsite $h $jsonArg"
-    if ($DryRun) { Log "  [dry-run] veyon-cli $args"; continue }
+    # порядок аргументов veyon-cli 4.9: <адрес ПК> <функция> <JSON>
+    $cliArgs = "feature start $h OpenWebsite $jsonArg"
+    if ($DryRun) { Log "  [dry-run] veyon-cli $cliArgs"; continue }
     try {
-      # каждый ПК — отдельный процесс, чтобы недоступный ПК не тормозил остальных
-      Start-Process -FilePath $cfg.veyonCli -ArgumentList $args -WindowStyle Hidden -ErrorAction Stop | Out-Null
+      # каждый ПК — отдельный процесс, чтобы недоступный ПК не тормозил остальных;
+      # ответ veyon-cli по каждому ПК — в veyon-out\<ПК>.log (перезаписывается)
+      $safe = ($h -replace '[^A-Za-z0-9._-]', '_')
+      Start-Process -FilePath $cfg.veyonCli -ArgumentList $cliArgs -WindowStyle Hidden -ErrorAction Stop `
+        -RedirectStandardOutput (Join-Path $outDir "$safe.log") `
+        -RedirectStandardError  (Join-Path $outDir "$safe.err") | Out-Null
     } catch {
       Log "  ОШИБКА запуска veyon-cli для $h : $($_.Exception.Message)"
     }

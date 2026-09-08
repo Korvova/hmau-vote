@@ -22,7 +22,9 @@
 a) Связь с сайтом:   powershell -ExecutionPolicy Bypass -File vote-veyon-bridge.ps1 -Once -DryRun
    В логе должно быть «старт…», без «сайт недоступен».
 b) Команда Veyon вручную на одном ПК (подставить адрес):
-   & "C:\Program Files\Veyon\veyon-cli.exe" feature start OpenWebsite 10.86.13.11 "{\"websiteUrls\":[\"http://10.10.200.27:8090/hmau-vote/user\"]}"
+   & "C:\Program Files\Veyon\veyon-cli.exe" feature start 10.86.13.11 OpenWebsite "{\"websiteUrls\":[\"http://10.10.200.27:8090/hmau-vote/user\"]}"
+   (порядок важен: сначала адрес ПК, потом функция, потом JSON — так в veyon-cli 4.9)
+   Ответы veyon-cli по каждому ПК мостик складывает в папку veyon-out\ рядом с логом.
    На том ПК должен открыться браузер со страницей. Если нет — проверить, что этот ПК открывается из Veyon Master вообще.
 c) Боевая: запустить тестовое голосование на сайте — на всех ПК из hosts.txt должна выскочить страница.
 
