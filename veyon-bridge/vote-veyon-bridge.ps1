@@ -56,23 +56,27 @@ function Open-OnAll([string]$reason) {
   $json = '{"websiteUrls":["' + $PageUrl + '"]}'
   $jsonArg = '"' + ($json -replace '"', '\"') + '"'     # экранирование кавычек для командной строки Windows
   Log "$reason -> открываю $PageUrl на $($hosts.Count) ПК"
-  $outDir = Join-Path $Here 'veyon-out'
-  New-Item -ItemType Directory -Force -Path $outDir | Out-Null
+  $sw = [Diagnostics.Stopwatch]::StartNew()
+  $started = 0
   foreach ($h in $hosts) {
     # порядок аргументов veyon-cli 4.9: <адрес ПК> <функция> <JSON>
     $cliArgs = "feature start $h OpenWebsite $jsonArg"
     if ($DryRun) { Log "  [dry-run] veyon-cli $cliArgs"; continue }
     try {
-      # каждый ПК — отдельный процесс, чтобы недоступный ПК не тормозил остальных;
-      # ответ veyon-cli по каждому ПК — в veyon-out\<ПК>.log (перезаписывается)
-      $safe = ($h -replace '[^A-Za-z0-9._-]', '_')
-      Start-Process -FilePath $cfg.veyonCli -ArgumentList $cliArgs -WindowStyle Hidden -ErrorAction Stop `
-        -RedirectStandardOutput (Join-Path $outDir "$safe.log") `
-        -RedirectStandardError  (Join-Path $outDir "$safe.err") | Out-Null
+      # каждый ПК — отдельный процесс, все стартуют сразу (Start-Process слишком медленный:
+      # ~0.3 с на запуск, на 70 ПК это 20 с — страница приходила после конца голосования)
+      $psi = New-Object System.Diagnostics.ProcessStartInfo
+      $psi.FileName = $cfg.veyonCli
+      $psi.Arguments = $cliArgs
+      $psi.UseShellExecute = $false
+      $psi.CreateNoWindow = $true
+      [System.Diagnostics.Process]::Start($psi) | Out-Null
+      $started++
     } catch {
       Log "  ОШИБКА запуска veyon-cli для $h : $($_.Exception.Message)"
     }
   }
+  if (-not $DryRun) { Log "  отправлено $started команд за $($sw.ElapsedMilliseconds) мс" }
 }
 
 # ---------- главный цикл ----------
@@ -85,7 +89,7 @@ $siteDown   = $false
 
 while ($true) {
   try {
-    $s = Invoke-RestMethod -Uri $StateUrl -TimeoutSec 5 -Method Get
+    $s = Invoke-RestMethod -Uri $StateUrl -TimeoutSec 3 -Method Get
     if ($siteDown) { Log "сайт снова доступен"; $siteDown = $false }
 
     if ($s.voting -and $s.voteResultId -ne $lastVoteId) {
