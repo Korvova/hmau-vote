@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { login } from '../utils/api.js';
+import useSingleUserTab from '../utils/useSingleUserTab.js';
 
 function LoginPage() {
   const [username, setUsername] = useState('');
