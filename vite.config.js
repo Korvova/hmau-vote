@@ -18,6 +18,9 @@ const apiTarget = `http://localhost:${process.env.VITE_API_PORT || 5000}`
 export default defineConfig({
   plugins: [react(), cacheBustStatic()],
   base: '/hmau-vote/',
+  // идентификатор сборки для логики «одна вкладка кабинета» (useSingleUserTab):
+  // вкладка со старой сборкой уступает место новой
+  define: { __RMS_BUILD__: JSON.stringify(String(Date.now())) },
   build: {
     rollupOptions: {
       output: {

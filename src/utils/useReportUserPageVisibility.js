@@ -26,29 +26,36 @@ export function rememberPcFromUrl() {
   }
 }
 
+const currentPc = () => { try { return localStorage.getItem(PC_KEY) || null; } catch { return null; } };
+
 export default function useReportUserPageVisibility(userId) {
   useEffect(() => {
-    const pc = rememberPcFromUrl();
+    rememberPcFromUrl();
+    // метку читаем при КАЖДОМ докладе: её могла записать другая (новая) вкладка,
+    // открытая мостиком с ?pc=, которая затем закрыла себя
     const report = (visible) => {
       try {
         socket.emit('user-page-visibility', {
           visible: typeof visible === 'boolean' ? visible : document.visibilityState === 'visible',
           userId: userId || null,
-          pc,
+          pc: currentPc(),
         });
       } catch { /* ignore */ }
     };
     const onVisibility = () => report();
     const onConnect = () => report();
+    const onStorage = (e) => { if (!e || !e.key || e.key === PC_KEY) report(); }; // метку записала другая вкладка
     if (!socket.connected) { try { socket.connect(); } catch { /* ignore */ } }
     report();
     socket.on('connect', onConnect);
     document.addEventListener('visibilitychange', onVisibility);
+    window.addEventListener('storage', onStorage);
     const timer = setInterval(() => report(), REPORT_EVERY_MS);
     return () => {
       clearInterval(timer);
       socket.off('connect', onConnect);
       document.removeEventListener('visibilitychange', onVisibility);
+      window.removeEventListener('storage', onStorage);
       report(false); // уходим со страницы — кабинета на экране больше нет
     };
   }, [userId]);

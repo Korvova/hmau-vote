@@ -15,6 +15,11 @@ const USER_TAB_PROBE_MS = 500;
 // вкладка в момент опроса уже «скрыта». Поэтому считаем её видимой, если она ушла
 // в фон не раньше, чем за столько мс до опроса (т.е. была на экране до самого открытия новой).
 const USER_TAB_RECENTLY_VISIBLE_MS = 6000;
+// Идентификатор сборки (подставляет vite.config.js). Ответ «я на экране» от вкладки с ДРУГОЙ
+// (старой) сборкой не считается: новая вкладка остаётся, старая уходит — так обновления
+// сайта доезжают до зала с первого же открытия страницы, без F5 на каждом ПК.
+// eslint-disable-next-line no-undef
+const BUILD = typeof __RMS_BUILD__ !== 'undefined' ? String(__RMS_BUILD__) : 'dev';
 export default function useSingleUserTab() {
   useEffect(() => {
     if (typeof BroadcastChannel === 'undefined') return undefined;
@@ -38,9 +43,9 @@ export default function useSingleUserTab() {
       const msg = e && e.data;
       if (!msg || msg.id === myId) return;
       if (msg.type === 'probe') {
-        if (wasOnScreen()) ch.postMessage({ type: 'visible', id: myId, to: msg.id });
+        if (wasOnScreen()) ch.postMessage({ type: 'visible', id: myId, to: msg.id, build: BUILD });
       } else if (msg.type === 'visible' && msg.to === myId) {
-        someoneVisible = true;
+        if (msg.build === BUILD) someoneVisible = true; // старая сборка на экране — не в счёт, вытесняем
       } else if (msg.type === 'takeover') {
         retireSelf();
       }
