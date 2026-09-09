@@ -377,6 +377,25 @@ app.use('/api/contacts', require('./root/contacts.cjs'));
 // Serve uploaded files
 app.use('/uploads', express.static(path.join(__dirname, '../uploads')));
 
+// Раздача собранного фронта самим API — для переносного/демо-запуска без nginx.
+// На проде эти пути обслуживает nginx и до сюда не доходят; если папки dist нет — блок молчит.
+const distDir = path.join(__dirname, '../dist');
+if (require('fs').existsSync(path.join(distDir, 'index.html'))) {
+  app.use('/hmau-vote/uploads', express.static(path.join(__dirname, '../uploads')));
+  app.use('/hmau-vote', express.static(distDir, {
+    index: false,
+    setHeaders: (res, filePath) => {
+      if (filePath.endsWith('.html')) res.setHeader('Cache-Control', 'no-cache, must-revalidate');
+    },
+  }));
+  app.get(/^\/hmau-vote(\/.*)?$/, (req, res) => {
+    res.setHeader('Cache-Control', 'no-cache, must-revalidate');
+    res.sendFile(path.join(distDir, 'index.html'));
+  });
+  app.get('/', (req, res) => res.redirect('/hmau-vote/'));
+  console.log('[static] раздаю dist по /hmau-vote/ (режим без nginx)');
+}
+
 // Manual end of vote for an agenda item
 // Important: implemented here to avoid touching files in api/root
 app.post('/api/vote-results/:agendaItemId/end', async (req, res) => {
@@ -617,10 +636,30 @@ app.post('/api/vote-results/:agendaItemId/end', async (req, res) => {
  * Обработчик подключения клиентов через WebSocket с использованием Socket.IO.
  * Логирует события подключения и отключения клиентов для отладки.
  */
+// Видимость кабинета депутата по ПК (socket.id -> { ip, visible, at }).
+// Кабинет сам сообщает, на экране он или нет; IP берём из X-Forwarded-For (nginx).
+// Мостик Veyon читает /api/vote-state.visibleHosts и НЕ открывает страницу там, где
+// кабинет уже на экране — иначе у депутата мигает «перезагрузка» на каждом голосовании.
+const userPageVisibility = new Map();
+global.rmsUserPageVisibility = userPageVisibility;
+const clientIpOf = (socket) => {
+  const fwd = socket.handshake && socket.handshake.headers && socket.handshake.headers['x-forwarded-for'];
+  const raw = (fwd ? String(fwd).split(',')[0] : (socket.handshake && socket.handshake.address)) || '';
+  return raw.trim().replace(/^::ffff:/, '');
+};
+
 io.on('connection', (socket) => {
   console.log('Клиент подключился:', socket.id);
+  socket.on('user-page-visibility', (data) => {
+    try {
+      const ip = clientIpOf(socket);
+      if (!ip) return;
+      userPageVisibility.set(socket.id, { ip, visible: !!(data && data.visible), userId: data && data.userId, at: Date.now() });
+    } catch (e) { /* ignore */ }
+  });
   socket.on('disconnect', (reason) => {
     console.log('Клиент отключился:', socket.id, 'Причина:', reason);
+    userPageVisibility.delete(socket.id);
   });
 });
 

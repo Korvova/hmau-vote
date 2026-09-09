@@ -50,9 +50,19 @@ function Get-Hosts {
 }
 
 # ---------- открыть страницу на всех ПК ----------
-function Open-OnAll([string]$reason) {
+function Open-OnAll([string]$reason, $skipHosts) {
   $hosts = @(Get-Hosts)
   if ($hosts.Count -eq 0) { Log "hosts.txt пуст — некому открывать"; return }
+  # ПК, где кабинет депутата и так на экране (сайт знает это по докладам вкладок), пропускаем —
+  # иначе у депутата на каждом голосовании «перезагружается» страница
+  $skip = @()
+  if ($skipHosts) { $skip = @($skipHosts | ForEach-Object { "$_".Trim() } | Where-Object { $_ }) }
+  if ($skip.Count -gt 0) {
+    $before = $hosts.Count
+    $hosts = @($hosts | Where-Object { $skip -notcontains $_ })
+    Log "  пропускаю $($before - $hosts.Count) ПК — кабинет уже на экране"
+  }
+  if ($hosts.Count -eq 0) { Log "  открывать некому: кабинет на экране у всех"; return }
   $json = '{"websiteUrls":["' + $PageUrl + '"]}'
   $jsonArg = '"' + ($json -replace '"', '\"') + '"'     # экранирование кавычек для командной строки Windows
   Log "$reason -> открываю $PageUrl на $($hosts.Count) ПК"
@@ -94,7 +104,7 @@ while ($true) {
 
     if ($s.voting -and $s.voteResultId -ne $lastVoteId) {
       $lastVoteId = $s.voteResultId
-      Open-OnAll "ГОЛОСОВАНИЕ #$($s.voteResultId): «$($s.question)» (заседание: $($s.meetingName))"
+      Open-OnAll "ГОЛОСОВАНИЕ #$($s.voteResultId): «$($s.question)» (заседание: $($s.meetingName))" $s.visibleHosts
     }
     if ($wasVoting -and -not $s.voting) {
       Log "голосование завершено"

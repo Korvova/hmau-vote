@@ -17,6 +17,7 @@ import HeaderDropdown from '../components/HeaderDropdown.jsx';
 import UserQueueButtons from '../components/UserQueueButtons.jsx';
 import { materialsHref } from '../utils/materials.js';
 import useSingleUserTab from '../utils/useSingleUserTab.js';
+import useReportUserPageVisibility from '../utils/useReportUserPageVisibility.js';
 import MeetingResultsPDFButton from '../components/MeetingResultsPDFButton.jsx';
 function useAuth() {
   try { const raw = localStorage.getItem('authUser'); return raw ? JSON.parse(raw) : null; } catch { return null; }
@@ -49,6 +50,7 @@ const isInvitedUser = (user) => {
 function UserPage() {
   useSingleUserTab();
   const auth = useAuth();
+  useReportUserPageVisibility(auth?.id);
   const navigate = useNavigate();
   const [meeting, setMeeting] = useState(null);
   const [agenda, setAgenda] = useState([]);

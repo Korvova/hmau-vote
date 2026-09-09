@@ -612,6 +612,17 @@ module.exports = (prisma, pgClient, io) => {
    * @apiSuccess {Boolean} voting Идёт ли голосование.
    * @apiSuccess {Number} [voteResultId] Id текущего голосования — по нему агент понимает, что это НОВОЕ голосование.
    */
+  // IP клиентов, у которых кабинет депутата сейчас на экране (по докладам самих вкладок,
+  // не старше 90 с) — мостик Veyon пропускает эти ПК при открытии страницы
+  const visibleHostsNow = () => {
+    const vis = global.rmsUserPageVisibility;
+    if (!vis) return [];
+    const fresh = Date.now() - 90 * 1000;
+    const ips = new Set();
+    for (const v of vis.values()) if (v && v.visible && v.at > fresh && v.ip) ips.add(v.ip);
+    return Array.from(ips);
+  };
+
   router.get('/vote-state', async (req, res) => {
     res.set('Cache-Control', 'no-store');
     try {
@@ -627,7 +638,7 @@ module.exports = (prisma, pgClient, io) => {
           meeting: { select: { id: true, name: true } },
         },
       });
-      if (!vr) return res.json({ voting: false });
+      if (!vr) return res.json({ voting: false, visibleHosts: visibleHostsNow() });
       const meetingId = vr.meetingId || vr.agendaItem.meetingId;
       let meetingName = vr.meeting ? vr.meeting.name : null;
       if (!meetingName && meetingId) {
@@ -645,6 +656,7 @@ module.exports = (prisma, pgClient, io) => {
         agendaTitle: vr.agendaItem.title,
         meetingId,
         meetingName,
+        visibleHosts: visibleHostsNow(),
       });
     } catch (e) {
       console.error('[vote-state]', e.message);
