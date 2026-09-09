@@ -63,12 +63,13 @@ function Open-OnAll([string]$reason, $skipHosts) {
     Log "  пропускаю $($before - $hosts.Count) ПК — кабинет уже на экране"
   }
   if ($hosts.Count -eq 0) { Log "  открывать некому: кабинет на экране у всех"; return }
-  $json = '{"websiteUrls":["' + $PageUrl + '"]}'
-  $jsonArg = '"' + ($json -replace '"', '\"') + '"'     # экранирование кавычек для командной строки Windows
   Log "$reason -> открываю $PageUrl на $($hosts.Count) ПК"
   $sw = [Diagnostics.Stopwatch]::StartNew()
   $started = 0
   foreach ($h in $hosts) {
+    # страница получает ?pc=<адрес ПК> и дальше сама докладывает сайту, что она на экране этого ПК
+    $json = '{"websiteUrls":["' + $PageUrl + '?pc=' + $h + '"]}'
+    $jsonArg = '"' + ($json -replace '"', '\"') + '"'     # экранирование кавычек для командной строки Windows
     # порядок аргументов veyon-cli 4.9: <адрес ПК> <функция> <JSON>
     $cliArgs = "feature start $h OpenWebsite $jsonArg"
     if ($DryRun) { Log "  [dry-run] veyon-cli $cliArgs"; continue }

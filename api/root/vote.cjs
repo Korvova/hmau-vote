@@ -619,7 +619,11 @@ module.exports = (prisma, pgClient, io) => {
     if (!vis) return [];
     const fresh = Date.now() - 90 * 1000;
     const ips = new Set();
-    for (const v of vis.values()) if (v && v.visible && v.at > fresh && v.ip) ips.add(v.ip);
+    for (const v of vis.values()) {
+      if (!v || !v.visible || v.at <= fresh) continue;
+      const key = v.pc || v.ip; // pc из ?pc=<IP> надёжнее: IP соединения за Docker Desktop у всех одинаковый
+      if (key) ips.add(key);
+    }
     return Array.from(ips);
   };
 

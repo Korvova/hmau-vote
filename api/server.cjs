@@ -654,7 +654,10 @@ io.on('connection', (socket) => {
     try {
       const ip = clientIpOf(socket);
       if (!ip) return;
-      userPageVisibility.set(socket.id, { ip, visible: !!(data && data.visible), userId: data && data.userId, at: Date.now() });
+      // pc — идентификатор ПК, который страница получила из ?pc=<IP> при открытии через Veyon;
+      // IP соединения в Docker Desktop бесполезен (все клиенты видны как шлюз 172.18.0.1)
+      const pc = data && data.pc ? String(data.pc).trim().slice(0, 64) : null;
+      userPageVisibility.set(socket.id, { ip, pc, visible: !!(data && data.visible), userId: data && data.userId, at: Date.now() });
     } catch (e) { /* ignore */ }
   });
   socket.on('disconnect', (reason) => {

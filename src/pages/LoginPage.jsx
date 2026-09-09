@@ -2,8 +2,11 @@ import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { login } from '../utils/api.js';
 import useSingleUserTab from '../utils/useSingleUserTab.js';
+import useReportUserPageVisibility from '../utils/useReportUserPageVisibility.js';
 
 function LoginPage() {
+  useSingleUserTab(); // Veyon открывает страницу входа заново при каждом голосовании — держим одну вкладку
+  useReportUserPageVisibility(null); // форма входа на экране — тоже «на экране», и запоминаем ?pc=
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);

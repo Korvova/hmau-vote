@@ -17,6 +17,11 @@ import React from 'react';
 import ReactDOM from 'react-dom/client';
 import { BrowserRouter } from 'react-router-dom';
 import App from './App.jsx';
+import { rememberPcFromUrl } from './utils/useReportUserPageVisibility.js';
+
+// Метка ПК из ?pc=<IP> (её ставит мостик Veyon) — запоминаем ДО роутинга,
+// иначе редирект /user -> /login её потеряет
+rememberPcFromUrl();
 
 ReactDOM.createRoot(document.getElementById('root')).render(
   <React.StrictMode>
