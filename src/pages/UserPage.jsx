@@ -56,6 +56,10 @@ const isInvitedUser = (user) => {
 // или открытая скриптом; остальные просто остаются.
 const USER_TAB_CHANNEL = 'rms-user-page-tab';
 const USER_TAB_PROBE_MS = 500;
+// Когда Veyon открывает новую вкладку, браузер сразу переключается на неё, и старая
+// вкладка в момент опроса уже «скрыта». Поэтому считаем её видимой, если она ушла
+// в фон не раньше, чем за столько мс до опроса (т.е. была на экране до самого открытия новой).
+const USER_TAB_RECENTLY_VISIBLE_MS = 6000;
 function useSingleUserTab() {
   useEffect(() => {
     if (typeof BroadcastChannel === 'undefined') return undefined;
@@ -63,6 +67,11 @@ function useSingleUserTab() {
     try { ch = new BroadcastChannel(USER_TAB_CHANNEL); } catch { return undefined; }
     const myId = `${Date.now()}-${Math.random().toString(36).slice(2)}`;
     let someoneVisible = false;
+    let hiddenAt = 0;
+    const onVisibility = () => { if (document.visibilityState === 'hidden') hiddenAt = Date.now(); };
+    document.addEventListener('visibilitychange', onVisibility);
+    const wasOnScreen = () =>
+      document.visibilityState === 'visible' || (hiddenAt > 0 && Date.now() - hiddenAt < USER_TAB_RECENTLY_VISIBLE_MS);
     const closeSelf = () => { try { window.close(); } catch { /* браузер не дал — оставляем */ } };
     // Старую вкладку браузер может не дать закрыть (в истории больше одной записи):
     // тогда превращаем её в лёгкую страницу-заглушку, чтобы не держать второй живой кабинет
@@ -74,7 +83,7 @@ function useSingleUserTab() {
       const msg = e && e.data;
       if (!msg || msg.id === myId) return;
       if (msg.type === 'probe') {
-        if (document.visibilityState === 'visible') ch.postMessage({ type: 'visible', id: myId, to: msg.id });
+        if (wasOnScreen()) ch.postMessage({ type: 'visible', id: myId, to: msg.id });
       } else if (msg.type === 'visible' && msg.to === myId) {
         someoneVisible = true;
       } else if (msg.type === 'takeover') {
@@ -86,7 +95,7 @@ function useSingleUserTab() {
       if (someoneVisible) closeSelf();
       else ch.postMessage({ type: 'takeover', id: myId });
     }, USER_TAB_PROBE_MS);
-    return () => { clearTimeout(timer); ch.close(); };
+    return () => { clearTimeout(timer); document.removeEventListener('visibilitychange', onVisibility); ch.close(); };
   }, []);
 }
 
