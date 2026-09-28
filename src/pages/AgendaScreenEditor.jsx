@@ -1,6 +1,21 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 
+// Шрифты для текста вопроса на экране трансляции. Только системные шрифты Windows:
+// экран работает без интернета, веб-шрифты не подгрузятся.
+const QUESTION_FONTS = [
+  { value: '', label: 'Шрифт сайта (по умолчанию)' },
+  { value: 'Arial, sans-serif', label: 'Arial' },
+  { value: 'Verdana, sans-serif', label: 'Verdana' },
+  { value: 'Tahoma, sans-serif', label: 'Tahoma' },
+  { value: '"Segoe UI", sans-serif', label: 'Segoe UI' },
+  { value: 'Calibri, sans-serif', label: 'Calibri' },
+  { value: '"Trebuchet MS", sans-serif', label: 'Trebuchet MS' },
+  { value: '"Times New Roman", serif', label: 'Times New Roman' },
+  { value: 'Georgia, serif', label: 'Georgia' },
+  { value: 'Cambria, serif', label: 'Cambria' },
+];
+
 function AgendaScreenEditor() {
   const navigate = useNavigate();
   const [config, setConfig] = useState({
@@ -14,6 +29,9 @@ function AgendaScreenEditor() {
     dateFontSize: '20px',
     currentQuestionColor: '#ffffff',
     currentQuestionFontSize: '36px',
+    currentQuestionFontFamily: '',      // '' = шрифт сайта по умолчанию
+    currentQuestionFontWeight: 'bold',
+    queueTimerGap: '40',                // отступ ФИО — таймер в очередях, px
     speakersLabelColor: '#ffffff',
     speakersLabelFontSize: '24px',
     speakersNamesColor: '#ffffff',
@@ -301,6 +319,42 @@ function AgendaScreenEditor() {
               title="Размер шрифта"
             />
           </div>
+          <div style={{ display: 'flex', gap: '8px' }}>
+            <select
+              value={config.currentQuestionFontFamily || ''}
+              onChange={(e) => setConfig({ ...config, currentQuestionFontFamily: e.target.value })}
+              style={{ flex: 1, padding: '4px' }}
+              title="Шрифт текста вопроса"
+            >
+              {QUESTION_FONTS.map((f) => (
+                <option key={f.value} value={f.value} style={{ fontFamily: f.value || undefined }}>{f.label}</option>
+              ))}
+            </select>
+            <select
+              value={config.currentQuestionFontWeight || 'bold'}
+              onChange={(e) => setConfig({ ...config, currentQuestionFontWeight: e.target.value })}
+              style={{ width: '130px', padding: '4px' }}
+              title="Начертание текста вопроса"
+            >
+              <option value="bold">Жирный</option>
+              <option value="600">Полужирный</option>
+              <option value="normal">Обычный</option>
+            </select>
+          </div>
+        </div>
+
+        {/* Gap between name and countdown in queues */}
+        <div style={{ marginBottom: '20px' }}>
+          <label style={{ display: 'block', marginBottom: '8px', fontWeight: 'bold' }}>Отступ ФИО — таймер в «Вопрос» / «Выступление», px</label>
+          <input
+            type="number"
+            min="0"
+            max="400"
+            value={parseInt(config.queueTimerGap ?? 40, 10)}
+            onChange={(e) => setConfig({ ...config, queueTimerGap: e.target.value })}
+            style={{ width: '80px', padding: '4px' }}
+            title="Отступ между фамилией и таймером обратного отсчёта"
+          />
         </div>
 
         {/* Speakers Label Settings */}
@@ -479,7 +533,7 @@ function AgendaScreenEditor() {
           {/* Main Content */}
           <div style={{ marginTop: '180px' }}>
             {/* Current Question (Left aligned) */}
-            <div style={{ fontSize: config.currentQuestionFontSize, color: config.currentQuestionColor, textAlign: 'left', marginBottom: '30px', fontWeight: 'bold' }}>
+            <div style={{ fontSize: config.currentQuestionFontSize, color: config.currentQuestionColor, textAlign: 'left', marginBottom: '30px', fontFamily: config.currentQuestionFontFamily || undefined, fontWeight: config.currentQuestionFontWeight || 'bold' }}>
               1 НОВИЙО ПРОЕКТЕ ЗАКОНА ХАНТЫ-МАНСИЙСКОГО АВТОНОМНОГО ОКРУГА - ЮГРЫ "О ВНЕСЕНИИ ИЗМЕНЕНИЙ В ЗАКОН ХАНТЫ-МАНСИЙСКОГО АВТОНОМНОГО ОКРУГА - ЮГРЫ "О ДОПОЛНИТЕЛЬНЫХ МЕРАХ ПОДДЕРЖКИ СЕМЕЙ, ИМЕЮЩИХ ДЕТЕЙ, В ХАНТЫ-МАНСИЙСКОМ АВТОНОМНОМ ОКРУГЕ - ЮГРЕ" (ПЕРВОЕ ЧТЕНИЕ).
             </div>
 
@@ -517,9 +571,14 @@ function AgendaScreenEditor() {
                     padding: '10px 15px',
                     backgroundColor: config.activeSpeakerBgColor,
                     marginBottom: '8px',
-                    borderRadius: '4px'
+                    borderRadius: '4px',
+                    display: 'flex',
+                    justifyContent: 'space-between',
+                    alignItems: 'center',
+                    gap: `${parseInt(config.queueTimerGap ?? 40, 10) || 0}px`
                   }}>
-                    1. ЗАПАДНОВА Н.Л.
+                    <span>1. ЗАПАДНОВА Н.Л.</span>
+                    <span style={{ fontWeight: 'bold', fontSize: '28px', color: '#ffeb3b', whiteSpace: 'nowrap' }}>1:54</span>
                   </div>
                   <div style={{
                     fontSize: config.speakerItemFontSize,

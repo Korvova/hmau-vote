@@ -786,6 +786,9 @@ function MeetingScreenPage() {
     const allSpeeches = fullSpeeches.slice(0, QUEUE_LIMIT);
     const moreSpeeches = fullSpeeches.length > QUEUE_LIMIT;
 
+    // Отступ между ФИО и таймером в очередях (шаблон экрана повестки), по умолчанию 40 px
+    const queueTimerGap = Number.isFinite(parseInt(config.queueTimerGap, 10)) ? parseInt(config.queueTimerGap, 10) : 40;
+
     // Calculate time remaining for active items
     const getTimeRemaining = (item) => {
       if (!item.timerEndTime) return null;
@@ -842,7 +845,8 @@ function MeetingScreenPage() {
             <div style={{
               fontSize: '28px',
               color: config.currentQuestionColor || '#ffffff',
-              fontWeight: 'bold',
+              fontFamily: config.currentQuestionFontFamily || undefined,
+              fontWeight: config.currentQuestionFontWeight || 'bold',
               flexShrink: 0
             }}>
               {activeItem.number}.
@@ -852,7 +856,8 @@ function MeetingScreenPage() {
             <div style={{ flex: 1 }}>
               {/* Current Question Title — ДОКЛАДЫВАЮТ follows right below the text;
                   only the queue block position is fixed (min-height on the wrapper) */}
-              <div style={{ fontSize: '28px', color: config.currentQuestionColor || '#ffffff', textAlign: 'left', marginBottom: '24px', fontWeight: 'bold' }}>
+              {/* Шрифт и начертание текста вопроса задаются в шаблоне экрана повестки */}
+              <div style={{ fontSize: '28px', color: config.currentQuestionColor || '#ffffff', textAlign: 'left', marginBottom: '24px', fontFamily: config.currentQuestionFontFamily || undefined, fontWeight: config.currentQuestionFontWeight || 'bold' }}>
                 {truncateQuestion(activeItem.title)}
               </div>
 
@@ -914,7 +919,8 @@ function MeetingScreenPage() {
                         borderRadius: '4px',
                         display: 'flex',
                         justifyContent: 'space-between',
-                        alignItems: 'center'
+                        alignItems: 'center',
+                        gap: `${queueTimerGap}px` // отступ ФИО — таймер (шаблон экрана повестки)
                       }}
                     >
                       <span>{index + 1}. {q.user?.name || 'Неизвестно'}</span>
@@ -922,7 +928,9 @@ function MeetingScreenPage() {
                         <span style={{
                           fontWeight: 'bold',
                           fontSize: '28px',
-                          color: '#ffeb3b'
+                          color: '#ffeb3b',
+                          whiteSpace: 'nowrap',
+                          flexShrink: 0
                         }}>
                           {timeRemaining}
                         </span>
@@ -971,7 +979,8 @@ function MeetingScreenPage() {
                         borderRadius: '4px',
                         display: 'flex',
                         justifyContent: 'space-between',
-                        alignItems: 'center'
+                        alignItems: 'center',
+                        gap: `${queueTimerGap}px` // отступ ФИО — таймер (шаблон экрана повестки)
                       }}
                     >
                       <span>{index + 1}. {s.user?.name || 'Неизвестно'}</span>
@@ -979,7 +988,9 @@ function MeetingScreenPage() {
                         <span style={{
                           fontWeight: 'bold',
                           fontSize: '28px',
-                          color: '#ffeb3b'
+                          color: '#ffeb3b',
+                          whiteSpace: 'nowrap',
+                          flexShrink: 0
                         }}>
                           {timeRemaining}
                         </span>
