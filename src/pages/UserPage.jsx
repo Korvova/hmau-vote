@@ -47,11 +47,30 @@ const isInvitedUser = (user) => {
   return false;
 };
 
+// «Селюков Михаил Васильевич» -> «Селюков М.В.»; короткие/нестандартные ФИО оставляем как есть
+const toShortName = (full) => {
+  const parts = String(full || '').trim().split(/\s+/).filter(Boolean);
+  if (parts.length < 2) return parts[0] || '';
+  const [last, ...rest] = parts;
+  return `${last} ${rest.map((p) => `${p[0].toUpperCase()}.`).join('')}`;
+};
+
 function UserPage() {
   useSingleUserTab();
   const auth = useAuth();
   useReportUserPageVisibility(auth?.id);
   const navigate = useNavigate();
+  // В шапке кабинета — «Фамилия И.О.» вместо email; ФИО берём с сервера (в localStorage его нет)
+  const [shortName, setShortName] = useState(() => toShortName(auth?.name));
+  useEffect(() => {
+    if (!auth?.id) return undefined;
+    let alive = true;
+    fetch(`/api/users/${auth.id}`)
+      .then((r) => (r.ok ? r.json() : null))
+      .then((u) => { if (alive && u?.name) setShortName(toShortName(u.name)); })
+      .catch(() => {});
+    return () => { alive = false; };
+  }, [auth?.id]);
   const [meeting, setMeeting] = useState(null);
   const [agenda, setAgenda] = useState([]);
   const [users, setUsers] = useState([]);
@@ -803,7 +822,7 @@ function UserPage() {
 
                   <ul>
                     <HeaderDropdown
-                      trigger={(<><img src="/hmau-vote/img/icon_2.png" alt="" />{auth?.name || auth?.email || 'user'}</>)}
+                      trigger={(<><img src="/hmau-vote/img/icon_2.png" alt="" />{shortName || auth?.email || 'user'}</>)}
                     >
                       <li>
                         <button type="button" className="logout-button" onClick={handleLogout}>Выйти</button>
