@@ -788,6 +788,10 @@ function MeetingScreenPage() {
 
     // Отступ между ФИО и таймером в очередях (шаблон экрана повестки), по умолчанию 40 px
     const queueTimerGap = Number.isFinite(parseInt(config.queueTimerGap, 10)) ? parseInt(config.queueTimerGap, 10) : 40;
+    // Размер текста вопроса и ширина блока вопроса/очередей — из шаблона экрана повестки
+    const questionFontSize = config.currentQuestionFontSize || '28px';
+    const bw = parseInt(config.questionBlockWidth, 10);
+    const blockWidth = Number.isFinite(bw) ? Math.min(100, Math.max(40, bw)) : 80;
 
     // Calculate time remaining for active items
     const getTimeRemaining = (item) => {
@@ -840,10 +844,10 @@ function MeetingScreenPage() {
         {/* Main Content — minHeight keeps the queue block at a stable spot;
             a longer question simply pushes it further down */}
         <div style={{ marginTop: '135px', display: 'flex', justifyContent: 'center', minHeight: '595px' }}>
-          <div style={{ width: '80%', display: 'flex', gap: '20px' }}>
+          <div style={{ width: `${blockWidth}%`, display: 'flex', gap: '20px' }}>
             {/* Agenda Number - Left Side */}
             <div style={{
-              fontSize: '28px',
+              fontSize: questionFontSize,
               color: config.currentQuestionColor || '#ffffff',
               fontFamily: config.currentQuestionFontFamily || undefined,
               fontWeight: config.currentQuestionFontWeight || 'bold',
@@ -857,7 +861,7 @@ function MeetingScreenPage() {
               {/* Current Question Title — ДОКЛАДЫВАЮТ follows right below the text;
                   only the queue block position is fixed (min-height on the wrapper) */}
               {/* Шрифт и начертание текста вопроса задаются в шаблоне экрана повестки */}
-              <div style={{ fontSize: '28px', color: config.currentQuestionColor || '#ffffff', textAlign: 'left', marginBottom: '24px', fontFamily: config.currentQuestionFontFamily || undefined, fontWeight: config.currentQuestionFontWeight || 'bold' }}>
+              <div style={{ fontSize: questionFontSize, color: config.currentQuestionColor || '#ffffff', textAlign: 'left', marginBottom: '24px', fontFamily: config.currentQuestionFontFamily || undefined, fontWeight: config.currentQuestionFontWeight || 'bold' }}>
                 {truncateQuestion(activeItem.title)}
               </div>
 
@@ -884,7 +888,7 @@ function MeetingScreenPage() {
           <div style={{
             marginLeft: 'auto',
             marginRight: 'auto',
-            width: '80%'
+            width: `${blockWidth}%`
           }}>
           <div style={{ display: 'flex', gap: '30px', marginBottom: '15px', justifyContent: 'flex-start' }}>
             {/* Question Section — скрыт, если очередь вопросов отключена */}

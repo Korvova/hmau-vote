@@ -32,6 +32,7 @@ function AgendaScreenEditor() {
     currentQuestionFontFamily: '',      // '' = шрифт сайта по умолчанию
     currentQuestionFontWeight: 'bold',
     queueTimerGap: '40',                // отступ ФИО — таймер в очередях, px
+    questionBlockWidth: '80',           // ширина блока вопроса и очередей, % экрана
     speakersLabelColor: '#ffffff',
     speakersLabelFontSize: '24px',
     speakersNamesColor: '#ffffff',
@@ -250,6 +251,18 @@ function AgendaScreenEditor() {
                 style={{ width: '100%', padding: '6px', border: '1px solid #ddd', borderRadius: '4px' }}
                 min="0"
                 max="200"
+              />
+            </div>
+            <div>
+              <label style={{ display: 'block', marginBottom: '4px', fontSize: '13px' }}>Ширина блока вопроса и очередей, % экрана (40–100):</label>
+              <input
+                type="number"
+                value={parseInt(config.questionBlockWidth ?? 80, 10)}
+                onChange={(e) => setConfig({ ...config, questionBlockWidth: e.target.value })}
+                style={{ width: '100%', padding: '6px', border: '1px solid #ddd', borderRadius: '4px' }}
+                min="40"
+                max="100"
+                title="Чем больше, тем меньше поля слева и справа от текста вопроса"
               />
             </div>
           </div>
@@ -530,8 +543,8 @@ function AgendaScreenEditor() {
             </div>
           </div>
 
-          {/* Main Content */}
-          <div style={{ marginTop: '180px' }}>
+          {/* Main Content — та же ширина по центру, что и на экране трансляции */}
+          <div style={{ marginTop: '180px', width: `${Math.min(100, Math.max(40, parseInt(config.questionBlockWidth ?? 80, 10) || 80))}%`, marginLeft: 'auto', marginRight: 'auto' }}>
             {/* Current Question (Left aligned) */}
             <div style={{ fontSize: config.currentQuestionFontSize, color: config.currentQuestionColor, textAlign: 'left', marginBottom: '30px', fontFamily: config.currentQuestionFontFamily || undefined, fontWeight: config.currentQuestionFontWeight || 'bold' }}>
               1 НОВИЙО ПРОЕКТЕ ЗАКОНА ХАНТЫ-МАНСИЙСКОГО АВТОНОМНОГО ОКРУГА - ЮГРЫ "О ВНЕСЕНИИ ИЗМЕНЕНИЙ В ЗАКОН ХАНТЫ-МАНСИЙСКОГО АВТОНОМНОГО ОКРУГА - ЮГРЫ "О ДОПОЛНИТЕЛЬНЫХ МЕРАХ ПОДДЕРЖКИ СЕМЕЙ, ИМЕЮЩИХ ДЕТЕЙ, В ХАНТЫ-МАНСИЙСКОМ АВТОНОМНОМ ОКРУГЕ - ЮГРЕ" (ПЕРВОЕ ЧТЕНИЕ).
