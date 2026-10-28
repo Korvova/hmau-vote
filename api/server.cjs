@@ -542,8 +542,12 @@ app.post('/api/vote-results/:agendaItemId/end', async (req, res) => {
     const proxiesForEnd = await prisma.proxy.findMany({ where: { meetingId: finalVoteResult.meetingId } });
     const votedSetEnd = new Set(votedUserIds);
     const exercisedGiversEnd = new Set(proxiesForEnd.filter(p => votedSetEnd.has(p.toUserId)).map(p => p.fromUserId));
+    const absentBaseEnd = await require('./root/vote.cjs').absentBaseParticipants(prisma, {
+      meetingId: finalVoteResult.meetingId, procedureId: finalVoteResult.procedureId,
+      participants, proxies: proxiesForEnd,
+    });
     let notVotedCount = 0;
-    for (const p of participants) if (!votedSetEnd.has(p.id) && !exercisedGiversEnd.has(p.id)) notVotedCount += 1;
+    for (const p of absentBaseEnd) if (!votedSetEnd.has(p.id) && !exercisedGiversEnd.has(p.id)) notVotedCount += 1;
 
     const ctx = {
       totalParticipants: participants.length,
@@ -853,6 +857,11 @@ coconNS.on('connection', (socket) => {
       });
       const proxiesForAbsent = await prisma.proxy.findMany({ where: { meetingId: activeVoteResult.meeting.id } });
       const gaveProxy = new Set(proxiesForAbsent.map(p => p.fromUserId));
+      // База «не голосовали» с учётом процедуры («от присутствующих» — только присутствующие)
+      const absentBaseTv = await require('./root/vote.cjs').absentBaseParticipants(prisma, {
+        meetingId: activeVoteResult.meeting.id, procedureId: activeVoteResult.procedureId,
+        participants: participantsForAbsent, proxies: proxiesForAbsent,
+      });
 
       if (hasIndividualVotes) {
         // Process individual votes
@@ -947,7 +956,7 @@ coconNS.on('connection', (socket) => {
         // (получатель проголосовал — голос отдавшего учтён весом получателя)
         const votedIds = new Set(allVotes.map(v => v.userId));
         const exercisedGivers = new Set(proxiesForAbsent.filter(p => votedIds.has(p.toUserId)).map(p => p.fromUserId));
-        votesAbsent = participantsForAbsent.filter(p => !votedIds.has(p.id) && !exercisedGivers.has(p.id)).length;
+        votesAbsent = absentBaseTv.filter(p => !votedIds.has(p.id) && !exercisedGivers.has(p.id)).length;
 
         console.log(`[VotingResults] ✅ Processed ${successCount} individual votes, ${errorCount} errors`);
       } else if (hasAggregatedResults) {
@@ -958,7 +967,7 @@ coconNS.on('connection', (socket) => {
         // Absent по агрегированным: каждый голос с пульта = один человек;
         // судьба доверенностей в агрегированном режиме неизвестна — не вычитаем,
         // чтобы сумма голосов и «не голосовали» сходилась с числом делегатов
-        votesAbsent = Math.max(0, participantsForAbsent.length - (votesFor + votesAgainst + votesAbstain));
+        votesAbsent = Math.max(0, absentBaseTv.length - (votesFor + votesAgainst + votesAbstain));
 
         console.log(`[VotingResults] ✅ Using aggregated results: FOR=${votesFor}, AGAINST=${votesAgainst}, ABSTAIN=${votesAbstain}`);
       }

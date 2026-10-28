@@ -5,6 +5,42 @@ const router = express.Router();
 const isInvitedDivisionName = (name) => String(name || '').replace(/👥/g, '').trim().toLowerCase() === 'приглашенные';
 const regularDivisionIds = (divisions) => (divisions || []).filter(d => !isInvitedDivisionName(d.name)).map(d => d.id);
 
+// Процедура считает «от присутствующих» (в условиях — «Все пользователи онлайн» / зарегистрированные)
+const isPresenceProcedure = (procedure) => {
+  if (!procedure) return false;
+  const s = (JSON.stringify(procedure.conditions || '') + ' ' + (procedure.name || '')).toLowerCase();
+  return s.includes('онлайн') || s.includes('зарегистр') || s.includes('присутств');
+};
+
+/**
+ * Кого учитывать в «Не голосовали».
+ * Процедура «от присутствующих»: только зарегистрированные + те, кто передал доверенность
+ * зарегистрированному (сумма строк итогов = число присутствующих).
+ * Остальные процедуры: все участники заседания (сумма = установленное число).
+ * Регистрация: место «Зал» — только карточка Televic, «Сайт» — вход на сайт или карточка.
+ */
+async function absentBaseParticipants(db, { meetingId, procedureId, participants, proxies }) {
+  if (!procedureId || !meetingId) return participants;
+  const procedure = await db.voteProcedure.findUnique({ where: { id: Number(procedureId) } });
+  if (!isPresenceProcedure(procedure)) return participants;
+  let locations = [];
+  try {
+    locations = await db.$queryRaw`SELECT "userId", "location" FROM "ParticipantLocation" WHERE "meetingId" = ${Number(meetingId)}`;
+  } catch (e) {
+    console.log('[absentBase] ParticipantLocation lookup failed:', e.message);
+  }
+  const locationByUserId = new Map(locations.map((l) => [l.userId, l.location]));
+  const users = await db.user.findMany({
+    where: { id: { in: participants.map(p => p.id) } },
+    select: { id: true, isOnline: true, isBadgeInserted: true },
+  });
+  const registered = new Set(users
+    .filter(u => (locationByUserId.get(u.id) === 'HALL' ? !!u.isBadgeInserted : (u.isOnline || u.isBadgeInserted)))
+    .map(u => u.id));
+  const giversToRegistered = new Set((proxies || []).filter(p => registered.has(p.toUserId)).map(p => p.fromUserId));
+  return participants.filter(p => registered.has(p.id) || giversToRegistered.has(p.id));
+}
+
 // Calculate decision function
 /**
  * Вычисляет решение для результата голосования на основе процедуры голосования.
@@ -541,7 +577,10 @@ module.exports = (prisma, pgClient, io) => {
         const votedUserIds = [...new Set(votes.map(v => v.userId))];
         const votedSetForAbsent = new Set(votedUserIds);
         const exercisedGivers = new Set(proxies.filter(p => votedSetForAbsent.has(p.toUserId)).map(p => p.fromUserId));
-        const votesAbsent = participants.filter(p =>
+        const absentBase = await absentBaseParticipants(tx, {
+          meetingId: voteResult.meetingId, procedureId: voteResult.procedureId, participants, proxies,
+        });
+        const votesAbsent = absentBase.filter(p =>
           !votedSetForAbsent.has(p.id) && !exercisedGivers.has(p.id)
         ).length;
 
@@ -1008,6 +1047,12 @@ router.post('/start-vote', async (req, res) => {
       },
     });
 
+    // Стартовое «не голосовали»: для процедур «от присутствующих» — только присутствующие
+    const startProxies = await prisma.proxy.findMany({ where: { meetingId: agendaItem.meetingId } });
+    const startAbsentBase = await absentBaseParticipants(prisma, {
+      meetingId: agendaItem.meetingId, procedureId: finalProcedureId, participants, proxies: startProxies,
+    });
+
     const voteResult = await prisma.voteResult.create({
       data: {
         agendaItemId: Number(agendaItemId),
@@ -1016,7 +1061,7 @@ router.post('/start-vote', async (req, res) => {
         votesFor: 0,
         votesAgainst: 0,
         votesAbstain: 0,
-        votesAbsent: participants.length,
+        votesAbsent: startAbsentBase.length,
         createdAt,
         duration: finalDuration,
         voteStatus: 'PENDING',
@@ -1113,8 +1158,12 @@ router.post('/start-vote', async (req, res) => {
         const votedSetTimer = new Set(votedUserIds);
         const exercisedGiversTimer = new Set(meetingProxies.filter(p => votedSetTimer.has(p.toUserId)).map(p => p.fromUserId));
 
+        const absentBaseTimer = await absentBaseParticipants(prisma, {
+          meetingId: finalVoteResult.meetingId, procedureId: finalVoteResult.procedureId,
+          participants, proxies: meetingProxies,
+        });
         let notVotedCount = 0;
-        for (const participant of participants) {
+        for (const participant of absentBaseTimer) {
           if (!votedSetTimer.has(participant.id) && !exercisedGiversTimer.has(participant.id)) {
             notVotedCount += 1;
           }
@@ -1218,3 +1267,5 @@ router.post('/start-vote', async (req, res) => {
 // Экспорт для server.cjs: ручное завершение голосования должно считать решение
 // той же функцией, что и завершение по таймеру
 module.exports.calculateDecision = calculateDecision;
+// «Не голосовали» с учётом процедуры (для server.cjs: ручное завершение и итоги с пультов Televic)
+module.exports.absentBaseParticipants = absentBaseParticipants;
