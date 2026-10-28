@@ -202,7 +202,10 @@ const DetailedVoteResultsPDF = ({ agendaItem, meeting, voteResults, participants
   return (
     <Document>
       {voteResults.map((voteResult, voteIndex) => {
-        const voters = getVotersByChoice(voteResult.votes || [], regularParticipants);
+        // Процедура «от присутствующих»: в списках только те, кто был зарегистрирован на момент голосования
+        const presentSet = Array.isArray(voteResult.presentUserIds) ? new Set(voteResult.presentUserIds) : null;
+        const baseParticipants = presentSet ? regularParticipants.filter(p => presentSet.has(p.id)) : regularParticipants;
+        const voters = getVotersByChoice(voteResult.votes || [], baseParticipants);
         const isClosedVote = voteResult.voteType === 'CLOSED';
         const endTime = voteResult.createdAt
           ? new Date(new Date(voteResult.createdAt).getTime() + (voteResult.duration || 0) * 1000)

@@ -19,7 +19,29 @@ const isPresenceProcedure = (procedure) => {
  * Остальные процедуры: все участники заседания (сумма = установленное число).
  * Регистрация: место «Зал» — только карточка Televic, «Сайт» — вход на сайт или карточка.
  */
-async function absentBaseParticipants(db, { meetingId, procedureId, participants, proxies }) {
+// Кто был «присутствующим» на момент голосования (для процедур «от присутствующих»).
+// Хранится отдельно, т.к. регистрация (isOnline/карточка) потом меняется, а детальный PDF
+// печатают уже после заседания. Таблица вне схемы Prisma, как ParticipantLocation.
+let presenceTableReady = false;
+async function savePresence(db, voteResultId, userIds) {
+  try {
+    if (!presenceTableReady) {
+      await db.$executeRawUnsafe(`CREATE TABLE IF NOT EXISTS "VoteResultPresence" (
+        "voteResultId" INTEGER NOT NULL,
+        "userId" INTEGER NOT NULL,
+        PRIMARY KEY ("voteResultId", "userId"))`);
+      presenceTableReady = true;
+    }
+    await db.$executeRaw`DELETE FROM "VoteResultPresence" WHERE "voteResultId" = ${Number(voteResultId)}`;
+    for (const uid of userIds) {
+      await db.$executeRaw`INSERT INTO "VoteResultPresence" ("voteResultId", "userId") VALUES (${Number(voteResultId)}, ${Number(uid)}) ON CONFLICT DO NOTHING`;
+    }
+  } catch (e) {
+    console.log('[presence] save failed:', e.message);
+  }
+}
+
+async function absentBaseParticipants(db, { meetingId, procedureId, participants, proxies, voteResultId }) {
   if (!procedureId || !meetingId) return participants;
   const procedure = await db.voteProcedure.findUnique({ where: { id: Number(procedureId) } });
   if (!isPresenceProcedure(procedure)) return participants;
@@ -38,7 +60,9 @@ async function absentBaseParticipants(db, { meetingId, procedureId, participants
     .filter(u => (locationByUserId.get(u.id) === 'HALL' ? !!u.isBadgeInserted : (u.isOnline || u.isBadgeInserted)))
     .map(u => u.id));
   const giversToRegistered = new Set((proxies || []).filter(p => registered.has(p.toUserId)).map(p => p.fromUserId));
-  return participants.filter(p => registered.has(p.id) || giversToRegistered.has(p.id));
+  const base = participants.filter(p => registered.has(p.id) || giversToRegistered.has(p.id));
+  if (voteResultId) await savePresence(db, voteResultId, base.map(p => p.id));
+  return base;
 }
 
 // Calculate decision function
@@ -1160,7 +1184,7 @@ router.post('/start-vote', async (req, res) => {
 
         const absentBaseTimer = await absentBaseParticipants(prisma, {
           meetingId: finalVoteResult.meetingId, procedureId: finalVoteResult.procedureId,
-          participants, proxies: meetingProxies,
+          participants, proxies: meetingProxies, voteResultId: finalVoteResult.id,
         });
         let notVotedCount = 0;
         for (const participant of absentBaseTimer) {

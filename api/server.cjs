@@ -544,7 +544,7 @@ app.post('/api/vote-results/:agendaItemId/end', async (req, res) => {
     const exercisedGiversEnd = new Set(proxiesForEnd.filter(p => votedSetEnd.has(p.toUserId)).map(p => p.fromUserId));
     const absentBaseEnd = await require('./root/vote.cjs').absentBaseParticipants(prisma, {
       meetingId: finalVoteResult.meetingId, procedureId: finalVoteResult.procedureId,
-      participants, proxies: proxiesForEnd,
+      participants, proxies: proxiesForEnd, voteResultId: finalVoteResult.id,
     });
     let notVotedCount = 0;
     for (const p of absentBaseEnd) if (!votedSetEnd.has(p.id) && !exercisedGiversEnd.has(p.id)) notVotedCount += 1;
@@ -860,7 +860,7 @@ coconNS.on('connection', (socket) => {
       // База «не голосовали» с учётом процедуры («от присутствующих» — только присутствующие)
       const absentBaseTv = await require('./root/vote.cjs').absentBaseParticipants(prisma, {
         meetingId: activeVoteResult.meeting.id, procedureId: activeVoteResult.procedureId,
-        participants: participantsForAbsent, proxies: proxiesForAbsent,
+        participants: participantsForAbsent, proxies: proxiesForAbsent, voteResultId: activeVoteResult.id,
       });
 
       if (hasIndividualVotes) {

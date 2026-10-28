@@ -488,9 +488,18 @@ router.get('/agenda-items/:id/detailed-votes', async (req, res) => {
           };
         });
 
+        // Для процедур «от присутствующих»: кто был присутствующим на момент голосования
+        // (сохраняется при завершении). null — список не сохранялся, PDF берёт всех участников.
+        let presentUserIds = null;
+        try {
+          const rows = await req.prisma.$queryRaw`SELECT "userId" FROM "VoteResultPresence" WHERE "voteResultId" = ${voteResult.id}`;
+          if (rows.length) presentUserIds = rows.map(r => Number(r.userId));
+        } catch (e) { /* таблицы ещё нет — голосований «от присутствующих» не было */ }
+
         return {
           ...voteResult,
           votes: votesWithProxies,
+          presentUserIds,
         };
       })
     );
